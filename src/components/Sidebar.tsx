@@ -19,12 +19,17 @@ export function Sidebar() {
     setEditingEnvironment, 
     currentWorkspace, 
     openTab,
-    setSidebarCollapsed
+    setSidebarCollapsed,
+    sidebarWidth,
+    user,
+    workspaces,
+    setCurrentWorkspace
   } = useStore();
   const [activeTab, setActiveTab] = useState<'collections' | 'environments'>('collections');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   
-  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
+  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'invite_member', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
   const [confirmModal, setConfirmModal] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
@@ -184,6 +189,27 @@ export function Sidebar() {
           if (activeRequest?.id === modal.targetRequestId) {
             setActiveRequest({ ...activeRequest, name });
           }
+        }
+      } else if (modal.type === 'workspace') {
+        const newWorkspace = {
+          id: uuidv4(),
+          name,
+          ownerId: user?.uid || '',
+          members: []
+        };
+        await setDoc(doc(db, "workspaces", newWorkspace.id), newWorkspace);
+        setCurrentWorkspace(newWorkspace);
+      } else if (modal.type === 'rename_workspace' && modal.targetId) {
+        await updateDoc(doc(db, "workspaces", modal.targetId), { name });
+        if (currentWorkspace && currentWorkspace.id === modal.targetId) {
+          setCurrentWorkspace({ ...currentWorkspace, name });
+        }
+      } else if (modal.type === 'invite_member' && currentWorkspace) {
+        const members = currentWorkspace.members || [];
+        if (!members.includes(name)) {
+          const updatedMembers = [...members, name];
+          await updateDoc(doc(db, "workspaces", currentWorkspace.id), { members: updatedMembers });
+          setCurrentWorkspace({ ...currentWorkspace, members: updatedMembers });
         }
       }
     } catch (e) {
@@ -640,35 +666,151 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-64 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] flex flex-col h-full shrink-0">
-      <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
-        <h1 className="text-sm tracking-tight font-semibold text-[var(--text-primary)] flex items-center gap-2">
-          <div className="w-6 h-6 bg-[var(--primary)] rounded flex items-center justify-center font-bold text-xs text-[var(--text-primary)]">P</div>
-          Team Workspace
-        </h1>
-        <div className="flex items-center gap-1">
-          <button 
-            onClick={handleExportData}
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
-            title="Export Data (JSON)"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
-            title="Import Data (JSON/Postman)"
-          >
-            <Upload className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={() => setSidebarCollapsed(true)}
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
-            title="Collapse Sidebar"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+    <div 
+      className="bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] flex flex-col h-full shrink-0"
+      style={{ width: sidebarWidth }}
+    >
+      <div className="p-4 border-b border-[var(--border-subtle)] flex flex-col gap-2 relative">
+        <div className="flex items-center justify-between">
+          <h1 className="text-sm tracking-tight font-bold text-[var(--text-primary)] flex items-center gap-2 select-none">
+            <div className="w-6 h-6 bg-[var(--primary)] rounded flex items-center justify-center font-bold text-xs text-white">O</div>
+            <span>OpenPost</span>
+          </h1>
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={handleExportData}
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
+              title="Export Data (JSON)"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => fileInputRef.current?.click()}
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
+              title="Import Data (JSON/Postman)"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setSidebarCollapsed(true)}
+              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
+              title="Collapse Sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+
+        {/* Workspace Selector Button */}
+        <div className="relative mt-1">
+          <button 
+            onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
+            className="w-full flex items-center justify-between bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] transition-all outline-none"
+          >
+            <div className="flex items-center gap-2 truncate">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+              <span className="truncate">{currentWorkspace?.name || 'Select Workspace'}</span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0 ml-1" />
+          </button>
+
+          {showWorkspaceDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-2xl z-50 py-1 max-h-64 overflow-y-auto">
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border-subtle)] mb-1">
+                Workspaces
+              </div>
+              
+              {workspaces.map(ws => {
+                const isSelected = ws.id === currentWorkspace?.id;
+                const isOwner = ws.ownerId === user?.uid;
+                return (
+                  <div 
+                    key={ws.id}
+                    className={cn(
+                      "group/ws flex items-center justify-between px-3 py-1.5 text-xs cursor-pointer transition-colors",
+                      isSelected ? "bg-[var(--bg-hover)] font-medium text-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                    )}
+                    onClick={() => {
+                      setCurrentWorkspace(ws);
+                      setShowWorkspaceDropdown(false);
+                    }}
+                  >
+                    <span className="truncate pr-2">{ws.name}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover/ws:opacity-100 transition-opacity">
+                      {isOwner && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setModal({
+                              isOpen: true,
+                              title: 'Rename Workspace',
+                              type: 'rename_workspace',
+                              targetId: ws.id,
+                              initialValue: ws.name
+                            });
+                            setShowWorkspaceDropdown(false);
+                          }}
+                          className="p-1 hover:text-[var(--primary)] hover:bg-[var(--bg-base)] rounded transition-colors"
+                          title="Rename Workspace"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      )}
+                      {isOwner && workspaces.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmModal({
+                              isOpen: true,
+                              title: 'Delete Workspace',
+                              message: `Are you sure you want to delete "${ws.name}"? This action is permanent and cannot be undone.`,
+                              onConfirm: async () => {
+                                try {
+                                  await deleteDoc(doc(db, "workspaces", ws.id));
+                                  const remaining = workspaces.filter(w => w.id !== ws.id);
+                                  if (remaining.length > 0) {
+                                    setCurrentWorkspace(remaining[0]);
+                                  }
+                                } catch (error) {
+                                  console.error("Failed to delete workspace:", error);
+                                }
+                                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                              }
+                            });
+                            setShowWorkspaceDropdown(false);
+                          }}
+                          className="p-1 hover:text-red-500 hover:bg-[var(--bg-base)] rounded transition-colors"
+                          title="Delete Workspace"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="border-t border-[var(--border-subtle)] mt-1 pt-1">
+                <button
+                  onClick={() => {
+                    setModal({
+                      isOpen: true,
+                      title: 'New Workspace',
+                      type: 'workspace',
+                      initialValue: ''
+                    });
+                    setShowWorkspaceDropdown(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-[var(--primary)] hover:bg-[var(--bg-hover)] font-medium transition-colors text-left"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Create Workspace
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         <input 
           type="file" 
           ref={fileInputRef} 
@@ -896,11 +1038,49 @@ export function Sidebar() {
         )}
       </div>
 
-      <div className="p-4 border-t border-[var(--border-subtle)]">
-         <button className="flex items-center gap-2 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] w-full py-2 px-2 rounded hover:bg-[var(--bg-hover)] transition-colors">
-            <Users className="w-4 h-4" />
-            Team Settings & Invites
-         </button>
+      <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-1 bg-[var(--bg-hover)]/30">
+        <button 
+          onClick={() => {
+            setModal({
+              isOpen: true,
+              title: 'Invite Team Member (by Email/UID)',
+              type: 'invite_member',
+              initialValue: ''
+            });
+          }}
+          className="flex items-center justify-between text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] w-full py-1.5 px-2 rounded hover:bg-[var(--bg-hover)] transition-colors outline-none"
+        >
+          <span className="flex items-center gap-2 font-medium">
+            <Users className="w-4 h-4 text-[var(--primary)] shrink-0" />
+            Workspace Members
+          </span>
+          <span className="text-[10px] bg-[var(--border-strong)] px-1.5 py-0.5 rounded-full font-bold">
+            {1 + (currentWorkspace?.members?.length || 0)}
+          </span>
+        </button>
+        {currentWorkspace?.members && currentWorkspace.members.length > 0 && (
+          <div className="px-2 py-1 max-h-24 overflow-y-auto flex flex-col gap-1 border-t border-[var(--border-subtle)] mt-1 pt-1.5">
+            {currentWorkspace.members.map((m, idx) => (
+              <div key={idx} className="text-[10px] text-[var(--text-secondary)] truncate flex items-center justify-between group/m">
+                <span className="truncate">• {m}</span>
+                {currentWorkspace.ownerId === user?.uid && (
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const updated = (currentWorkspace.members || []).filter(x => x !== m);
+                      await updateDoc(doc(db, "workspaces", currentWorkspace.id), { members: updated });
+                      setCurrentWorkspace({ ...currentWorkspace, members: updated });
+                    }}
+                    className="text-red-500 hover:text-red-600 opacity-0 group-hover/m:opacity-100 transition-opacity ml-1"
+                    title="Remove Member"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       
       <PromptModal 

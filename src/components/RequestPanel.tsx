@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { CurlImportModal } from './CurlImportModal';
+import { AutocompleteInput, AutocompleteTextarea } from './AutocompleteInput';
 
 export function RequestPanel() {
   const { activeRequest, setActiveRequest, activeTab, setActiveTab, setResponse, currentEnvironment, setCurrentRequestConfig } = useStore();
@@ -208,20 +209,20 @@ export function RequestPanel() {
                 />
               </div>
               <div className="flex-1 px-1">
-                <input
+                <AutocompleteInput
                   type="text"
                   placeholder="Key"
                   value={item.key || ''}
-                  onChange={(e) => handleKeyValueChange(type, item.id, 'key', e.target.value)}
+                  onValueChange={(val) => handleKeyValueChange(type, item.id, 'key', val)}
                   className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
                 />
               </div>
               <div className="flex-1 px-1">
-                 <input
+                 <AutocompleteInput
                   type="text"
                   placeholder="Value"
                   value={item.value || ''}
-                  onChange={(e) => handleKeyValueChange(type, item.id, 'value', e.target.value)}
+                  onValueChange={(val) => handleKeyValueChange(type, item.id, 'value', val)}
                   className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
                 />
               </div>
@@ -256,10 +257,10 @@ export function RequestPanel() {
             <option value="PATCH">PATCH</option>
             <option value="DELETE">DELETE</option>
           </select>
-          <input 
+          <AutocompleteInput 
             type="text" 
             value={url || ''}
-            onChange={(e) => setUrl(e.target.value)}
+            onValueChange={setUrl}
             placeholder="Enter URL or paste text"
             className="bg-transparent flex-1 px-3 text-sm text-[var(--text-primary)] focus:outline-none"
           />
@@ -336,9 +337,9 @@ export function RequestPanel() {
                 raw (JSON)
               </label>
             </div>
-            <textarea
+            <AutocompleteTextarea
               value={bodyContent}
-              onChange={(e) => setBodyContent(e.target.value)}
+              onValueChange={setBodyContent}
               placeholder="{\n  &quot;key&quot;: &quot;value&quot;\n}"
               className="flex-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-sm text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-none transition-colors leading-relaxed"
               spellCheck={false}
