@@ -49,6 +49,18 @@ interface AppState {
 
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
+
+  sidebarWidth: number;
+  setSidebarWidth: (width: number) => void;
+
+  requestPanelWidth: number;
+  setRequestPanelWidth: (width: number) => void;
+
+  responseCollapsed: boolean;
+  setResponseCollapsed: (collapsed: boolean) => void;
+
+  layoutMode: 'horizontal' | 'vertical' | 'floating';
+  setLayoutMode: (mode: 'horizontal' | 'vertical' | 'floating') => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -58,7 +70,12 @@ export const useStore = create<AppState>((set) => ({
   workspaces: [],
   setWorkspaces: (workspaces) => set({ workspaces }),
   currentWorkspace: null,
-  setCurrentWorkspace: (currentWorkspace) => set({ currentWorkspace }),
+  setCurrentWorkspace: (currentWorkspace) => {
+    if (currentWorkspace) {
+      localStorage.setItem('lastWorkspaceId', currentWorkspace.id);
+    }
+    set({ currentWorkspace });
+  },
 
   collections: [],
   setCollections: (collections) => set({ collections }),
@@ -118,4 +135,28 @@ export const useStore = create<AppState>((set) => ({
 
   sidebarCollapsed: false,
   setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+
+  sidebarWidth: Number(localStorage.getItem('sidebarWidth') || 256),
+  setSidebarWidth: (sidebarWidth) => {
+    localStorage.setItem('sidebarWidth', String(sidebarWidth));
+    set({ sidebarWidth });
+  },
+
+  requestPanelWidth: Number(localStorage.getItem('requestPanelWidth') || 50),
+  setRequestPanelWidth: (requestPanelWidth) => {
+    localStorage.setItem('requestPanelWidth', String(requestPanelWidth));
+    set({ requestPanelWidth });
+  },
+
+  responseCollapsed: localStorage.getItem('responseCollapsed') === 'true',
+  setResponseCollapsed: (responseCollapsed) => {
+    localStorage.setItem('responseCollapsed', String(responseCollapsed));
+    set({ responseCollapsed });
+  },
+
+  layoutMode: (localStorage.getItem('layoutMode') as 'horizontal' | 'vertical' | 'floating') || 'horizontal',
+  setLayoutMode: (layoutMode) => {
+    localStorage.setItem('layoutMode', layoutMode);
+    set({ layoutMode });
+  },
 }));
