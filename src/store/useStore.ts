@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { User, Workspace, ApiCollection, Environment, RequestItem } from "../types";
+import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment } from "../types";
 
 interface AppState {
   user: User | null;
@@ -18,18 +18,21 @@ interface AppState {
   currentEnvironment: Environment | null;
   setCurrentEnvironment: (env: Environment | null) => void;
 
-  activeView: 'request' | 'environment' | 'empty';
-  setActiveView: (view: 'request' | 'environment' | 'empty') => void;
+  deployments: Deployment[];
+  setDeployments: (deployments: Deployment[]) => void;
+
+  activeView: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc';
+  setActiveView: (view: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc') => void;
 
   theme: 'dark' | 'light';
   setTheme: (theme: 'dark' | 'light') => void;
   
-  openTabs: Array<{ id: string; type: 'request' | 'environment'; name: string; method?: string; isDirty?: boolean }>;
-  setOpenTabs: (tabs: Array<{ id: string; type: 'request' | 'environment'; name: string; method?: string; isDirty?: boolean }>) => void;
+  openTabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc'; name: string; method?: string; isDirty?: boolean }>;
+  setOpenTabs: (tabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc'; name: string; method?: string; isDirty?: boolean }>) => void;
   activeTabId: string | null;
   setActiveTabId: (id: string | null) => void;
   
-  openTab: (tab: { id: string; type: 'request' | 'environment'; name: string; method?: string; isDirty?: boolean }) => void;
+  openTab: (tab: { id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc'; name: string; method?: string; isDirty?: boolean }) => void;
   closeTab: (id: string) => void;
 
   editingEnvironment: Environment | null;
@@ -38,8 +41,8 @@ interface AppState {
   activeRequest: RequestItem | null;
   setActiveRequest: (request: RequestItem | null) => void;
   
-  activeTab: 'params' | 'auth' | 'headers' | 'body';
-  setActiveTab: (tab: 'params' | 'auth' | 'headers' | 'body') => void;
+  activeTab: 'params' | 'auth' | 'headers' | 'body' | 'mock';
+  setActiveTab: (tab: 'params' | 'auth' | 'headers' | 'body' | 'mock') => void;
   
   currentRequestConfig: any;
   setCurrentRequestConfig: (config: any) => void;
@@ -61,6 +64,20 @@ interface AppState {
 
   layoutMode: 'horizontal' | 'vertical' | 'floating';
   setLayoutMode: (mode: 'horizontal' | 'vertical' | 'floating') => void;
+
+  isBottomDrawerOpen: boolean;
+  setIsBottomDrawerOpen: (open: boolean) => void;
+  bottomDrawerActiveTab: 'console' | 'terminal' | 'issues';
+  setBottomDrawerActiveTab: (tab: 'console' | 'terminal' | 'issues') => void;
+  consoleLogs: LogEntry[];
+  addConsoleLog: (type: 'info' | 'warn' | 'error' | 'success', message: string, method?: string, url?: string, status?: number, timeMs?: number, size?: number, details?: any) => void;
+  clearConsoleLogs: () => void;
+  issues: IssueItem[];
+  addIssue: (type: 'error' | 'warning', title: string, description: string, url?: string, method?: string, suggestion?: string) => void;
+  clearIssues: () => void;
+  terminalHistory: string[];
+  addTerminalHistory: (cmd: string) => void;
+  clearTerminalHistory: () => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -84,6 +101,9 @@ export const useStore = create<AppState>((set) => ({
   setEnvironments: (environments) => set({ environments }),
   currentEnvironment: null,
   setCurrentEnvironment: (currentEnvironment) => set({ currentEnvironment }),
+
+  deployments: [],
+  setDeployments: (deployments) => set({ deployments }),
 
   activeView: 'empty',
   setActiveView: (activeView) => set({ activeView }),
@@ -159,4 +179,58 @@ export const useStore = create<AppState>((set) => ({
     localStorage.setItem('layoutMode', layoutMode);
     set({ layoutMode });
   },
+
+  isBottomDrawerOpen: localStorage.getItem('isBottomDrawerOpen') === 'true',
+  setIsBottomDrawerOpen: (isBottomDrawerOpen) => {
+    localStorage.setItem('isBottomDrawerOpen', String(isBottomDrawerOpen));
+    set({ isBottomDrawerOpen });
+  },
+  bottomDrawerActiveTab: (localStorage.getItem('bottomDrawerActiveTab') as 'console' | 'terminal' | 'issues') || 'console',
+  setBottomDrawerActiveTab: (bottomDrawerActiveTab) => {
+    localStorage.setItem('bottomDrawerActiveTab', bottomDrawerActiveTab);
+    set({ bottomDrawerActiveTab });
+  },
+  consoleLogs: [],
+  addConsoleLog: (type, message, method, url, status, timeMs, size, details) => set((state) => {
+    const newLog: LogEntry = {
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: new Date().toLocaleTimeString(),
+      type,
+      message,
+      method,
+      url,
+      status,
+      timeMs,
+      size,
+      details
+    };
+    return { consoleLogs: [...state.consoleLogs, newLog].slice(-100) };
+  }),
+  clearConsoleLogs: () => set({ consoleLogs: [] }),
+  issues: [],
+  addIssue: (type, title, description, url, method, suggestion) => set((state) => {
+    const exists = state.issues.some(i => i.title === title && i.url === url && i.type === type);
+    if (exists) return {};
+    const newIssue: IssueItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      timestamp: new Date().toLocaleTimeString(),
+      type,
+      title,
+      description,
+      url,
+      method,
+      suggestion
+    };
+    return { issues: [newIssue, ...state.issues].slice(0, 50) };
+  }),
+  clearIssues: () => set({ issues: [] }),
+  terminalHistory: [
+    'Welcome to API Tester Pro interactive developer shell!',
+    'Type "help" for a list of available commands.',
+    ''
+  ],
+  addTerminalHistory: (cmd) => set((state) => ({
+    terminalHistory: [...state.terminalHistory, cmd]
+  })),
+  clearTerminalHistory: () => set({ terminalHistory: ['Terminal cleared.', ''] }),
 }));

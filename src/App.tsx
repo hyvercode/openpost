@@ -12,7 +12,10 @@ import { Sidebar } from './components/Sidebar';
 import { RequestPanel } from './components/RequestPanel';
 import { ResponsePanel } from './components/ResponsePanel';
 import { EnvironmentPanel } from './components/EnvironmentPanel';
+import { DeploymentPanel } from './components/DeploymentPanel';
+import { CollectionDocPanel } from './components/CollectionDocPanel';
 import { TabBar } from './components/TabBar';
+import { BottomDrawer } from './components/BottomDrawer';
 import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal } from 'lucide-react';
 import { Workspace } from './types';
 import { cn } from './utils';
@@ -27,6 +30,7 @@ export default function App() {
     setCollections, 
     environments, 
     setEnvironments, 
+    setDeployments,
     currentEnvironment, 
     setCurrentEnvironment, 
     activeView, 
@@ -377,11 +381,16 @@ export default function App() {
       setEnvironments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
     });
 
+    const unsubDeployments = onSnapshot(query(collection(db, "deployments"), where("workspaceId", "==", currentWorkspace.id)), (snapshot) => {
+      setDeployments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
+    });
+
     return () => {
       unsubCollections();
       unsubEnvironments();
+      unsubDeployments();
     };
-  }, [currentWorkspace, setCollections, setEnvironments]);
+  }, [currentWorkspace, setCollections, setEnvironments, setDeployments]);
 
   if (loading) {
     return <div className="min-h-screen bg-gray-900 text-[var(--text-primary)] flex items-center justify-center">Loading...</div>;
@@ -523,7 +532,7 @@ export default function App() {
               {layoutMode === 'horizontal' && (
                 <>
                   <div 
-                    className="flex flex-col min-h-0 border-r border-[var(--border-subtle)]"
+                    className="flex flex-col min-h-0 border-r border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative"
                     style={responseCollapsed ? { flex: '1 1 0%', minWidth: '0' } : { width: `${requestPanelWidth}%`, minWidth: '20%' }}
                   >
                     <RequestPanel />
@@ -557,7 +566,7 @@ export default function App() {
 
                   {!responseCollapsed && (
                     <div 
-                      className="flex-1 flex flex-col min-h-0"
+                      className="flex-1 flex flex-col min-h-0 shadow-[var(--shadow-panel)] z-10 relative"
                       style={{ width: `${100 - requestPanelWidth}%`, minWidth: '20%' }}
                     >
                       <ResponsePanel />
@@ -569,7 +578,7 @@ export default function App() {
               {layoutMode === 'vertical' && (
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full h-full">
                   <div 
-                    className="flex flex-col min-h-0"
+                    className="flex flex-col min-h-0 border-b border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative"
                     style={responseCollapsed ? { flex: '1 1 0%', minHeight: '0' } : { height: `${requestPanelHeight}%`, minHeight: '15%' }}
                   >
                     <RequestPanel />
@@ -603,7 +612,7 @@ export default function App() {
 
                   {!responseCollapsed && (
                     <div 
-                      className="flex-1 flex flex-col min-h-0"
+                      className="flex-1 flex flex-col min-h-0 border-t border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative"
                       style={{ height: `${100 - requestPanelHeight}%`, minHeight: '15%' }}
                     >
                       <ResponsePanel />
@@ -618,8 +627,10 @@ export default function App() {
                   <div
                     onClick={() => setActiveWindow('request')}
                     className={cn(
-                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg shadow-2xl overflow-hidden transition-all duration-75",
-                      activeWindow === 'request' ? "border-[var(--primary)] shadow-3xl" : "border-[var(--border-strong)] shadow-lg"
+                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg overflow-hidden transition-all duration-75",
+                      activeWindow === 'request' 
+                        ? "border-[var(--primary)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] ring-1 ring-[var(--primary)]/20" 
+                        : "border-[var(--border-strong)] shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
                     )}
                     style={{
                       left: requestWindow.isMaximized ? 0 : `${requestWindow.x}px`,
@@ -683,8 +694,10 @@ export default function App() {
                   <div
                     onClick={() => setActiveWindow('response')}
                     className={cn(
-                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg shadow-2xl overflow-hidden transition-all duration-75",
-                      activeWindow === 'response' ? "border-[var(--primary)] shadow-3xl" : "border-[var(--border-strong)] shadow-lg"
+                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg overflow-hidden transition-all duration-75",
+                      activeWindow === 'response' 
+                        ? "border-[var(--primary)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] ring-1 ring-[var(--primary)]/20" 
+                        : "border-[var(--border-strong)] shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
                     )}
                     style={{
                       left: responseWindow.isMaximized ? 0 : `${responseWindow.x}px`,
@@ -750,6 +763,14 @@ export default function App() {
             <div className="flex-1 flex flex-col min-h-0">
               <EnvironmentPanel />
             </div>
+          ) : activeView === 'deployments' ? (
+            <div className="flex-1 flex flex-col min-h-0">
+              <DeploymentPanel />
+            </div>
+          ) : activeView === 'collection_doc' ? (
+            <div className="flex-1 flex flex-col min-h-0">
+              <CollectionDocPanel />
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-sm bg-[var(--bg-base)]">
               <div className="text-center">
@@ -761,6 +782,8 @@ export default function App() {
             </div>
           )}
         </main>
+        
+        <BottomDrawer />
         
         {/* Bottom Status Bar */}
         <footer className="h-6 bg-[var(--border-strong)] text-[var(--text-primary)] text-[10px] px-3 flex items-center justify-between shrink-0">
