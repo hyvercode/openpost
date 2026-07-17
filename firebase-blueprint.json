@@ -29,6 +29,19 @@
       },
       "read": "isAuthenticated()",
       "write": "isAuthenticated()"
+    },
+    {
+      "collection": "deployments",
+      "fields": {
+        "workspaceId": "string",
+        "collectionId": "string",
+        "collectionName": "string",
+        "version": "string",
+        "createdAt": "string",
+        "requests": "list"
+      },
+      "read": "true",
+      "write": "isAuthenticated()"
     }
   ]
 }

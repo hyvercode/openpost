@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft } from 'lucide-react';
+import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen } from 'lucide-react';
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { collection, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -8,11 +8,13 @@ import { db } from '../lib/firebase';
 import { ApiCollection, RequestItem } from '../types';
 import { PromptModal } from './PromptModal';
 import { ConfirmModal } from './ConfirmModal';
+import { CustomizeCollectionModal, getCollectionIcon } from './CustomizeCollectionModal';
 
 export function Sidebar() {
   const { 
     collections, 
     environments, 
+    deployments,
     activeRequest, 
     setActiveRequest, 
     setActiveView, 
@@ -25,14 +27,29 @@ export function Sidebar() {
     workspaces,
     setCurrentWorkspace
   } = useStore();
-  const [activeTab, setActiveTab] = useState<'collections' | 'environments'>('collections');
+  const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments'>('collections');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   
-  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'invite_member', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
+  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'invite_member'|'deploy', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
   const [confirmModal, setConfirmModal] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  const [customizationModal, setCustomizationModal] = useState<{
+    isOpen: boolean;
+    collectionId: string;
+    name: string;
+    color: string;
+    icon: string;
+  }>({
+    isOpen: false,
+    collectionId: '',
+    name: '',
+    color: '',
+    icon: ''
+  });
 
   const { filteredCollections, filteredEnvironments } = useMemo(() => {
     if (!searchQuery.trim()) return { filteredCollections: collections, filteredEnvironments: environments };
@@ -113,6 +130,22 @@ export function Sidebar() {
       else next.add(id);
       return next;
     });
+  };
+
+  const handleSaveCustomization = async (name: string, color: string, icon: string) => {
+    if (!customizationModal.collectionId) return;
+    
+    setCustomizationModal(prev => ({ ...prev, isOpen: false }));
+    
+    try {
+      await updateDoc(doc(db, "collections", customizationModal.collectionId), {
+        name,
+        color,
+        icon
+      });
+    } catch (e) {
+      console.error("Failed to update collection customization:", e);
+    }
   };
 
   const handleCreate = async (name: string) => {
@@ -210,6 +243,21 @@ export function Sidebar() {
           const updatedMembers = [...members, name];
           await updateDoc(doc(db, "workspaces", currentWorkspace.id), { members: updatedMembers });
           setCurrentWorkspace({ ...currentWorkspace, members: updatedMembers });
+        }
+      } else if (modal.type === 'deploy' && modal.targetId) {
+        const collectionDoc = collections.find(c => c.id === modal.targetId);
+        if (collectionDoc) {
+          const deployId = uuidv4();
+          const newDeployment = {
+            id: deployId,
+            workspaceId: currentWorkspace.id,
+            collectionId: collectionDoc.id,
+            collectionName: collectionDoc.name,
+            version: name || 'v1',
+            createdAt: new Date().toISOString(),
+            requests: collectionDoc.requests || []
+          };
+          await setDoc(doc(db, "deployments", deployId), newDeployment);
         }
       }
     } catch (e) {
@@ -824,20 +872,32 @@ export function Sidebar() {
         <button 
           onClick={() => setActiveTab('collections')}
           className={cn(
-            "flex-1 py-2 text-xs font-medium uppercase tracking-wider",
+            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-1",
             activeTab === 'collections' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           )}
+          title="Collections"
         >
           Collections
         </button>
         <button 
           onClick={() => setActiveTab('environments')}
           className={cn(
-            "flex-1 py-2 text-xs font-medium uppercase tracking-wider",
+            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-1",
             activeTab === 'environments' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           )}
+          title="Environments"
         >
           Environments
+        </button>
+        <button 
+          onClick={() => setActiveTab('deployments')}
+          className={cn(
+            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-1",
+            activeTab === 'deployments' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          )}
+          title="Mock Deployments"
+        >
+          Mocks
         </button>
       </div>
 
@@ -880,91 +940,183 @@ export function Sidebar() {
                       <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
                         {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)]" /> : <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />}
                       </div>
-                      <Folder className="w-4 h-4 text-[var(--primary)]" />
+                      {(() => {
+                        const CustomIcon = getCollectionIcon(collection.icon);
+                        return (
+                          <CustomIcon 
+                            className="w-4 h-4 shrink-0 transition-all animate-fade-in" 
+                            style={{ color: collection.color || 'var(--primary)' }} 
+                          />
+                        );
+                      })()}
                       <span className="text-xs truncate">{collection.name}</span>
                     </div>
-                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setModal({ isOpen: true, title: 'Rename Collection', type: 'rename_collection', targetId: collection.id, initialValue: collection.name }); }}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded"
-                        title="Rename Collection"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setModal({ isOpen: true, title: 'New Folder', type: 'folder', targetId: collection.id }); }}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded"
-                        title="New Folder"
-                      >
-                        <Folder className="w-3.5 h-3.5" />
-                      </button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setModal({ isOpen: true, title: 'New Request', type: 'request', targetId: collection.id }); }}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded transition-opacity"
-                        title="New Request"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          try {
-                            const newCollection = {
-                              ...collection,
-                              id: uuidv4(),
-                              name: `Copy of ${collection.name}`,
-                              workspaceId: currentWorkspace?.id || null,
-                            };
-                            const idMap = new Map<string, string>();
-                            
-                            newCollection.folders = newCollection.folders?.map(f => {
-                              const newId = uuidv4();
-                              idMap.set(f.id, newId);
-                              return { ...f, id: newId };
-                            }) || [];
-                            
-                            newCollection.folders = newCollection.folders.map(f => ({
-                              ...f,
-                              parentId: f.parentId ? (idMap.get(f.parentId) || null) : null
-                            }));
-                            
-                            newCollection.requests = newCollection.requests?.map(r => {
-                              const newId = uuidv4();
-                              return { ...r, id: newId, folderId: r.folderId ? (idMap.get(r.folderId) || null) : null };
-                            }) || [];
-                            
-                            await setDoc(doc(db, "collections", newCollection.id), newCollection);
-                          } catch (error) {
-                            console.error("Failed to duplicate collection:", error);
-                          }
-                        }}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded transition-opacity"
-                        title="Duplicate Collection"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="relative shrink-0 flex items-center">
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          setConfirmModal({
-                            isOpen: true,
-                            title: 'Delete Collection',
-                            message: 'Are you sure you want to delete this collection and all its contents?',
-                            onConfirm: async () => {
-                              setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                              try {
-                                await deleteDoc(doc(db, "collections", collection.id));
-                              } catch (error) {
-                                console.error("Failed to delete collection:", error);
-                              }
-                            }
-                          });
+                          setActiveDropdown(activeDropdown === collection.id ? null : collection.id);
                         }}
-                        className="text-[var(--text-secondary)] hover:text-[var(--text-delete)] p-0.5 rounded transition-opacity"
-                        title="Delete Collection"
+                        className={cn(
+                          "text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded transition-colors",
+                          activeDropdown === collection.id ? "opacity-100 text-[var(--text-primary)] bg-[var(--bg-hover-strong)]" : "opacity-0 group-hover:opacity-100"
+                        )}
+                        title="Collection Actions"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <MoreVertical className="w-4 h-4" />
                       </button>
+
+                      {activeDropdown === collection.id && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdown(null);
+                            }}
+                          />
+                          <div className="absolute right-0 top-full mt-1 w-52 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg shadow-[var(--shadow-panel)] py-1.5 z-50 animate-fade-in font-sans">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                openTab({ id: collection.id, type: 'collection_doc', name: `${collection.name} Doc` });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <BookOpen className="w-4 h-4 text-[var(--primary)] shrink-0" />
+                              <span className="font-semibold text-[var(--primary)]">View Documentation</span>
+                            </button>
+                            <div className="h-px bg-[var(--border-subtle)] my-1" />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                setCustomizationModal({
+                                  isOpen: true,
+                                  collectionId: collection.id,
+                                  name: collection.name,
+                                  color: collection.color || '',
+                                  icon: collection.icon || 'Folder'
+                                });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <Palette className="w-4 h-4 shrink-0" style={{ color: collection.color || undefined }} />
+                              <span>Customize Appearance</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                setModal({ isOpen: true, title: 'Rename Collection', type: 'rename_collection', targetId: collection.id, initialValue: collection.name });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <Edit2 className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+                              <span>Rename Collection</span>
+                            </button>
+                            <div className="h-px bg-[var(--border-subtle)] my-1" />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                setModal({ isOpen: true, title: 'New Folder', type: 'folder', targetId: collection.id });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <Folder className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+                              <span>New Folder</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                setModal({ isOpen: true, title: 'New Request', type: 'request', targetId: collection.id });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <Plus className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+                              <span>New Request</span>
+                            </button>
+                            <div className="h-px bg-[var(--border-subtle)] my-1" />
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                try {
+                                  const newCollection = {
+                                    ...collection,
+                                    id: uuidv4(),
+                                    name: `Copy of ${collection.name}`,
+                                    workspaceId: currentWorkspace?.id || null,
+                                  };
+                                  const idMap = new Map<string, string>();
+                                  
+                                  newCollection.folders = newCollection.folders?.map(f => {
+                                    const newId = uuidv4();
+                                    idMap.set(f.id, newId);
+                                    return { ...f, id: newId };
+                                  }) || [];
+                                  
+                                  newCollection.folders = newCollection.folders.map(f => ({
+                                    ...f,
+                                    parentId: f.parentId ? (idMap.get(f.parentId) || null) : null
+                                  }));
+                                  
+                                  newCollection.requests = newCollection.requests?.map(r => {
+                                    const newId = uuidv4();
+                                    return { ...r, id: newId, folderId: r.folderId ? (idMap.get(r.folderId) || null) : null };
+                                  }) || [];
+                                  
+                                  await setDoc(doc(db, "collections", newCollection.id), newCollection);
+                                } catch (error) {
+                                  console.error("Failed to duplicate collection:", error);
+                                }
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <Copy className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+                              <span>Duplicate Collection</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                setModal({ isOpen: true, title: 'Deploy Collection (Enter Version e.g. v1)', type: 'deploy', targetId: collection.id, initialValue: 'v1' });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors text-left font-semibold"
+                            >
+                              <Rocket className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <span>Deploy Mock Server</span>
+                            </button>
+                            <div className="h-px bg-[var(--border-subtle)] my-1" />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                setConfirmModal({
+                                  isOpen: true,
+                                  title: 'Delete Collection',
+                                  message: 'Are you sure you want to delete this collection and all its contents?',
+                                  onConfirm: async () => {
+                                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                    try {
+                                      await deleteDoc(doc(db, "collections", collection.id));
+                                    } catch (error) {
+                                      console.error("Failed to delete collection:", error);
+                                    }
+                                  }
+                                });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 hover:text-red-400 transition-colors text-left font-semibold"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-500 shrink-0" />
+                              <span>Delete Collection</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                   {isExpanded && (
@@ -981,7 +1133,7 @@ export function Sidebar() {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'environments' ? (
           <div>
              <div className="flex items-center justify-between px-2 py-2 group">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Environments</span>
@@ -1032,6 +1184,77 @@ export function Sidebar() {
             {filteredEnvironments.length === 0 && (
               <div className="text-center p-4 text-sm text-[var(--text-secondary)]">
                 {searchQuery ? "No results found." : "No environments found."}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between px-2 py-2 group">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Mock API Servers</span>
+            </div>
+            {deployments.map(deploy => {
+              const mockUrl = `${window.location.origin}/mock/${deploy.id}`;
+              return (
+                <div 
+                  key={deploy.id}
+                  onClick={() => {
+                    setActiveView('deployments');
+                    openTab({ id: deploy.id, type: 'deployments' as any, name: `${deploy.collectionName} (${deploy.version})` });
+                  }}
+                  className="flex flex-col gap-1 p-2.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group/dep border border-transparent hover:border-[var(--border-subtle)] mb-2 transition-all animate-fade-in"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 truncate">
+                      <Rocket className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <span className="text-xs font-semibold truncate text-[var(--text-primary)]">{deploy.collectionName}</span>
+                    </div>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        setConfirmModal({
+                          isOpen: true,
+                          title: 'Undeploy Mock Server',
+                          message: `Are you sure you want to delete/undeploy the mock server "${deploy.collectionName}" (${deploy.version})?`,
+                          onConfirm: async () => {
+                            setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                            try {
+                              await deleteDoc(doc(db, "deployments", deploy.id));
+                            } catch (error) {
+                              console.error("Failed to delete deployment:", error);
+                            }
+                          }
+                        });
+                      }}
+                      className="opacity-0 group-hover/dep:opacity-100 p-0.5 rounded text-[var(--text-secondary)] hover:text-red-500 transition-all animate-fade-in"
+                      title="Undeploy Mock Server"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] mt-0.5">
+                    <span className="bg-[var(--border-strong)] px-1.5 py-0.2 rounded font-mono text-emerald-400">{deploy.version}</span>
+                    <span>{new Date(deploy.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-[var(--bg-input)] hover:bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)] rounded px-2 py-1 mt-1 text-[10px] text-indigo-400 font-mono transition-all group-hover/dep:border-[var(--border-strong)]">
+                    <Globe className="w-3 h-3 text-indigo-400 shrink-0" />
+                    <span className="truncate flex-1">{mockUrl}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(mockUrl);
+                      }}
+                      className="p-0.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                      title="Copy URL"
+                    >
+                      <Copy className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {deployments.length === 0 && (
+              <div className="text-center p-4 text-xs text-[var(--text-secondary)]">
+                No mock servers deployed. Deploy a collection to start!
               </div>
             )}
           </div>
@@ -1097,6 +1320,15 @@ export function Sidebar() {
         message={confirmModal.message}
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+      <CustomizeCollectionModal
+        isOpen={customizationModal.isOpen}
+        title="Customize Collection Aesthetics"
+        initialName={customizationModal.name}
+        initialColor={customizationModal.color}
+        initialIcon={customizationModal.icon}
+        onSubmit={handleSaveCustomization}
+        onCancel={() => setCustomizationModal(prev => ({ ...prev, isOpen: false }))}
       />
     </div>
   );

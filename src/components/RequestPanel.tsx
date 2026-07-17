@@ -11,7 +11,19 @@ import { CurlImportModal } from './CurlImportModal';
 import { AutocompleteInput, AutocompleteTextarea } from './AutocompleteInput';
 
 export function RequestPanel() {
-  const { activeRequest, setActiveRequest, activeTab, setActiveTab, setResponse, currentEnvironment, setCurrentRequestConfig } = useStore();
+  const { 
+    activeRequest, 
+    setActiveRequest, 
+    activeTab, 
+    setActiveTab, 
+    setResponse, 
+    currentEnvironment, 
+    setCurrentRequestConfig,
+    addConsoleLog,
+    addIssue,
+    isBottomDrawerOpen,
+    setIsBottomDrawerOpen
+  } = useStore();
   
   // Local state for the active request to allow editing without saving immediately
   const [url, setUrl] = useState('');
@@ -19,6 +31,9 @@ export function RequestPanel() {
   const [headers, setHeaders] = useState<KeyValue[]>([]);
   const [params, setParams] = useState<KeyValue[]>([]);
   const [bodyContent, setBodyContent] = useState('');
+  const [mockStatus, setMockStatus] = useState<number>(200);
+  const [mockHeaders, setMockHeaders] = useState<KeyValue[]>([]);
+  const [mockBodyContent, setMockBodyContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'Saved' | 'Saving...' | 'Changed' | ''>('');
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
@@ -57,6 +72,9 @@ export function RequestPanel() {
         setHeaders(activeRequest.headers?.length ? activeRequest.headers : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
         setParams(activeRequest.params?.length ? activeRequest.params : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
         setBodyContent(activeRequest.body?.content || '');
+        setMockStatus(activeRequest.mockResponse?.status ?? 200);
+        setMockHeaders(activeRequest.mockResponse?.headers?.length ? activeRequest.mockResponse.headers : [{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }]);
+        setMockBodyContent(activeRequest.mockResponse?.body ?? '');
         setSaveStatus('');
       }
     } else {
@@ -66,6 +84,9 @@ export function RequestPanel() {
       setHeaders([{ id: uuidv4(), key: '', value: '', enabled: true }]);
       setParams([{ id: uuidv4(), key: '', value: '', enabled: true }]);
       setBodyContent('');
+      setMockStatus(200);
+      setMockHeaders([{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }]);
+      setMockBodyContent('');
       setSaveStatus('');
     }
   }, [activeRequest]);
@@ -84,7 +105,7 @@ export function RequestPanel() {
     }, 1000);
     
     return () => clearTimeout(timeout);
-  }, [url, method, headers, params, bodyContent]);
+  }, [url, method, headers, params, bodyContent, mockStatus, mockHeaders, mockBodyContent]);
 
   const handleSend = async () => {
     if (!url) return;
@@ -97,14 +118,21 @@ export function RequestPanel() {
     let finalUrl = replaceEnvironmentVariables(url, envVars);
     
     // Process Params
-    const urlObj = new URL(finalUrl.startsWith('http') ? finalUrl : `http://${finalUrl}`);
-    params.filter(p => p.enabled && p.key).forEach(p => {
-      urlObj.searchParams.append(
-        replaceEnvironmentVariables(p.key, envVars),
-        replaceEnvironmentVariables(p.value, envVars)
-      );
-    });
-    finalUrl = urlObj.toString();
+    try {
+      const urlObj = new URL(finalUrl.startsWith('http') ? finalUrl : `http://${finalUrl}`);
+      params.filter(p => p.enabled && p.key).forEach(p => {
+        urlObj.searchParams.append(
+          replaceEnvironmentVariables(p.key, envVars),
+          replaceEnvironmentVariables(p.value, envVars)
+        );
+      });
+      finalUrl = urlObj.toString();
+    } catch (e: any) {
+      addConsoleLog('error', `Invalid Request URL: ${finalUrl}`, method, finalUrl);
+      addIssue('error', 'Malformed URL Address', `The requested URL "${finalUrl}" is not valid or contains unsupported characters.`, finalUrl, method, 'Check the syntax, query params, or replace special characters.');
+      setIsLoading(false);
+      return;
+    }
 
     // Process Headers
     const finalHeaders: Record<string, string> = {};
@@ -112,20 +140,138 @@ export function RequestPanel() {
       finalHeaders[replaceEnvironmentVariables(h.key, envVars)] = replaceEnvironmentVariables(h.value, envVars);
     });
 
+    // Logging connection
+    addConsoleLog('info', `Initiating connection: [${method}] ${finalUrl}`, method, finalUrl);
+
+    // Dynamic Protocol Audit
+    if (finalUrl.startsWith('http:')) {
+      addIssue('warning', 'Unencrypted Protocol (HTTP)', `Request is utilizing cleartext HTTP, leaving payload vulnerable to interception.`, finalUrl, method, 'Upgrade the API service address to use secured https://.');
+    }
+
+    // Dynamic POST Audit
+    if (method === 'POST' && (!bodyContent || bodyContent.trim() === '')) {
+      addIssue('warning', 'POST Payload Empty', `You are sending a POST request with an empty body, which might be rejected by standard REST endpoints.`, finalUrl, method, 'Provide request variables or check if POST should be GET.');
+    }
+
     try {
+      let parsedBody = undefined;
+      if (bodyContent) {
+        try {
+          parsedBody = JSON.parse(replaceEnvironmentVariables(bodyContent, envVars));
+        } catch (jsonErr: any) {
+          addConsoleLog('warn', `Body contains invalid JSON layout. Sending raw content.`, method, finalUrl);
+          addIssue('warning', 'Invalid Request JSON', `Request body payload does not conform to standardized JSON syntax: ${jsonErr.message}`, finalUrl, method, 'Verify brackets, double quotes, and correct comma positions in request body tab.');
+          parsedBody = replaceEnvironmentVariables(bodyContent, envVars);
+        }
+      }
+
       const res = await axios.post('/api/proxy', {
         method,
         url: finalUrl,
         headers: finalHeaders,
-        body: bodyContent ? JSON.parse(replaceEnvironmentVariables(bodyContent, envVars)) : undefined, // very basic
+        body: parsedBody,
       });
+
       setResponse(res.data);
+
+      // Log API response success
+      addConsoleLog(
+        res.data.status >= 400 ? 'error' : 'success', 
+        `Response Code: ${res.data.status} ${res.data.statusText || 'OK'}`, 
+        method, 
+        finalUrl, 
+        res.data.status, 
+        res.data.timeMs, 
+        res.data.size, 
+        { 
+          request: { url: finalUrl, method, headers: finalHeaders, body: parsedBody }, 
+          response: res.data 
+        }
+      );
+
+      // Audit status code
+      if (res.data.status >= 400) {
+        addIssue(
+          'error', 
+          `API Server Response: Error ${res.data.status}`, 
+          `The remote host responded with HTTP status ${res.data.status} (${res.data.statusText || 'Error'}).`, 
+          finalUrl, 
+          method, 
+          'Review backend authentication settings, headers, or query parameters.'
+        );
+      }
+
+      // Audit Latency
+      if (res.data.timeMs > 500) {
+        addIssue(
+          'warning', 
+          'High Latency Response', 
+          `The round-trip response took ${res.data.timeMs}ms, which is slower than the optimal budget of 500ms.`, 
+          finalUrl, 
+          method, 
+          'Optimize server queries, leverage caching, or reduce requested items.'
+        );
+      }
+
+      // Audit response size
+      if (res.data.size > 1024 * 1024) {
+        addIssue(
+          'warning', 
+          'Heavy Response Size', 
+          `Transfer size is ${(res.data.size / 1024 / 1024).toFixed(2)} MB, increasing mobile network overhead.`, 
+          finalUrl, 
+          method, 
+          'Enable server compression headers (gzip) or filter responses using GraphQL.'
+        );
+      }
+
+      // Audit Security Headers
+      const respHeaders = res.data.headers || {};
+      const missingHeaders = [];
+      if (!respHeaders['content-security-policy'] && !respHeaders['Content-Security-Policy']) missingHeaders.push('Content-Security-Policy');
+      if (!respHeaders['x-frame-options'] && !respHeaders['X-Frame-Options']) missingHeaders.push('X-Frame-Options');
+      if (!respHeaders['x-content-type-options'] && !respHeaders['X-Content-Type-Options']) missingHeaders.push('X-Content-Type-Options');
+      if (missingHeaders.length > 0) {
+        addIssue(
+          'warning', 
+          'Missing Security Headers', 
+          `Response lacks network-level protection headers: ${missingHeaders.join(', ')}.`, 
+          finalUrl, 
+          method, 
+          'Add security standard headers to backend response (e.g., using helmet in node).'
+        );
+      }
+
     } catch (error: any) {
-      setResponse({
+      const errRes = {
         error: true,
         data: error.response?.data || error.message,
         status: error.response?.status || 0,
-      });
+      };
+      setResponse(errRes);
+
+      addConsoleLog(
+        'error', 
+        `Connection failed: ${error.message}`, 
+        method, 
+        finalUrl, 
+        error.response?.status || 0, 
+        0, 
+        0, 
+        { 
+          request: { url: finalUrl, method, headers: finalHeaders, body: bodyContent }, 
+          error: error.message 
+        }
+      );
+
+      addIssue(
+        'error', 
+        'Connection Network Failure', 
+        `Failed to reach the API host: ${error.message}`, 
+        finalUrl, 
+        method, 
+        'Verify host name resolution, local networking connection, or check CORS limits.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -144,7 +290,12 @@ export function RequestPanel() {
         method,
         headers,
         params,
-        body: { ...activeRequest.body, content: bodyContent }
+        body: { ...activeRequest.body, content: bodyContent },
+        mockResponse: {
+          status: mockStatus,
+          headers: mockHeaders,
+          body: mockBodyContent
+        }
       };
 
       const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
@@ -159,13 +310,13 @@ export function RequestPanel() {
   };
 
   const handleKeyValueChange = (
-    type: 'headers' | 'params',
+    type: 'headers' | 'params' | 'mockHeaders',
     id: string,
     field: keyof KeyValue,
     value: string | boolean
   ) => {
-    const setter = type === 'headers' ? setHeaders : setParams;
-    const items = type === 'headers' ? headers : params;
+    const setter = type === 'headers' ? setHeaders : type === 'params' ? setParams : setMockHeaders;
+    const items = type === 'headers' ? headers : type === 'params' ? params : mockHeaders;
     
     const newItems = items.map(item => item.id === id ? { ...item, [field]: value } : item);
     
@@ -177,9 +328,9 @@ export function RequestPanel() {
     setter(newItems);
   };
 
-  const removeKeyValue = (type: 'headers' | 'params', id: string) => {
-    const setter = type === 'headers' ? setHeaders : setParams;
-    const items = type === 'headers' ? headers : params;
+  const removeKeyValue = (type: 'headers' | 'params' | 'mockHeaders', id: string) => {
+    const setter = type === 'headers' ? setHeaders : type === 'params' ? setParams : setMockHeaders;
+    const items = type === 'headers' ? headers : type === 'params' ? params : mockHeaders;
     if (items.length === 1) {
       setter([{ id: uuidv4(), key: '', value: '', enabled: true }]);
     } else {
@@ -187,8 +338,8 @@ export function RequestPanel() {
     }
   };
 
-  const renderKeyValueEditor = (type: 'headers' | 'params') => {
-    const items = type === 'headers' ? headers : params;
+  const renderKeyValueEditor = (type: 'headers' | 'params' | 'mockHeaders') => {
+    const items = type === 'headers' ? headers : type === 'params' ? params : mockHeaders;
     return (
       <div className="flex flex-col h-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded overflow-hidden">
         <div className="flex border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
@@ -293,7 +444,7 @@ export function RequestPanel() {
 
       {/* Tabs */}
       <div className="flex gap-6 mt-4 border-b border-[var(--border-subtle)] px-4 shrink-0">
-        {(['params', 'auth', 'headers', 'body'] as const).map(tab => (
+        {(['params', 'auth', 'headers', 'body', 'mock'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab as any)}
@@ -304,7 +455,7 @@ export function RequestPanel() {
                 : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             )}
           >
-            {tab}
+            {tab === 'mock' ? 'Mock Response' : tab}
             {tab === 'headers' && headers.filter(h => h.key).length > 0 && (
               <span className="ml-1.5 text-[9px] bg-[var(--bg-hover)] text-[var(--text-secondary)] px-1 rounded">
                 {headers.filter(h => h.key).length}
@@ -344,6 +495,49 @@ export function RequestPanel() {
               className="flex-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-sm text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-none transition-colors leading-relaxed"
               spellCheck={false}
             />
+          </div>
+        )}
+        {activeTab === 'mock' && (
+          <div className="h-full flex flex-col gap-4 overflow-y-auto">
+            <div className="flex items-center gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                  Mock Status Code
+                </label>
+                <input
+                  type="number"
+                  placeholder="200"
+                  value={mockStatus}
+                  onChange={(e) => setMockStatus(Number(e.target.value) || 200)}
+                  className="bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--border-focus)] rounded text-xs font-mono text-[var(--text-primary)] px-3 py-1.5 outline-none w-32"
+                />
+              </div>
+              <div className="text-xs text-[var(--text-secondary)] mt-6">
+                Define the status code, custom headers, and body that this mock API will return.
+              </div>
+            </div>
+
+            <div className="flex flex-col flex-1 min-h-[160px]">
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                Mock Response Headers
+              </label>
+              <div className="flex-1 min-h-0">
+                {renderKeyValueEditor('mockHeaders')}
+              </div>
+            </div>
+
+            <div className="flex flex-col flex-1 min-h-[200px]">
+              <label className="block text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                Mock Response Body (JSON or Text)
+              </label>
+              <AutocompleteTextarea
+                value={mockBodyContent}
+                onValueChange={setMockBodyContent}
+                placeholder="{\n  &quot;message&quot;: &quot;Hello from mock API!&quot;\n}"
+                className="flex-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-sm text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-none transition-colors leading-relaxed"
+                spellCheck={false}
+              />
+            </div>
           </div>
         )}
       </div>

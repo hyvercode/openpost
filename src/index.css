@@ -17,6 +17,8 @@
   --text-put: #60A5FA;
   --text-delete: #F87171;
   --primary: #DD4814; /* Ubuntu Orange */
+  --shadow-panel: 0 10px 30px -5px rgba(0, 0, 0, 0.45), 0 4px 12px -5px rgba(0, 0, 0, 0.35);
+  --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .theme-light {
@@ -36,5 +38,7 @@
   --text-put: #1D4ED8;
   --text-delete: #B91C1C;
   --primary: #DD4814; /* Ubuntu Orange */
+  --shadow-panel: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 12px -5px rgba(0, 0, 0, 0.05);
+  --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 

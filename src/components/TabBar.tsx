@@ -6,7 +6,7 @@ import { cn } from '../utils';
 export function TabBar() {
   const { openTabs, activeTabId, setActiveTabId, closeTab, setActiveView, setActiveRequest, setEditingEnvironment, collections, environments } = useStore();
 
-  const handleTabClick = (tab: { id: string; type: 'request' | 'environment' }) => {
+  const handleTabClick = (tab: { id: string; type: any }) => {
     setActiveTabId(tab.id);
     if (tab.type === 'request') {
       const request = collections.flatMap(c => c.requests).find(r => r.id === tab.id);
@@ -14,12 +14,16 @@ export function TabBar() {
         setActiveRequest(request);
         setActiveView('request');
       }
-    } else {
+    } else if (tab.type === 'environment') {
       const env = environments.find(e => e.id === tab.id);
       if (env) {
         setEditingEnvironment(env);
         setActiveView('environment');
       }
+    } else if (tab.type === 'deployments') {
+      setActiveView('deployments');
+    } else if (tab.type === 'collection_doc') {
+      setActiveView('collection_doc');
     }
   };
 
