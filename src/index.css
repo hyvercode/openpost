@@ -1,1 +1,40 @@
 @import "tailwindcss";
+
+:root {
+  --bg-base: #2C001E; /* Ubuntu Dark Aubergine */
+  --bg-surface: #3D0C2A; /* Slightly lighter aubergine surface */
+  --bg-panel: #333333; /* Ubuntu Charcoal/Dark Grey */
+  --bg-input: #1F0015; /* Deeper dark aubergine for inputs */
+  --bg-hover: #5E2750; /* Ubuntu Medium Purple */
+  --border-subtle: #4D183E; /* Subtle aubergine-purple border */
+  --border-strong: #77216F; /* Ubuntu Dark Purple */
+  --border-focus: #DD4814; /* Ubuntu Orange */
+  --text-primary: #FFFFFF;
+  --text-secondary: #AEA79F; /* Ubuntu Warm Grey */
+  --text-code: #FACC15;
+  --text-get: #4ADE80;
+  --text-post: #FACC15;
+  --text-put: #60A5FA;
+  --text-delete: #F87171;
+  --primary: #DD4814; /* Ubuntu Orange */
+}
+
+.theme-light {
+  --bg-base: #FDFDFD;
+  --bg-surface: #F5F4F3; /* Warm Ubuntu light grey */
+  --bg-panel: #EAE8E6;
+  --bg-input: #FFFFFF;
+  --bg-hover: #AEA79F33; /* Warm grey hover highlight */
+  --border-subtle: #D6D2CE;
+  --border-strong: #AEA79F;
+  --border-focus: #DD4814;
+  --text-primary: #333333; /* Charcoal */
+  --text-secondary: #5E2750; /* Ubuntu Purple */
+  --text-code: #DD4814;
+  --text-get: #15803D;
+  --text-post: #A16207;
+  --text-put: #1D4ED8;
+  --text-delete: #B91C1C;
+  --primary: #DD4814; /* Ubuntu Orange */
+}
+

@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
-import { Play, Plus, Trash2, Save } from 'lucide-react';
+import { Play, Plus, Trash2, Save, TerminalSquare, Check } from 'lucide-react';
 import axios from 'axios';
 import { KeyValue } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { CurlImportModal } from './CurlImportModal';
 
 export function RequestPanel() {
   const { activeRequest, setActiveRequest, activeTab, setActiveTab, setResponse, currentEnvironment, setCurrentRequestConfig } = useStore();
@@ -18,7 +19,28 @@ export function RequestPanel() {
   const [params, setParams] = useState<KeyValue[]>([]);
   const [bodyContent, setBodyContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'Saved' | 'Saving...' | 'Changed' | ''>('');
+  const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
+
+  const activeRequestIdRef = useRef<string | null>(null);
+  const skipNextAutosave = useRef(false);
+
+  const handleCurlImport = (curlData: { method: string, url: string, headers: Array<{key: string, value: string}>, body: string }) => {
+    setMethod(curlData.method);
+    setUrl(curlData.url);
+    if (curlData.headers.length > 0) {
+      setHeaders(curlData.headers.map(h => ({ id: uuidv4(), key: h.key, value: h.value, enabled: true })));
+      // Ensure there's an empty line at the end
+      setHeaders(prev => [...prev, { id: uuidv4(), key: '', value: '', enabled: true }]);
+    }
+    setBodyContent(curlData.body);
+    if (curlData.body) {
+      setActiveTab('body');
+    } else if (curlData.headers.length > 0) {
+      setActiveTab('headers');
+    }
+    setIsCurlModalOpen(false);
+  };
 
   useEffect(() => {
     setCurrentRequestConfig({ url, method, headers, params, bodyContent });
@@ -26,19 +48,42 @@ export function RequestPanel() {
 
   useEffect(() => {
     if (activeRequest) {
-      setUrl(activeRequest.url);
-      setMethod(activeRequest.method);
-      setHeaders(activeRequest.headers.length ? activeRequest.headers : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
-      setParams(activeRequest.params.length ? activeRequest.params : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
-      setBodyContent(activeRequest.body.content);
+      if (activeRequest.id !== activeRequestIdRef.current) {
+        activeRequestIdRef.current = activeRequest.id;
+        skipNextAutosave.current = true;
+        setUrl(activeRequest.url || '');
+        setMethod(activeRequest.method || 'GET');
+        setHeaders(activeRequest.headers?.length ? activeRequest.headers : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
+        setParams(activeRequest.params?.length ? activeRequest.params : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
+        setBodyContent(activeRequest.body?.content || '');
+        setSaveStatus('');
+      }
     } else {
+      activeRequestIdRef.current = null;
       setUrl('');
       setMethod('GET');
       setHeaders([{ id: uuidv4(), key: '', value: '', enabled: true }]);
       setParams([{ id: uuidv4(), key: '', value: '', enabled: true }]);
       setBodyContent('');
+      setSaveStatus('');
     }
   }, [activeRequest]);
+
+  useEffect(() => {
+    if (skipNextAutosave.current) {
+      skipNextAutosave.current = false;
+      return;
+    }
+    if (!activeRequest || activeRequest.id !== activeRequestIdRef.current) return;
+    
+    setSaveStatus('Changed');
+    
+    const timeout = setTimeout(() => {
+      handleSaveRequest();
+    }, 1000);
+    
+    return () => clearTimeout(timeout);
+  }, [url, method, headers, params, bodyContent]);
 
   const handleSend = async () => {
     if (!url) return;
@@ -87,7 +132,7 @@ export function RequestPanel() {
 
   const handleSaveRequest = async () => {
     if (!activeRequest) return;
-    setIsSaving(true);
+    setSaveStatus('Saving...');
     try {
       const collection = useStore.getState().collections.find(c => c.id === activeRequest.collectionId);
       if (!collection) return;
@@ -105,10 +150,10 @@ export function RequestPanel() {
       await updateDoc(doc(db, "collections", collection.id), { requests: updatedRequests });
       
       setActiveRequest(updatedRequest);
+      setSaveStatus('Saved');
     } catch (e) {
       console.error("Save failed", e);
-    } finally {
-      setIsSaving(false);
+      setSaveStatus('Changed');
     }
   };
 
@@ -144,46 +189,46 @@ export function RequestPanel() {
   const renderKeyValueEditor = (type: 'headers' | 'params') => {
     const items = type === 'headers' ? headers : params;
     return (
-      <div className="flex flex-col h-full bg-[#121212] border border-[#2B2B2B] rounded overflow-hidden">
-        <div className="flex border-b border-[#2B2B2B] bg-[#161616]">
-          <div className="w-8 shrink-0 border-r border-[#2B2B2B]"></div>
-          <div className="flex-1 py-1.5 px-3 text-[10px] uppercase tracking-widest font-medium text-gray-500 border-r border-[#2B2B2B]">Key</div>
-          <div className="flex-1 py-1.5 px-3 text-[10px] uppercase tracking-widest font-medium text-gray-500">Value</div>
+      <div className="flex flex-col h-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded overflow-hidden">
+        <div className="flex border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          <div className="w-8 shrink-0 border-r border-[var(--border-subtle)]"></div>
+          <div className="flex-1 py-1.5 px-3 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)] border-r border-[var(--border-subtle)]">Key</div>
+          <div className="flex-1 py-1.5 px-3 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)]">Value</div>
           <div className="w-10 shrink-0"></div>
         </div>
         <div className="flex-1 overflow-y-auto p-1">
           {items.map((item) => (
-            <div key={item.id} className="flex items-center group mb-1 border-b border-[#1A1A1A] pb-1">
+            <div key={item.id} className="flex items-center group mb-1 border-b border-[var(--bg-panel)] pb-1">
               <div className="w-8 shrink-0 flex items-center justify-center">
                 <input 
                   type="checkbox" 
                   checked={item.enabled}
                   onChange={(e) => handleKeyValueChange(type, item.id, 'enabled', e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[#FF6C37] text-[#FF6C37] focus:ring-offset-gray-900"
+                  className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
                 />
               </div>
               <div className="flex-1 px-1">
                 <input
                   type="text"
                   placeholder="Key"
-                  value={item.key}
+                  value={item.key || ''}
                   onChange={(e) => handleKeyValueChange(type, item.id, 'key', e.target.value)}
-                  className="w-full bg-transparent border-b border-transparent focus:border-[#333] px-2 py-1 text-xs font-mono text-gray-300 outline-none placeholder:text-gray-600 transition-colors"
+                  className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
                 />
               </div>
               <div className="flex-1 px-1">
                  <input
                   type="text"
                   placeholder="Value"
-                  value={item.value}
+                  value={item.value || ''}
                   onChange={(e) => handleKeyValueChange(type, item.id, 'value', e.target.value)}
-                  className="w-full bg-transparent border-b border-transparent focus:border-[#333] px-2 py-1 text-xs font-mono text-gray-300 outline-none placeholder:text-gray-600 transition-colors"
+                  className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
                 />
               </div>
               <div className="w-10 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => removeKeyValue(type, item.id)}
-                  className="text-gray-500 hover:text-red-400 p-1"
+                  className="text-[var(--text-secondary)] hover:text-[var(--text-delete)] p-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -196,14 +241,14 @@ export function RequestPanel() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#1A1A1A]">
+    <div className="flex flex-col h-full bg-[var(--bg-panel)]">
       {/* URL Bar */}
       <div className="flex items-stretch gap-2 p-4 pb-0">
-        <div className="flex bg-[#252525] border border-[#333] rounded overflow-hidden flex-1">
+        <div className="flex bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded overflow-hidden flex-1">
           <select 
             value={method}
             onChange={(e) => setMethod(e.target.value)}
-            className="bg-transparent text-blue-400 font-bold text-xs px-3 border-r border-[#333] focus:outline-none"
+            className="bg-transparent text-[var(--text-put)] font-bold text-xs px-3 border-r border-[var(--border-strong)] focus:outline-none"
           >
             <option value="GET">GET</option>
             <option value="POST">POST</option>
@@ -213,16 +258,16 @@ export function RequestPanel() {
           </select>
           <input 
             type="text" 
-            value={url}
+            value={url || ''}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="Enter URL or paste text"
-            className="bg-transparent flex-1 px-3 text-sm text-gray-200 focus:outline-none"
+            className="bg-transparent flex-1 px-3 text-sm text-[var(--text-primary)] focus:outline-none"
           />
         </div>
         <button 
           onClick={handleSend}
           disabled={isLoading || !url}
-          className="bg-[#FF6C37] hover:bg-[#e65a2d] disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 rounded font-bold text-sm transition-colors flex items-center justify-center gap-2"
+          className="bg-[var(--primary)] hover:bg-[#e65a2d] disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 rounded font-bold text-sm transition-colors flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -231,18 +276,22 @@ export function RequestPanel() {
           )}
           Send
         </button>
+        <div className="flex items-center justify-center min-w-[80px] text-xs font-medium text-[var(--text-secondary)]">
+          {saveStatus === 'Saving...' && <span className="animate-pulse">Saving...</span>}
+          {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
+          {saveStatus === 'Changed' && <span>Unsaved...</span>}
+        </div>
         <button 
-          onClick={handleSaveRequest}
-          disabled={isSaving || !activeRequest}
-          className="bg-[#252525] border border-[#333] hover:border-[#444] disabled:opacity-50 text-gray-300 px-4 rounded text-xs font-medium transition-colors flex items-center gap-2"
+          onClick={() => setIsCurlModalOpen(true)}
+          className="bg-[var(--bg-hover)] border border-[var(--border-strong)] hover:border-[var(--border-focus)] text-[var(--text-primary)] px-4 rounded text-xs font-medium transition-colors flex items-center gap-2"
         >
-          <Save className="w-3.5 h-3.5" />
-          {isSaving ? 'Saving' : 'Save'}
+          <TerminalSquare className="w-3.5 h-3.5" />
+          Import cURL
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-6 mt-4 border-b border-[#2B2B2B] px-4 shrink-0">
+      <div className="flex gap-6 mt-4 border-b border-[var(--border-subtle)] px-4 shrink-0">
         {(['params', 'auth', 'headers', 'body'] as const).map(tab => (
           <button
             key={tab}
@@ -250,13 +299,13 @@ export function RequestPanel() {
             className={cn(
               "text-xs pb-2 font-medium transition-colors capitalize",
               activeTab === tab 
-                ? "text-[#FF6C37] border-b-2 border-[#FF6C37]" 
-                : "border-transparent text-gray-500 hover:text-gray-300"
+                ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" 
+                : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             )}
           >
             {tab}
             {tab === 'headers' && headers.filter(h => h.key).length > 0 && (
-              <span className="ml-1.5 text-[9px] bg-[#252525] text-gray-400 px-1 rounded">
+              <span className="ml-1.5 text-[9px] bg-[var(--bg-hover)] text-[var(--text-secondary)] px-1 rounded">
                 {headers.filter(h => h.key).length}
               </span>
             )}
@@ -265,14 +314,14 @@ export function RequestPanel() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 min-h-0 bg-[#121212] p-4">
+      <div className="flex-1 min-h-0 bg-[var(--bg-base)] p-4">
         {activeTab === 'params' && renderKeyValueEditor('params')}
         {activeTab === 'headers' && renderKeyValueEditor('headers')}
         {activeTab === 'auth' && (
-          <div className="h-full flex flex-col items-center justify-center text-gray-500 text-xs">
-            <p className="mb-2 text-sm text-gray-300">Authorization</p>
+          <div className="h-full flex flex-col items-center justify-center text-[var(--text-secondary)] text-xs">
+            <p className="mb-2 text-sm text-[var(--text-primary)]">Authorization</p>
             <p>This request does not use any authorization.</p>
-            <select className="mt-4 bg-[#252525] border border-[#333] text-gray-300 rounded px-3 py-1.5 outline-none focus:border-[#444]">
+            <select className="mt-4 bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-primary)] rounded px-3 py-1.5 outline-none focus:border-[var(--border-focus)]">
               <option value="none">No Auth</option>
               <option value="bearer">Bearer Token</option>
               <option value="basic">Basic Auth</option>
@@ -282,8 +331,8 @@ export function RequestPanel() {
         {activeTab === 'body' && (
           <div className="h-full flex flex-col">
             <div className="mb-2 flex items-center gap-4">
-              <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
-                <input type="radio" checked className="accent-[#FF6C37] bg-gray-800 border-gray-700 focus:ring-offset-gray-900" readOnly/>
+              <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
+                <input type="radio" checked className="accent-[var(--primary)] bg-gray-800 border-gray-700 focus:ring-offset-gray-900" readOnly/>
                 raw (JSON)
               </label>
             </div>
@@ -291,12 +340,18 @@ export function RequestPanel() {
               value={bodyContent}
               onChange={(e) => setBodyContent(e.target.value)}
               placeholder="{\n  &quot;key&quot;: &quot;value&quot;\n}"
-              className="flex-1 w-full bg-[#0A0A0A] border border-[#2B2B2B] rounded p-4 font-mono text-sm text-blue-300 outline-none focus:border-[#444] resize-none transition-colors leading-relaxed"
+              className="flex-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-sm text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-none transition-colors leading-relaxed"
               spellCheck={false}
             />
           </div>
         )}
       </div>
+
+      <CurlImportModal 
+        isOpen={isCurlModalOpen} 
+        onImport={handleCurlImport} 
+        onCancel={() => setIsCurlModalOpen(false)} 
+      />
     </div>
   );
 }

@@ -50,65 +50,65 @@ export function EnvironmentPanel() {
   if (!editingEnvironment) return null;
 
   return (
-    <div className="flex flex-col h-full bg-[#1A1A1A] p-6">
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#2B2B2B]">
+    <div className="flex flex-col h-full bg-[var(--bg-panel)] p-6">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--border-subtle)]">
         <div>
-          <h2 className="text-white text-lg font-semibold flex items-center gap-2 mb-1">
-            <Settings2 className="w-5 h-5 text-[#FF6C37]" />
+          <h2 className="text-[var(--text-primary)] text-lg font-semibold flex items-center gap-2 mb-1">
+            <Settings2 className="w-5 h-5 text-[var(--primary)]" />
             {editingEnvironment.name}
           </h2>
-          <p className="text-xs text-gray-500">Manage environment variables</p>
+          <p className="text-xs text-[var(--text-secondary)]">Manage environment variables</p>
         </div>
         <button 
           onClick={handleSave}
           disabled={isSaving}
-          className="bg-[#252525] border border-[#333] hover:border-[#444] disabled:opacity-50 text-gray-300 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
+          className="bg-[var(--bg-hover)] border border-[var(--border-strong)] hover:border-[var(--border-focus)] disabled:opacity-50 text-[var(--text-primary)] px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
         >
           <Save className="w-4 h-4" />
           {isSaving ? 'Saving...' : 'Save'}
         </button>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col bg-[#121212] border border-[#2B2B2B] rounded">
-        <div className="flex border-b border-[#2B2B2B] bg-[#161616]">
-          <div className="w-8 shrink-0 border-r border-[#2B2B2B]"></div>
-          <div className="flex-1 py-2 px-3 text-[10px] uppercase tracking-widest font-medium text-gray-500 border-r border-[#2B2B2B]">Variable</div>
-          <div className="flex-1 py-2 px-3 text-[10px] uppercase tracking-widest font-medium text-gray-500">Initial Value</div>
+      <div className="flex-1 overflow-hidden flex flex-col bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded">
+        <div className="flex border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          <div className="w-8 shrink-0 border-r border-[var(--border-subtle)]"></div>
+          <div className="flex-1 py-2 px-3 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)] border-r border-[var(--border-subtle)]">Variable</div>
+          <div className="flex-1 py-2 px-3 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)]">Initial Value</div>
           <div className="w-10 shrink-0"></div>
         </div>
         <div className="flex-1 overflow-y-auto p-1">
           {variables.map((item) => (
-            <div key={item.id} className="flex items-center group mb-1 border-b border-[#1A1A1A] pb-1">
+            <div key={item.id} className="flex items-center group mb-1 border-b border-[var(--bg-panel)] pb-1">
               <div className="w-8 shrink-0 flex items-center justify-center">
                 <input 
                   type="checkbox" 
                   checked={item.enabled}
                   onChange={(e) => handleChange(item.id, 'enabled', e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[#FF6C37] text-[#FF6C37] focus:ring-offset-gray-900"
+                  className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
                 />
               </div>
               <div className="flex-1 px-1">
                 <input
                   type="text"
                   placeholder="Key (e.g., API_KEY)"
-                  value={item.key}
+                  value={item.key || ''}
                   onChange={(e) => handleChange(item.id, 'key', e.target.value)}
-                  className="w-full bg-transparent border-b border-transparent focus:border-[#333] px-2 py-1.5 text-xs font-mono text-gray-300 outline-none placeholder:text-gray-600 transition-colors"
+                  className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
                 />
               </div>
               <div className="flex-1 px-1">
                 <input
                   type="text"
                   placeholder="Value"
-                  value={item.value}
+                  value={item.value || ''}
                   onChange={(e) => handleChange(item.id, 'value', e.target.value)}
-                  className="w-full bg-transparent border-b border-transparent focus:border-[#333] px-2 py-1.5 text-xs font-mono text-gray-300 outline-none placeholder:text-gray-600 transition-colors"
+                  className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
                 />
               </div>
               <div className="w-10 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
                   onClick={() => handleRemove(item.id)}
-                  className="text-gray-500 hover:text-red-400 p-1.5"
+                  className="text-[var(--text-secondary)] hover:text-[var(--text-delete)] p-1.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
