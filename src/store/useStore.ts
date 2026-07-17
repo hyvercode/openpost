@@ -21,6 +21,9 @@ interface AppState {
   activeView: 'request' | 'environment' | 'empty';
   setActiveView: (view: 'request' | 'environment' | 'empty') => void;
 
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
+  
   openTabs: Array<{ id: string; type: 'request' | 'environment'; name: string; method?: string; isDirty?: boolean }>;
   setOpenTabs: (tabs: Array<{ id: string; type: 'request' | 'environment'; name: string; method?: string; isDirty?: boolean }>) => void;
   activeTabId: string | null;
@@ -43,6 +46,9 @@ interface AppState {
   
   response: any;
   setResponse: (res: any) => void;
+
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -64,6 +70,9 @@ export const useStore = create<AppState>((set) => ({
 
   activeView: 'empty',
   setActiveView: (activeView) => set({ activeView }),
+
+  theme: 'dark',
+  setTheme: (theme) => set({ theme }),
 
   openTabs: [],
   setOpenTabs: (openTabs) => set({ openTabs }),
@@ -106,4 +115,7 @@ export const useStore = create<AppState>((set) => ({
 
   response: null,
   setResponse: (response) => set({ response }),
+
+  sidebarCollapsed: false,
+  setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
 }));

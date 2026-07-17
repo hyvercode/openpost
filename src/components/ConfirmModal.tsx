@@ -21,13 +21,13 @@ export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: Co
   
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-[#1A1A1A] border border-[#2B2B2B] rounded-lg p-5 w-80 shadow-2xl">
-        <h3 className="text-white text-sm font-semibold mb-2">{title}</h3>
-        <p className="text-gray-400 text-xs mb-5">{message}</p>
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg p-5 w-80 shadow-2xl">
+        <h3 className="text-[var(--text-primary)] text-sm font-semibold mb-2">{title}</h3>
+        <p className="text-[var(--text-secondary)] text-xs mb-5">{message}</p>
         <div className="flex justify-end gap-3">
           <button 
             onClick={onCancel} 
-            className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors"
+            className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
             Cancel
           </button>
