@@ -1,0 +1,34 @@
+{
+  "rules": [
+    {
+      "collection": "workspaces",
+      "fields": {
+        "name": "string",
+        "ownerId": "string",
+        "members": "list"
+      },
+      "read": "isAuthenticated() && (resource.data.ownerId == request.auth.uid || request.auth.uid in resource.data.members)",
+      "write": "isAuthenticated() && (resource.data.ownerId == request.auth.uid || request.auth.uid in resource.data.members)"
+    },
+    {
+      "collection": "collections",
+      "fields": {
+        "workspaceId": "string",
+        "name": "string",
+        "requests": "list"
+      },
+      "read": "isAuthenticated()",
+      "write": "isAuthenticated()"
+    },
+    {
+      "collection": "environments",
+      "fields": {
+        "workspaceId": "string",
+        "name": "string",
+        "variables": "list"
+      },
+      "read": "isAuthenticated()",
+      "write": "isAuthenticated()"
+    }
+  ]
+}

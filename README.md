@@ -1,11 +1,24 @@
-<div align="center">
+# API Tester Pro
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A powerful, Postman-like API testing application with team collaboration, collections, and environment variable support.
 
-  <h1>Built with AI Studio</h2>
+## Features
+- **Firebase Realtime Sync**: Instantly sync collections and environments across your team.
+- **Offline Support**: IndexedDB caching ensures you can still view and edit requests offline.
+- **Postman Import**: Import existing Postman collections (v2.1) directly via the Upload icon.
+- **Role-Based Workspaces**: Only invited users can access specific workspaces.
+- **Proxy Server**: Bypasses CORS limitations for testing any API in the browser.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Desktop Build (Electron)
+This application is configured to be built as a cross-platform desktop application using Electron.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+To run the desktop version locally:
+```bash
+npm run electron:dev
+```
 
-</div>
+To package for Windows, macOS, and Linux, you can integrate tools like `electron-builder`:
+```bash
+npm install -D electron-builder
+```
+Then add packaging scripts to `package.json`.
