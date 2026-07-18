@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import axios from "axios";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import { SocksProxyAgent } from "socks-proxy-agent";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
@@ -99,12 +101,37 @@ Body: ${JSON.stringify(requestConfig.body || {})}
         ? req.body.body 
         : (req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined);
       
+      const proxyConfig = req.body?.proxyConfig;
+      let httpsAgent = undefined;
+      let httpAgent = undefined;
+
+      if (proxyConfig && proxyConfig.enabled && proxyConfig.url) {
+        const proxyUrl = proxyConfig.url.includes('://') ? proxyConfig.url : `${proxyConfig.protocol}://${proxyConfig.url}`;
+        const urlObj = new URL(proxyUrl);
+        
+        if (proxyConfig.useAuth && proxyConfig.username) {
+          urlObj.username = proxyConfig.username;
+          urlObj.password = proxyConfig.password || '';
+        }
+
+        if (proxyConfig.protocol === 'socks5') {
+          httpsAgent = new SocksProxyAgent(urlObj.toString());
+          httpAgent = new SocksProxyAgent(urlObj.toString());
+        } else {
+          httpsAgent = new HttpsProxyAgent(urlObj.toString());
+          httpAgent = new HttpsProxyAgent(urlObj.toString());
+        }
+      }
+      
       const config: any = {
         method,
         url: targetUrl,
         headers,
         data,
         validateStatus: () => true, // resolve promise for any status code
+        httpsAgent,
+        httpAgent,
+        proxy: false, // Disable axios default proxy handling when using custom agents
       };
 
       // Use axios but with a custom agent to get timings if we want to stay with axios

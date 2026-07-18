@@ -97,7 +97,7 @@ export const apiService = {
     await api.delete(`/deployments/${id}`);
   },
 
-  async executeRequest(req: any) {
+  async executeRequest(req: any, proxyConfig?: any) {
     const res = await api.post('/proxy', {
       method: req.method,
       url: req.url,
@@ -106,6 +106,7 @@ export const apiService = {
         return acc;
       }, {}),
       body: req.body?.content ? JSON.parse(req.body.content) : undefined,
+      proxyConfig,
     });
     return res.data;
   },

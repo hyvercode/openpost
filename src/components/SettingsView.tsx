@@ -6,9 +6,17 @@ import { updateProfile, updatePassword } from 'firebase/auth';
 import { cn } from '../utils';
 
 export const SettingsView: React.FC = () => {
-  const { user, setUser, workspaces, currentWorkspace, setCurrentWorkspace, addToast } = useStore();
-  const [activeTab, setActiveTab] = useState<'profile' | 'workspace' | 'team' | 'security'>('profile');
+  const { user, setUser, workspaces, currentWorkspace, setCurrentWorkspace, addToast, proxyConfig, setProxyConfig } = useStore();
+  const [activeTab, setActiveTab] = useState<'profile' | 'workspace' | 'team' | 'security' | 'proxy'>('profile');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Proxy State
+  const [proxyEnabled, setProxyEnabled] = useState(proxyConfig.enabled);
+  const [proxyUrl, setProxyUrl] = useState(proxyConfig.url);
+  const [proxyProtocol, setProxyProtocol] = useState(proxyConfig.protocol);
+  const [proxyUseAuth, setProxyUseAuth] = useState(proxyConfig.useAuth);
+  const [proxyUsername, setProxyUsername] = useState(proxyConfig.username || '');
+  const [proxyPassword, setProxyPassword] = useState(proxyConfig.password || '');
 
   // Profile State
   const [displayName, setDisplayName] = useState(user?.displayName || '');
@@ -20,6 +28,19 @@ export const SettingsView: React.FC = () => {
 
   // Team State
   const [inviteEmail, setInviteEmail] = useState('');
+
+  const handleUpdateProxy = (e: React.FormEvent) => {
+    e.preventDefault();
+    setProxyConfig({
+      enabled: proxyEnabled,
+      url: proxyUrl,
+      protocol: proxyProtocol as any,
+      useAuth: proxyUseAuth,
+      username: proxyUsername,
+      password: proxyPassword
+    });
+    addToast('Proxy settings saved', 'success');
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,6 +153,17 @@ export const SettingsView: React.FC = () => {
           >
             <Lock className="w-4 h-4" />
             Security
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('proxy')}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+              activeTab === 'proxy' ? "bg-[var(--primary)] text-white" : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            )}
+          >
+            <Globe className="w-4 h-4" />
+            Proxy Settings
           </button>
         </div>
 
@@ -372,6 +404,126 @@ export const SettingsView: React.FC = () => {
                   <button className="bg-red-500 text-white px-4 py-2 rounded text-sm font-bold hover:bg-red-600 transition-colors">
                     Delete Account
                   </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'proxy' && (
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[var(--text-primary)]">Proxy Configuration</h1>
+                  <p className="text-[var(--text-secondary)]">Route your API requests through a custom proxy server or tunnel</p>
+                </div>
+
+                <form onSubmit={handleUpdateProxy} className="space-y-6 bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)]">
+                  <div className="flex items-center justify-between p-4 bg-[var(--bg-hover)] rounded-lg border border-[var(--border-subtle)]">
+                    <div>
+                      <h3 className="text-sm font-bold text-[var(--text-primary)]">Enable Custom Proxy</h3>
+                      <p className="text-xs text-[var(--text-secondary)]">When enabled, all requests will be routed via the configured server</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setProxyEnabled(!proxyEnabled)}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                        proxyEnabled ? "bg-[var(--primary)]" : "bg-[var(--bg-input)]"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                          proxyEnabled ? "translate-x-6" : "translate-x-1"
+                        )}
+                      />
+                    </button>
+                  </div>
+
+                  <div className={cn("space-y-4 transition-opacity", !proxyEnabled && "opacity-50 pointer-events-none")}>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="col-span-1 space-y-2">
+                        <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Protocol</label>
+                        <select
+                          value={proxyProtocol}
+                          onChange={(e) => setProxyProtocol(e.target.value as any)}
+                          className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
+                        >
+                          <option value="http">HTTP</option>
+                          <option value="https">HTTPS</option>
+                          <option value="socks5">SOCKS5</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2 space-y-2">
+                        <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Proxy URL / Host</label>
+                        <input
+                          type="text"
+                          value={proxyUrl}
+                          onChange={(e) => setProxyUrl(e.target.value)}
+                          className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
+                          placeholder="e.g. 127.0.0.1:8080 or proxy.example.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t border-[var(--border-subtle)]">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="proxyAuth"
+                          checked={proxyUseAuth}
+                          onChange={(e) => setProxyUseAuth(e.target.checked)}
+                          className="rounded border-[var(--border-strong)] bg-[var(--bg-hover)] text-[var(--primary)] focus:ring-[var(--primary)]"
+                        />
+                        <label htmlFor="proxyAuth" className="text-xs font-bold uppercase text-[var(--text-secondary)] cursor-pointer">Use Authentication</label>
+                      </div>
+
+                      {proxyUseAuth && (
+                        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Username</label>
+                            <input
+                              type="text"
+                              value={proxyUsername}
+                              onChange={(e) => setProxyUsername(e.target.value)}
+                              className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
+                              placeholder="Username"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Password</label>
+                            <input
+                              type="password"
+                              value={proxyPassword}
+                              onChange={(e) => setProxyPassword(e.target.value)}
+                              className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
+                              placeholder="Password"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex justify-end">
+                    <button
+                      type="submit"
+                      className="bg-[var(--primary)] text-white px-6 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-[var(--primary)]/20"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save Proxy Settings
+                    </button>
+                  </div>
+                </form>
+
+                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-3">
+                   <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                     <Shield className="w-4 h-4 text-blue-500" />
+                     Security & Privacy Note
+                   </h3>
+                   <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                     Configuring a proxy routes all your outgoing API requests through that server. 
+                     Make sure you trust the proxy provider as they may be able to inspect the traffic. 
+                     For local development, tools like <strong>ngrok</strong> or <strong>localflare</strong> can be used as tunnels.
+                   </p>
                 </div>
               </div>
             )}

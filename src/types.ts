@@ -217,6 +217,15 @@ export interface TestSuite {
 
 
 
+export interface ProxyConfig {
+  enabled: boolean;
+  url: string;
+  protocol: 'http' | 'https' | 'socks5';
+  useAuth: boolean;
+  username?: string;
+  password?: string;
+}
+
 export interface WsMessage {
   id: string;
   type: 'sent' | 'received' | 'info' | 'error';

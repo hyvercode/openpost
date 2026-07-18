@@ -467,6 +467,7 @@ export function RequestPanel() {
     }
 
     try {
+      const { proxyConfig } = useStore.getState();
       let parsedBody = undefined;
       if (method === 'GQL') {
         const resolvedVariables = gqlVariables ? replaceEnvironmentVariables(gqlVariables, processedEnvVars) : '{}';
@@ -496,6 +497,7 @@ export function RequestPanel() {
         url: finalUrl,
         headers: finalHeaders,
         body: parsedBody,
+        proxyConfig,
       });
 
       setResponse(res.data);
@@ -698,6 +700,7 @@ export function RequestPanel() {
     `;
 
     try {
+      const { proxyConfig } = useStore.getState();
       const finalHeaders: Record<string, string> = {};
       headers.forEach(h => {
         if (h.enabled && h.key) {
@@ -712,7 +715,8 @@ export function RequestPanel() {
           ...finalHeaders,
           'Content-Type': 'application/json'
         },
-        body: { query: introspectionQuery }
+        body: { query: introspectionQuery },
+        proxyConfig
       });
 
       setResponse(res.data);
