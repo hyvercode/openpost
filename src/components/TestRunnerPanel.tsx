@@ -47,6 +47,7 @@ export function TestRunnerPanel() {
 
   const runTests = async () => {
     setIsRunning(true);
+    const { proxyConfig } = useStore.getState();
     const newResults: Record<string, { success: boolean; log: string[] }> = {};
     
     for (const testCase of suite.testCases) {
@@ -61,7 +62,7 @@ export function TestRunnerPanel() {
       try {
         logs.push(`Executing ${req.method} ${req.url}`);
         const startTime = Date.now();
-        const res = await apiService.executeRequest(req);
+        const res = await apiService.executeRequest(req, proxyConfig);
         const duration = Date.now() - startTime;
         
         for (const assertion of testCase.assertions) {

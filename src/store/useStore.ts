@@ -1,9 +1,12 @@
 import { create } from "zustand";
-import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage } from "../types";
+import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage, ProxyConfig } from "../types";
 
 interface AppState {
   user: User | null;
   setUser: (user: User | null) => void;
+  
+  proxyConfig: ProxyConfig;
+  setProxyConfig: (config: ProxyConfig) => void;
   
   workspaces: Workspace[];
   setWorkspaces: (workspaces: Workspace[]) => void;
@@ -109,6 +112,20 @@ export const useStore = create<AppState>((set) => ({
   
   workspaces: [],
   setWorkspaces: (workspaces) => set({ workspaces }),
+  
+  proxyConfig: (() => {
+    try {
+      const saved = localStorage.getItem('proxy_config');
+      return saved ? JSON.parse(saved) : { enabled: false, url: '', protocol: 'http', useAuth: false };
+    } catch {
+      return { enabled: false, url: '', protocol: 'http', useAuth: false };
+    }
+  })(),
+  setProxyConfig: (proxyConfig) => {
+    localStorage.setItem('proxy_config', JSON.stringify(proxyConfig));
+    set({ proxyConfig });
+  },
+
   currentWorkspace: null,
   setCurrentWorkspace: (currentWorkspace) => {
     if (currentWorkspace) {
