@@ -1,0 +1,112 @@
+import axios from 'axios';
+import { Workspace, ApiCollection, Environment, Deployment } from '../types';
+
+const api = axios.create({
+  baseURL: '/api',
+});
+
+export const apiService = {
+  // Users
+  async saveUser(user: { uid: string; email: string | null; displayName: string | null; photoURL: string | null }) {
+    const res = await api.post('/users', user);
+    return res.data;
+  },
+
+  async getUser(uid: string) {
+    const res = await api.get(`/users/${uid}`);
+    return res.data;
+  },
+
+  // Workspaces
+  async getWorkspaces(userId: string): Promise<Workspace[]> {
+    const res = await api.get('/workspaces', { params: { userId } });
+    return res.data;
+  },
+
+  async createWorkspace(name: string, ownerId: string, id?: string): Promise<Workspace> {
+    const res = await api.post('/workspaces', { id, name, ownerId });
+    return res.data;
+  },
+
+  async updateWorkspace(id: string, name: string): Promise<Workspace> {
+    const res = await api.put(`/workspaces/${id}`, { name });
+    return res.data;
+  },
+
+  async deleteWorkspace(id: string): Promise<void> {
+    await api.delete(`/workspaces/${id}`);
+  },
+
+  // Collections
+  async getCollections(workspaceId: string): Promise<ApiCollection[]> {
+    const res = await api.get(`/collections/${workspaceId}`);
+    return res.data;
+  },
+
+  async createCollection(collection: Partial<ApiCollection> & { workspaceId: string; name: string }): Promise<ApiCollection> {
+    const res = await api.post('/collections', collection);
+    return res.data;
+  },
+
+  async updateCollection(id: string, collection: Partial<ApiCollection>): Promise<ApiCollection> {
+    const res = await api.put(`/collections/${id}`, collection);
+    return res.data;
+  },
+
+  async deleteCollection(id: string): Promise<void> {
+    await api.delete(`/collections/${id}`);
+  },
+
+  // Environments
+  async getEnvironments(workspaceId: string): Promise<Environment[]> {
+    const res = await api.get(`/environments/${workspaceId}`);
+    return res.data;
+  },
+
+  async createEnvironment(env: Partial<Environment> & { workspaceId: string; name: string }): Promise<Environment> {
+    const res = await api.post('/environments', env);
+    return res.data;
+  },
+
+  async updateEnvironment(id: string, env: Partial<Environment>): Promise<Environment> {
+    const res = await api.put(`/environments/${id}`, env);
+    return res.data;
+  },
+
+  async deleteEnvironment(id: string): Promise<void> {
+    await api.delete(`/environments/${id}`);
+  },
+
+  // Deployments
+  async getDeployments(workspaceId: string): Promise<Deployment[]> {
+    const res = await api.get(`/deployments/${workspaceId}`);
+    return res.data;
+  },
+
+  async createDeployment(deployment: Partial<Deployment> & { workspaceId: string; collectionId: string; collectionName: string }): Promise<Deployment> {
+    const res = await api.post('/deployments', deployment);
+    return res.data;
+  },
+
+  async updateDeployment(id: string, deployment: Partial<Deployment>): Promise<Deployment> {
+    const res = await api.put(`/deployments/${id}`, deployment);
+    return res.data;
+  },
+
+  async deleteDeployment(id: string): Promise<void> {
+    await api.delete(`/deployments/${id}`);
+  },
+
+  async executeRequest(req: any) {
+    const res = await api.post('/proxy', {
+      method: req.method,
+      url: req.url,
+      headers: req.headers.reduce((acc: any, h: any) => {
+        if (h.enabled && h.key) acc[h.key] = h.value;
+        return acc;
+      }, {}),
+      body: req.body?.content ? JSON.parse(req.body.content) : undefined,
+    });
+    return res.data;
+  },
+};

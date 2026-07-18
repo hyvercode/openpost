@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  uid         String            @id
+  email       String?
+  displayName String?
+  photoURL    String?
+  workspaces  WorkspaceMember[]
+}
+
+model Workspace {
+  id           String            @id @default(uuid())
+  name         String
+  ownerId      String
+  members      WorkspaceMember[]
+  collections  Collection[]
+  environments Environment[]
+  deployments  Deployment[]
+}
+
+model WorkspaceMember {
+  workspaceId String
+  userId      String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [uid], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+}
+
+model Collection {
+  id          String   @id @default(uuid())
+  workspaceId String
+  name        String
+  description String?
+  color       String?
+  icon        String?
+  position    Int      @default(0)
+  mockConfig  Json?    @default("{}")
+  folders     Json     @default("[]")
+  requests    Json     @default("[]")
+  
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Environment {
+  id          String    @id @default(uuid())
+  workspaceId String
+  name        String
+  variables   Json      @default("[]")
+  position    Int       @default(0)
+  
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Deployment {
+  id             String    @id @default(uuid())
+  workspaceId    String
+  collectionId   String
+  collectionName String
+  version        String
+  createdAt      DateTime  @default(now())
+  requests       Json      @default("[]")
+  mockConfig     Json?
+  
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}

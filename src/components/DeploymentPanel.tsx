@@ -1,15 +1,39 @@
 import React from 'react';
 import { useStore } from '../store/useStore';
-import { Rocket, Globe, Copy, ExternalLink, Calendar, Server, ShieldCheck, Check, Trash2 } from 'lucide-react';
+import { Rocket, Globe, Copy, ExternalLink, Calendar, Server, ShieldCheck, Check, Trash2, Shield, Lock, Activity, Key, Save } from 'lucide-react';
 import { cn } from '../utils';
-import { doc, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { apiService } from '../lib/api';
 
 export function DeploymentPanel() {
-  const { activeTabId, deployments, setActiveView, setOpenTabs, openTabs } = useStore();
+  const { activeTabId, deployments, setDeployments, setActiveView, setOpenTabs, openTabs, addToast } = useStore();
   const [copiedPath, setCopiedPath] = React.useState<string | null>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   const deployment = deployments.find(d => d.id === activeTabId);
+
+  // Local state for settings to avoid immediate Firestore writes
+  const [localSettings, setLocalSettings] = React.useState<{
+    rateLimitEnabled: boolean;
+    requestsPerMinute: number;
+    apiKeyEnabled: boolean;
+    apiKeyValue: string;
+  }>({
+    rateLimitEnabled: false,
+    requestsPerMinute: 60,
+    apiKeyEnabled: false,
+    apiKeyValue: ''
+  });
+
+  React.useEffect(() => {
+    if (deployment) {
+      setLocalSettings({
+        rateLimitEnabled: deployment.mockConfig?.rateLimit?.enabled ?? false,
+        requestsPerMinute: deployment.mockConfig?.rateLimit?.requestsPerMinute ?? 60,
+        apiKeyEnabled: deployment.mockConfig?.apiKey?.enabled ?? false,
+        apiKeyValue: deployment.mockConfig?.apiKey?.key ?? ''
+      });
+    }
+  }, [deployment?.id]);
 
   if (!deployment) {
     return (
@@ -33,7 +57,8 @@ export function DeploymentPanel() {
     const confirm = window.confirm(`Are you sure you want to delete/undeploy mock server "${deployment.collectionName}" (${deployment.version})?`);
     if (confirm) {
       try {
-        await deleteDoc(doc(db, "deployments", deployment.id));
+        await apiService.deleteDeployment(deployment.id);
+        setDeployments(deployments.filter(d => d.id !== deployment.id));
         // Remove from tabs
         const filteredTabs = openTabs.filter(t => t.id !== deployment.id);
         setOpenTabs(filteredTabs);
@@ -60,6 +85,41 @@ export function DeploymentPanel() {
     } catch (e) {
       return urlStr || "/";
     }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!deployment) return;
+    setIsSaving(true);
+    try {
+      const mockConfig = {
+        enabled: true,
+        rateLimit: {
+          enabled: localSettings.rateLimitEnabled,
+          requestsPerMinute: Number(localSettings.requestsPerMinute)
+        },
+        apiKey: {
+          enabled: localSettings.apiKeyEnabled,
+          key: localSettings.apiKeyValue
+        }
+      };
+      await apiService.updateDeployment(deployment.id, { mockConfig });
+      setDeployments(deployments.map(d => d.id === deployment.id ? { ...d, mockConfig } : d));
+      addToast('Mock server settings updated', 'success', 2000);
+    } catch (err) {
+      console.error("Failed to update deployment settings", err);
+      addToast('Failed to update settings', 'error', 3000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const generateApiKey = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = 'sk_';
+    for (let i = 0; i < 32; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setLocalSettings(prev => ({ ...prev, apiKeyValue: result }));
   };
 
   return (
@@ -99,32 +159,151 @@ export function DeploymentPanel() {
         </button>
       </div>
 
-      {/* Connection Card */}
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-5 mb-6">
-        <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Public Mock Base URL</h3>
-        <p className="text-xs text-[var(--text-secondary)] mb-3">
-          This is the production endpoint for this mock server. Any external system, webhook, or frontend client can call this live URL in real-time.
-        </p>
-        <div className="flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg p-3 font-mono text-sm text-indigo-400 select-all overflow-x-auto">
-          <Globe className="w-4 h-4 text-indigo-400 shrink-0" />
-          <span className="flex-1 truncate">{publicUrl}</span>
-          <div className="flex items-center gap-1.5 shrink-0">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Connection Card */}
+        <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-5 flex flex-col">
+          <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Public Mock Base URL</h3>
+          <p className="text-xs text-[var(--text-secondary)] mb-3 flex-1">
+            This is the production endpoint for this mock server. Any external system, webhook, or frontend client can call this live URL in real-time.
+          </p>
+          <div className="flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg p-3 font-mono text-sm text-indigo-400 select-all overflow-x-auto">
+            <Globe className="w-4 h-4 text-indigo-400 shrink-0" />
+            <span className="flex-1 truncate">{publicUrl}</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => handleCopy(publicUrl, 'base')}
+                className="p-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded transition-colors"
+                title="Copy Base URL"
+              >
+                {copiedPath === 'base' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+              </button>
+              <a
+                href={publicUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded transition-colors"
+                title="Open Public Endpoint in Browser"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        {/* Security & Limits Card */}
+        <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-5 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-2">
+              <Shield className="w-3.5 h-3.5 text-orange-500" />
+              Security & Rate Limits
+            </h3>
             <button
-              onClick={() => handleCopy(publicUrl, 'base')}
-              className="p-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded transition-colors"
-              title="Copy Base URL"
+              onClick={handleSaveSettings}
+              disabled={isSaving}
+              className="flex items-center gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary)]/90 disabled:opacity-50 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all shadow-lg"
             >
-              {copiedPath === 'base' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+              {isSaving ? (
+                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Save className="w-3 h-3" />
+              )}
+              Save Configuration
             </button>
-            <a
-              href={publicUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded transition-colors"
-              title="Open Public Endpoint in Browser"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </a>
+          </div>
+
+          <div className="space-y-4">
+            {/* Rate Limiting */}
+            <div className="flex items-center justify-between gap-4 p-3 bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg">
+                  <Activity className="w-4 h-4 text-blue-400" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[var(--text-primary)]">Rate Limiting</div>
+                  <div className="text-[10px] text-[var(--text-secondary)]">Limit requests per minute</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {localSettings.rateLimitEnabled && (
+                  <div className="flex items-center gap-1.5 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded px-2 py-1">
+                    <input
+                      type="number"
+                      value={localSettings.requestsPerMinute}
+                      onChange={(e) => setLocalSettings(prev => ({ ...prev, requestsPerMinute: Number(e.target.value) }))}
+                      className="w-12 bg-transparent text-xs font-bold text-blue-400 focus:outline-none text-center"
+                    />
+                    <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter">RPM</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => setLocalSettings(prev => ({ ...prev, rateLimitEnabled: !prev.rateLimitEnabled }))}
+                  className={cn(
+                    "w-8 h-4 rounded-full relative transition-colors duration-200",
+                    localSettings.rateLimitEnabled ? "bg-blue-500" : "bg-[var(--border-strong)]"
+                  )}
+                >
+                  <div className={cn(
+                    "absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform duration-200",
+                    localSettings.rateLimitEnabled ? "right-0.5" : "left-0.5"
+                  )} />
+                </button>
+              </div>
+            </div>
+
+            {/* API Key Authentication */}
+            <div className="p-3 bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-500/10 rounded-lg">
+                    <Lock className="w-4 h-4 text-orange-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-[var(--text-primary)]">API Key Auth</div>
+                    <div className="text-[10px] text-[var(--text-secondary)]">Require X-API-Key header</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setLocalSettings(prev => ({ ...prev, apiKeyEnabled: !prev.apiKeyEnabled }))}
+                  className={cn(
+                    "w-8 h-4 rounded-full relative transition-colors duration-200",
+                    localSettings.apiKeyEnabled ? "bg-orange-500" : "bg-[var(--border-strong)]"
+                  )}
+                >
+                  <div className={cn(
+                    "absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform duration-200",
+                    localSettings.apiKeyEnabled ? "right-0.5" : "left-0.5"
+                  )} />
+                </button>
+              </div>
+
+              {localSettings.apiKeyEnabled && (
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex-1 flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg px-3 py-2">
+                    <Key className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                    <input
+                      type="text"
+                      value={localSettings.apiKeyValue}
+                      onChange={(e) => setLocalSettings(prev => ({ ...prev, apiKeyValue: e.target.value }))}
+                      placeholder="Enter or generate API key"
+                      className="flex-1 bg-transparent text-xs font-mono text-orange-400 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => handleCopy(localSettings.apiKeyValue, 'key')}
+                      className="text-[var(--text-secondary)] hover:text-orange-400 transition-colors"
+                    >
+                      {copiedPath === 'key' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                  <button
+                    onClick={generateApiKey}
+                    className="p-2 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                    title="Generate New Key"
+                  >
+                    Generate
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

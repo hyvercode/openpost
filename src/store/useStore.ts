@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment } from "../types";
+import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage } from "../types";
 
 interface AppState {
   user: User | null;
@@ -21,18 +21,18 @@ interface AppState {
   deployments: Deployment[];
   setDeployments: (deployments: Deployment[]) => void;
 
-  activeView: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc';
-  setActiveView: (view: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc') => void;
+  activeView: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite';
+  setActiveView: (view: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite') => void;
 
-  theme: 'dark' | 'light';
-  setTheme: (theme: 'dark' | 'light') => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
   
-  openTabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc'; name: string; method?: string; isDirty?: boolean }>;
-  setOpenTabs: (tabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc'; name: string; method?: string; isDirty?: boolean }>) => void;
+  openTabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc' | 'test_suite'; name: string; method?: string; isDirty?: boolean }>;
+  setOpenTabs: (tabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc' | 'test_suite'; name: string; method?: string; isDirty?: boolean }>) => void;
   activeTabId: string | null;
   setActiveTabId: (id: string | null) => void;
   
-  openTab: (tab: { id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc'; name: string; method?: string; isDirty?: boolean }) => void;
+  openTab: (tab: { id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc' | 'test_suite'; name: string; method?: string; isDirty?: boolean }) => void;
   closeTab: (id: string) => void;
 
   editingEnvironment: Environment | null;
@@ -41,8 +41,8 @@ interface AppState {
   activeRequest: RequestItem | null;
   setActiveRequest: (request: RequestItem | null) => void;
   
-  activeTab: 'params' | 'auth' | 'headers' | 'body' | 'mock';
-  setActiveTab: (tab: 'params' | 'auth' | 'headers' | 'body' | 'mock') => void;
+  activeTab: 'params' | 'auth' | 'headers' | 'body' | 'scripts' | 'mock' | 'ws_messages' | 'graphql';
+  setActiveTab: (tab: 'params' | 'auth' | 'headers' | 'body' | 'scripts' | 'mock' | 'ws_messages' | 'graphql') => void;
   
   currentRequestConfig: any;
   setCurrentRequestConfig: (config: any) => void;
@@ -78,6 +78,29 @@ interface AppState {
   terminalHistory: string[];
   addTerminalHistory: (cmd: string) => void;
   clearTerminalHistory: () => void;
+  latencyHistory: number[];
+  addLatency: (ms: number) => void;
+  isRequestLoading: boolean;
+  setIsRequestLoading: (isLoading: boolean) => void;
+  toasts: Toast[];
+  addToast: (message: string, type: Toast['type'], duration?: number) => void;
+  removeToast: (id: string) => void;
+  history: HistoryItem[];
+  setHistory: (history: HistoryItem[]) => void;
+  addHistoryItem: (item: Omit<HistoryItem, 'id' | 'timestamp'>) => void;
+  clearHistory: (workspaceId: string) => void;
+  removeHistoryItem: (id: string) => void;
+  testSuites: TestSuite[];
+  setTestSuites: (testSuites: TestSuite[]) => void;
+  addTestSuite: (suite: Omit<TestSuite, 'id'>) => void;
+  updateTestSuite: (id: string, suite: Partial<TestSuite>) => void;
+  deleteTestSuite: (id: string) => void;
+
+  wsStatus: Record<string, 'disconnected' | 'connecting' | 'connected'>;
+  setWsStatus: (requestId: string, status: 'disconnected' | 'connecting' | 'connected') => void;
+  wsMessages: Record<string, WsMessage[]>;
+  addWsMessage: (requestId: string, message: WsMessage) => void;
+  clearWsMessages: (requestId: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -108,8 +131,11 @@ export const useStore = create<AppState>((set) => ({
   activeView: 'empty',
   setActiveView: (activeView) => set({ activeView }),
 
-  theme: 'dark',
-  setTheme: (theme) => set({ theme }),
+  theme: (localStorage.getItem('theme') as Theme) || 'light',
+  setTheme: (theme) => {
+    localStorage.setItem('theme', theme);
+    set({ theme });
+  },
 
   openTabs: [],
   setOpenTabs: (openTabs) => set({ openTabs }),
@@ -233,4 +259,98 @@ export const useStore = create<AppState>((set) => ({
     terminalHistory: [...state.terminalHistory, cmd]
   })),
   clearTerminalHistory: () => set({ terminalHistory: ['Terminal cleared.', ''] }),
+  latencyHistory: [],
+  addLatency: (ms) => set((state) => ({
+    latencyHistory: [...state.latencyHistory, ms].slice(-10)
+  })),
+  isRequestLoading: false,
+  setIsRequestLoading: (isRequestLoading) => set({ isRequestLoading }),
+  toasts: [],
+  addToast: (message, type, duration = 3000) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    set((state) => ({
+      toasts: [...state.toasts, { id, message, type, duration }]
+    }));
+    setTimeout(() => {
+      set((state) => ({
+        toasts: state.toasts.filter((t) => t.id !== id)
+      }));
+    }, duration);
+  },
+  removeToast: (id) => set((state) => ({
+    toasts: state.toasts.filter((t) => t.id !== id)
+  })),
+  history: (() => {
+    try {
+      const saved = localStorage.getItem('request_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  setHistory: (history) => {
+    localStorage.setItem('request_history', JSON.stringify(history));
+    set({ history });
+  },
+  addHistoryItem: (item) => set((state) => {
+    const newItem: HistoryItem = {
+      ...item,
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + new Date().toLocaleDateString(),
+    };
+    const updatedHistory = [newItem, ...state.history].slice(0, 100);
+    localStorage.setItem('request_history', JSON.stringify(updatedHistory));
+    return { history: updatedHistory };
+  }),
+  clearHistory: (workspaceId) => set((state) => {
+    const updatedHistory = state.history.filter(h => h.workspaceId !== workspaceId);
+    localStorage.setItem('request_history', JSON.stringify(updatedHistory));
+    return { history: updatedHistory };
+  }),
+  removeHistoryItem: (id) => set((state) => {
+    const updatedHistory = state.history.filter(h => h.id !== id);
+    localStorage.setItem('request_history', JSON.stringify(updatedHistory));
+    return { history: updatedHistory };
+  }),
+  testSuites: (() => {
+    try {
+      const saved = localStorage.getItem('test_suites');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  setTestSuites: (testSuites) => {
+    localStorage.setItem('test_suites', JSON.stringify(testSuites));
+    set({ testSuites });
+  },
+  addTestSuite: (suite) => set((state) => {
+    const newSuite = { ...suite, id: Math.random().toString(36).substring(2, 9) };
+    const updated = [...state.testSuites, newSuite];
+    localStorage.setItem('test_suites', JSON.stringify(updated));
+    return { testSuites: updated };
+  }),
+  updateTestSuite: (id, updates) => set((state) => {
+    const updated = state.testSuites.map(ts => ts.id === id ? { ...ts, ...updates } : ts);
+    localStorage.setItem('test_suites', JSON.stringify(updated));
+    return { testSuites: updated };
+  }),
+  deleteTestSuite: (id) => set((state) => {
+    const updated = state.testSuites.filter(ts => ts.id !== id);
+    localStorage.setItem('test_suites', JSON.stringify(updated));
+    return { testSuites: updated };
+  }),
+
+  wsStatus: {},
+  setWsStatus: (requestId, status) => set((state) => ({ wsStatus: { ...state.wsStatus, [requestId]: status } })),
+  wsMessages: {},
+  addWsMessage: (requestId, message) => set((state) => ({ 
+    wsMessages: { 
+      ...state.wsMessages, 
+      [requestId]: [...(state.wsMessages[requestId] || []), message] 
+    } 
+  })),
+  clearWsMessages: (requestId) => set((state) => ({
+    wsMessages: { ...state.wsMessages, [requestId]: [] }
+  })),
 }));

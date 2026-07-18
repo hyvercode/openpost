@@ -1,44 +1,139 @@
 @import "tailwindcss";
 
 :root {
-  --bg-base: #2C001E; /* Ubuntu Dark Aubergine */
-  --bg-surface: #3D0C2A; /* Slightly lighter aubergine surface */
-  --bg-panel: #333333; /* Ubuntu Charcoal/Dark Grey */
-  --bg-input: #1F0015; /* Deeper dark aubergine for inputs */
-  --bg-hover: #5E2750; /* Ubuntu Medium Purple */
-  --border-subtle: #4D183E; /* Subtle aubergine-purple border */
-  --border-strong: #77216F; /* Ubuntu Dark Purple */
-  --border-focus: #DD4814; /* Ubuntu Orange */
+  /* Default Ubuntu Theme (Aubergine) */
+  --bg-base: #2C001E;
+  --bg-surface: #3D0C2A;
+  --bg-panel: #333333;
+  --bg-input: #1F0015;
+  --bg-hover: #5E2750;
+  --border-subtle: #4D183E;
+  --border-strong: #77216F;
+  --border-focus: #DD4814;
   --text-primary: #FFFFFF;
-  --text-secondary: #AEA79F; /* Ubuntu Warm Grey */
+  --text-secondary: #AEA79F;
   --text-code: #FACC15;
   --text-get: #4ADE80;
   --text-post: #FACC15;
   --text-put: #60A5FA;
   --text-delete: #F87171;
-  --primary: #DD4814; /* Ubuntu Orange */
+  --primary: #DD4814;
+  --icon-color: #E95420;
   --shadow-panel: 0 10px 30px -5px rgba(0, 0, 0, 0.45), 0 4px 12px -5px rgba(0, 0, 0, 0.35);
   --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
+.theme-default {
+  /* Inherits from :root */
+}
+
 .theme-light {
   --bg-base: #FDFDFD;
-  --bg-surface: #F5F4F3; /* Warm Ubuntu light grey */
+  --bg-surface: #F5F4F3;
   --bg-panel: #EAE8E6;
   --bg-input: #FFFFFF;
-  --bg-hover: #AEA79F33; /* Warm grey hover highlight */
+  --bg-hover: #AEA79F33;
   --border-subtle: #D6D2CE;
   --border-strong: #AEA79F;
   --border-focus: #DD4814;
-  --text-primary: #333333; /* Charcoal */
-  --text-secondary: #5E2750; /* Ubuntu Purple */
+  --text-primary: #333333;
+  --text-secondary: #5E2750;
   --text-code: #DD4814;
   --text-get: #15803D;
   --text-post: #A16207;
   --text-put: #1D4ED8;
   --text-delete: #B91C1C;
-  --primary: #DD4814; /* Ubuntu Orange */
+  --primary: #DD4814;
+  --icon-color: #77216F;
   --shadow-panel: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 12px -5px rgba(0, 0, 0, 0.05);
   --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.theme-dark {
+  /* Neutral Dark Theme (Slate) */
+  --bg-base: #0F172A;
+  --bg-surface: #1E293B;
+  --bg-panel: #020617;
+  --bg-input: #020617;
+  --bg-hover: #334155;
+  --border-subtle: #1E293B;
+  --border-strong: #334155;
+  --border-focus: #E95420;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-code: #38BDF8;
+  --text-get: #10B981;
+  --text-post: #F59E0B;
+  --text-put: #3B82F6;
+  --text-delete: #EF4444;
+  --primary: #E95420;
+  --icon-color: #E95420;
+  --shadow-panel: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 4px 12px -5px rgba(0, 0, 0, 0.5);
+  --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes loading {
+  0% { transform: scaleX(0); transform-origin: left; }
+  50% { transform: scaleX(1); transform-origin: left; }
+  51% { transform: scaleX(1); transform-origin: right; }
+  100% { transform: scaleX(0); transform-origin: right; }
+}
+
+.animate-loading {
+  animation: loading 2s infinite cubic-bezier(0.65, 0.05, 0.36, 1);
+  background: var(--primary);
+}
+
+/* Markdown Documentation Styles */
+.markdown-body {
+  font-family: var(--font-sans);
+}
+
+.markdown-body h1 {
+  @apply text-3xl font-extrabold mb-6 pb-4 border-b border-[var(--border-subtle)] text-[var(--text-primary)];
+}
+
+.markdown-body h2 {
+  @apply text-xl font-bold mt-10 mb-4 text-[var(--text-primary)];
+}
+
+.markdown-body h3 {
+  @apply text-base font-semibold mt-6 mb-3 text-[var(--text-primary)];
+}
+
+.markdown-body p {
+  @apply text-sm leading-relaxed mb-4 text-[var(--text-secondary)];
+}
+
+.markdown-body code {
+  @apply font-mono text-[var(--text-code)] bg-[var(--bg-hover)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)];
+}
+
+.markdown-body pre {
+  @apply bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg p-4 my-6 overflow-x-auto shadow-inner;
+}
+
+.markdown-body pre code {
+  @apply bg-transparent border-0 p-0 text-[var(--text-code)] text-xs;
+}
+
+.markdown-body table {
+  @apply w-full border-collapse my-6 text-sm;
+}
+
+.markdown-body th {
+  @apply bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-4 py-2 text-left font-bold text-[var(--text-primary)];
+}
+
+.markdown-body td {
+  @apply border border-[var(--border-subtle)] px-4 py-2 text-[var(--text-secondary)];
+}
+
+.markdown-body ul {
+  @apply list-disc list-inside mb-4 space-y-1 text-sm text-[var(--text-secondary)];
+}
+
+.markdown-body hr {
+  @apply my-10 border-t border-[var(--border-strong)] opacity-30;
 }
 

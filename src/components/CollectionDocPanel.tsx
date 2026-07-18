@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server } from 'lucide-react';
+import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2 } from 'lucide-react';
 import { cn } from '../utils';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { apiService } from '../lib/api';
+import { MockSettings } from './MockSettings';
+import { generateCollectionMarkdown } from '../utils/markdownGenerator';
+import ReactMarkdown from 'react-markdown';
 
 // Helper for custom regex-based markdown parser
 function parseInlineStyles(text: string): React.ReactNode[] {
@@ -152,14 +154,21 @@ function renderMarkdown(text: string) {
 }
 
 export function CollectionDocPanel() {
-  const { activeTabId, collections, openTab } = useStore();
+  const { activeTabId, collections, openTab, addToast } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const [docContent, setDocContent] = useState('');
-  const [activeSubTab, setActiveSubTab] = useState<'docs' | 'api'>('docs');
+  const [activeSubTab, setActiveSubTab] = useState<'docs' | 'api' | 'mock' | 'export'>('docs');
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedEndpoints, setSelectedEndpoints] = useState<Set<string>>(new Set());
 
   // Find the current active collection based on tab ID
   const collectionItem = collections.find(c => c.id === activeTabId);
+
+  useEffect(() => {
+    if (collectionItem && selectedEndpoints.size === 0) {
+      setSelectedEndpoints(new Set(collectionItem.requests.map(r => r.id)));
+    }
+  }, [collectionItem]);
 
   useEffect(() => {
     if (collectionItem) {
@@ -180,12 +189,18 @@ export function CollectionDocPanel() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, "collections", collectionItem.id), {
+      await apiService.updateCollection(collectionItem.id, {
         description: docContent
       });
+      
+      const { collections, setCollections } = useStore.getState();
+      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, description: docContent } : c));
+      
       setIsEditing(false);
+      addToast('Documentation updated successfully', 'success', 2000);
     } catch (error) {
       console.error("Failed to save collection documentation:", error);
+      addToast('Failed to update documentation', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -207,6 +222,30 @@ export function CollectionDocPanel() {
   })).filter(g => g.requests.length > 0 || g.folder);
 
   const totalEndpoints = requests.length;
+
+  const generatedMarkdown = useMemo(() => 
+    collectionItem ? generateCollectionMarkdown(collectionItem, selectedEndpoints) : '', 
+    [collectionItem, selectedEndpoints]
+  );
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedMarkdown);
+    addToast('Documentation Markdown copied!', 'success', 2000);
+  };
+
+  const downloadMarkdown = () => {
+    if (!collectionItem) return;
+    const blob = new Blob([generatedMarkdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${collectionItem.name.replace(/\s+/g, '_').toLowerCase()}_docs.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    addToast('Documentation downloaded', 'success', 2000);
+  };
 
   return (
     <div className="h-full flex flex-col bg-[var(--bg-base)] text-[var(--text-primary)] overflow-y-auto p-6 animate-fade-in font-sans">
@@ -279,6 +318,30 @@ export function CollectionDocPanel() {
           )}
         >
           API Endpoints ({totalEndpoints})
+        </button>
+        <button
+          onClick={() => { setActiveSubTab('mock'); setIsEditing(false); }}
+          className={cn(
+            "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
+            activeSubTab === 'mock' 
+              ? "text-[var(--primary)] border-b-[var(--primary)]" 
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
+          )}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          Public Mock API
+        </button>
+        <button
+          onClick={() => { setActiveSubTab('export'); setIsEditing(false); }}
+          className={cn(
+            "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
+            activeSubTab === 'export' 
+              ? "text-[var(--primary)] border-b-[var(--primary)]" 
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
+          )}
+        >
+          <BookOpen className="w-3.5 h-3.5" />
+          Documentation
         </button>
       </div>
 
@@ -448,7 +511,7 @@ You can write step-by-step startup instructions.
             </div>
 
           </div>
-        ) : (
+        ) : activeSubTab === 'api' ? (
           /* API Endpoint Documentation List */
           <div className="space-y-6">
             {requests.length === 0 ? (
@@ -498,6 +561,97 @@ You can write step-by-step startup instructions.
               </div>
             )}
           </div>
+        ) : activeSubTab === 'export' ? (
+          <div className="flex h-full animate-fade-in gap-6">
+            {/* Left side: Selection */}
+            <div className="w-64 flex flex-col border-r border-[var(--border-subtle)] pr-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Include in Docs</h3>
+                <button 
+                  onClick={() => {
+                    if (selectedEndpoints.size === requests.length) {
+                      setSelectedEndpoints(new Set());
+                    } else {
+                      setSelectedEndpoints(new Set(requests.map(r => r.id)));
+                    }
+                  }}
+                  className="text-[10px] text-[var(--primary)] hover:underline font-semibold"
+                >
+                  {selectedEndpoints.size === requests.length ? 'Select None' : 'Select All'}
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                {requests.map(req => (
+                  <label key={req.id} className="flex items-start gap-2 cursor-pointer group">
+                    <input 
+                      type="checkbox"
+                      checked={selectedEndpoints.has(req.id)}
+                      onChange={(e) => {
+                        const newSet = new Set(selectedEndpoints);
+                        if (e.target.checked) newSet.add(req.id);
+                        else newSet.delete(req.id);
+                        setSelectedEndpoints(newSet);
+                      }}
+                      className="mt-0.5 rounded border-[var(--border-strong)] bg-[var(--bg-input)] text-[var(--primary)] focus:ring-[var(--primary)]/20"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn(
+                          "text-[9px] font-bold",
+                          req.method === 'GET' ? 'text-blue-400' :
+                          req.method === 'POST' ? 'text-emerald-400' :
+                          req.method === 'PUT' ? 'text-amber-400' :
+                          req.method === 'DELETE' ? 'text-red-400' :
+                          'text-purple-400'
+                        )}>{req.method}</span>
+                        <span className="text-xs text-[var(--text-primary)] truncate font-semibold group-hover:text-[var(--primary)] transition-colors">{req.name}</span>
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Right side: Markdown Preview */}
+            <div className="flex-1 flex flex-col min-w-0 h-full">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-sm font-bold text-[var(--text-primary)]">Shareable Markdown Docs</h3>
+                  <span className="text-[10px] bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Auto-Generated</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={copyToClipboard}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded transition-all"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy
+                  </button>
+                  <button
+                    onClick={downloadMarkdown}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 rounded shadow-md transition-all"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download .md
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl overflow-hidden flex flex-col shadow-inner">
+                <div className="flex-1 overflow-y-auto p-8 prose prose-invert prose-slate max-w-none markdown-body select-text custom-scrollbar">
+                <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
+              </div>
+            </div>
+            
+              <p className="mt-4 text-[10px] text-[var(--text-secondary)] leading-relaxed text-center px-12 italic">
+                This markdown is auto-generated based on your collection name, requests, headers, and mock examples. 
+                You can copy this into GitHub, GitLab, or any documentation platform.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <MockSettings collection={collectionItem} />
         )}
       </div>
     </div>

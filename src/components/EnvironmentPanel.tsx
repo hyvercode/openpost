@@ -1,50 +1,159 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { KeyValue } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { Trash2, Save, Settings2 } from 'lucide-react';
+import { apiService } from '../lib/api';
+import { Trash2, Save, Settings2, Plus, Check } from 'lucide-react';
 
 export function EnvironmentPanel() {
-  const { editingEnvironment } = useStore();
+  const { editingEnvironment, setEditingEnvironment, environments, setEnvironments, addToast } = useStore();
   const [variables, setVariables] = useState<KeyValue[]>([]);
+  const [envName, setEnvName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'Saved' | 'Saving...' | 'Changed' | ''>('');
+
+  const skipNextAutosave = useRef(false);
+  const loadedEnvIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (editingEnvironment) {
-      setVariables(editingEnvironment.variables?.length ? editingEnvironment.variables : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
+      if (editingEnvironment.id !== loadedEnvIdRef.current) {
+        loadedEnvIdRef.current = editingEnvironment.id;
+        skipNextAutosave.current = true;
+        
+        const normalizedVariables = (editingEnvironment.variables || []).map(v => ({
+          id: v.id || uuidv4(),
+          key: v.key || '',
+          value: v.value || '',
+          enabled: v.enabled !== false
+        }));
+        setVariables(normalizedVariables.length ? normalizedVariables : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
+        setEnvName(editingEnvironment.name || '');
+        setSaveStatus('');
+      }
+    } else {
+      loadedEnvIdRef.current = null;
+      setVariables([]);
+      setEnvName('');
+      setSaveStatus('');
     }
   }, [editingEnvironment]);
+
+  const handleAutosaveEnvironment = async (currentVariables: KeyValue[], currentEnvName: string) => {
+    if (!editingEnvironment) return;
+    setSaveStatus('Saving...');
+    try {
+      const filteredVars = currentVariables.filter(v => v.key.trim() !== '');
+      const updatedEnv = {
+        ...editingEnvironment,
+        name: currentEnvName,
+        variables: filteredVars
+      };
+
+      await apiService.updateEnvironment(editingEnvironment.id, {
+        name: currentEnvName,
+        variables: filteredVars
+      });
+      
+      setEditingEnvironment(updatedEnv);
+      setEnvironments(environments.map(e => e.id === editingEnvironment.id ? updatedEnv : e));
+
+      // If this environment is also the active current environment, synchronize it too
+      const { currentEnvironment, setCurrentEnvironment } = useStore.getState();
+      if (currentEnvironment && currentEnvironment.id === editingEnvironment.id) {
+        setCurrentEnvironment(updatedEnv);
+      }
+      
+      setSaveStatus('Saved');
+    } catch (e) {
+      console.error("Autosave environment failed", e);
+      setSaveStatus('Changed');
+    }
+  };
+
+  useEffect(() => {
+    if (skipNextAutosave.current) {
+      skipNextAutosave.current = false;
+      return;
+    }
+    if (!editingEnvironment || editingEnvironment.id !== loadedEnvIdRef.current) return;
+
+    // Check if anything actually changed compared to the current editingEnvironment in store
+    const isNameSame = envName === (editingEnvironment.name || '');
+    
+    const cleanVars = variables.filter(v => v.key.trim() !== '');
+    const storeVars = editingEnvironment.variables || [];
+    
+    const isVarsSame = cleanVars.length === storeVars.length && cleanVars.every((v, i) => {
+      const sv = storeVars[i];
+      return sv && v.key === sv.key && v.value === sv.value && v.enabled === sv.enabled;
+    });
+
+    if (isNameSame && isVarsSame) {
+      return;
+    }
+    
+    setSaveStatus('Changed');
+    
+    const timeout = setTimeout(() => {
+      handleAutosaveEnvironment(variables, envName);
+    }, 1000);
+    
+    return () => clearTimeout(timeout);
+  }, [variables, envName]);
 
   const handleSave = async () => {
     if (!editingEnvironment) return;
     setIsSaving(true);
+    setSaveStatus('Saving...');
     try {
-      await updateDoc(doc(db, "environments", editingEnvironment.id), {
-        variables: variables.filter(v => v.key.trim() !== '')
+      const filteredVars = variables.filter(v => v.key.trim() !== '');
+      const updatedEnv = {
+        ...editingEnvironment,
+        name: envName,
+        variables: filteredVars
+      };
+
+      await apiService.updateEnvironment(editingEnvironment.id, {
+        name: envName,
+        variables: filteredVars
       });
+      
+      setEditingEnvironment(updatedEnv);
+      setEnvironments(environments.map(e => e.id === editingEnvironment.id ? updatedEnv : e));
+
+      // If this environment is also the active current environment, synchronize it too
+      const { currentEnvironment, setCurrentEnvironment } = useStore.getState();
+      if (currentEnvironment && currentEnvironment.id === editingEnvironment.id) {
+        setCurrentEnvironment(updatedEnv);
+      }
+      
+      setSaveStatus('Saved');
+      addToast(`Environment "${envName}" saved`, 'success', 2000);
     } catch(e) {
       console.error("Failed to save environment", e);
+      setSaveStatus('Changed');
+      addToast('Failed to save environment', 'error');
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handleAddVariable = () => {
+    setVariables(prev => [...prev, { id: uuidv4(), key: '', value: '', enabled: true }]);
+  };
+
   const handleChange = (id: string, field: keyof KeyValue, value: string | boolean) => {
-    const newVars = variables.map(v => v.id === id ? { ...v, [field]: value } : v);
-    if (field === 'key' && variables[variables.length - 1].id === id && value !== '') {
-      newVars.push({ id: uuidv4(), key: '', value: '', enabled: true });
-    }
-    setVariables(newVars);
+    setVariables(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v));
   };
 
   const handleRemove = (id: string) => {
-    if (variables.length === 1) {
-      setVariables([{ id: uuidv4(), key: '', value: '', enabled: true }]);
-    } else {
-      setVariables(variables.filter(v => v.id !== id));
-    }
+    setVariables(prev => {
+      const newVars = prev.filter(v => v.id !== id);
+      return newVars.length === 0 
+        ? [{ id: uuidv4(), key: '', value: '', enabled: true }]
+        : newVars;
+    });
   };
 
   if (!editingEnvironment) return null;
@@ -52,21 +161,41 @@ export function EnvironmentPanel() {
   return (
     <div className="flex flex-col h-full bg-[var(--bg-panel)] p-6">
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--border-subtle)]">
-        <div>
-          <h2 className="text-[var(--text-primary)] text-lg font-semibold flex items-center gap-2 mb-1">
-            <Settings2 className="w-5 h-5 text-[var(--primary)]" />
-            {editingEnvironment.name}
-          </h2>
-          <p className="text-xs text-[var(--text-secondary)]">Manage environment variables</p>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1 group">
+            <Settings2 className="w-5 h-5 text-[var(--primary)] shrink-0" />
+            <input 
+              type="text"
+              value={envName}
+              onChange={(e) => setEnvName(e.target.value)}
+              className="bg-transparent border-b border-transparent focus:border-[var(--primary)] text-[var(--text-primary)] text-lg font-semibold outline-none w-full max-w-md transition-colors"
+              placeholder="Environment Name"
+            />
+          </div>
+          <p className="text-xs text-[var(--text-secondary)]">Manage environment variables for this environment</p>
         </div>
-        <button 
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-[var(--bg-hover)] border border-[var(--border-strong)] hover:border-[var(--border-focus)] disabled:opacity-50 text-[var(--text-primary)] px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
-        >
-          <Save className="w-4 h-4" />
-          {isSaving ? 'Saving...' : 'Save'}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center min-w-[80px] text-xs font-medium text-[var(--text-secondary)]">
+            {saveStatus === 'Saving...' && <span className="animate-pulse">Saving...</span>}
+            {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
+            {saveStatus === 'Changed' && <span>Unsaved...</span>}
+          </div>
+          <button 
+            onClick={handleAddVariable}
+            className="bg-[var(--bg-hover)] border border-[var(--border-strong)] hover:border-[var(--border-focus)] text-[var(--text-primary)] px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Variable
+          </button>
+          <button 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="bg-[var(--primary)] hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <Save className="w-4 h-4" />
+            {isSaving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded">
