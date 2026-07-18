@@ -1,20 +1,24 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen } from 'lucide-react';
+import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History } from 'lucide-react';
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
-import { collection, doc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { ApiCollection, RequestItem } from '../types';
+import { apiService } from '../lib/api';
+import { ApiCollection, RequestItem, Environment } from '../types';
 import { PromptModal } from './PromptModal';
 import { ConfirmModal } from './ConfirmModal';
 import { CustomizeCollectionModal, getCollectionIcon } from './CustomizeCollectionModal';
+import { exportToGateway, GatewayType } from '../utils/gatewayExports';
+import { TestRunnerSidebar } from './TestRunnerSidebar';
 
 export function Sidebar() {
   const { 
     collections, 
+    setCollections,
     environments, 
+    setEnvironments,
     deployments,
+    setDeployments,
     activeRequest, 
     setActiveRequest, 
     setActiveView, 
@@ -25,9 +29,14 @@ export function Sidebar() {
     sidebarWidth,
     user,
     workspaces,
-    setCurrentWorkspace
+    setWorkspaces,
+    setCurrentWorkspace,
+    addToast,
+    history,
+    clearHistory,
+    removeHistoryItem
   } = useStore();
-  const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments'>('collections');
+  const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments' | 'history' | 'tests'>('collections');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   
@@ -52,12 +61,15 @@ export function Sidebar() {
   });
 
   const { filteredCollections, filteredEnvironments } = useMemo(() => {
-    if (!searchQuery.trim()) return { filteredCollections: collections, filteredEnvironments: environments };
+    let sortedCollections = [...collections].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+    let sortedEnvironments = [...environments].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+    if (!searchQuery.trim()) return { filteredCollections: sortedCollections, filteredEnvironments: sortedEnvironments };
     const lowerQuery = searchQuery.toLowerCase();
 
-    const filteredEnvironments = environments.filter(env => env.name.toLowerCase().includes(lowerQuery));
+    const filteredEnvironmentsList = sortedEnvironments.filter(env => env.name.toLowerCase().includes(lowerQuery));
 
-    const filteredCollections = collections.map(collection => {
+    const filteredCollectionsList = sortedCollections.map(collection => {
       const collectionMatches = collection.name.toLowerCase().includes(lowerQuery);
 
       const matchingFolders = new Set<string>();
@@ -112,15 +124,28 @@ export function Sidebar() {
       if (collectionMatches || matchingFolders.size > 0 || matchingRequests.size > 0) {
         return {
           ...collection,
-          folders: collection.folders?.filter(f => collectionMatches || matchingFolders.has(f.id)) || [],
+          folders: (collection.folders || [])
+            .filter(f => collectionMatches || matchingFolders.has(f.id))
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0)),
           requests: collection.requests?.filter(r => collectionMatches || matchingFolders.has(r.folderId!) || matchingRequests.has(r.id)) || []
         };
       }
       return null;
     }).filter(Boolean) as ApiCollection[];
 
-    return { filteredCollections, filteredEnvironments };
+    return { filteredCollections: filteredCollectionsList, filteredEnvironments: filteredEnvironmentsList };
   }, [collections, environments, searchQuery]);
+
+  const filteredHistory = useMemo(() => {
+    const wsHistory = history.filter(h => h.workspaceId === (currentWorkspace?.id || 'default'));
+    if (!searchQuery.trim()) return wsHistory;
+    const lowerQuery = searchQuery.toLowerCase();
+    return wsHistory.filter(h => 
+      h.name.toLowerCase().includes(lowerQuery) || 
+      h.url.toLowerCase().includes(lowerQuery) || 
+      h.method.toLowerCase().includes(lowerQuery)
+    );
+  }, [history, currentWorkspace, searchQuery]);
 
   const toggleExpand = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -132,19 +157,50 @@ export function Sidebar() {
     });
   };
 
+  const handleHistoryItemClick = (item: any, autoRun = false) => {
+    const virtualRequest: RequestItem = {
+      id: `history_${item.id}${autoRun ? '_rerun' : ''}`,
+      collectionId: 'history',
+      workspaceId: item.workspaceId,
+      name: item.name,
+      method: item.method,
+      url: item.url,
+      headers: item.headers || [],
+      params: item.params || [],
+      body: item.body || { type: 'none', content: '' },
+      auth: item.auth || { type: 'none' },
+      mockResponse: {
+        status: item.responseStatus || 200,
+        headers: [{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }],
+        body: ''
+      }
+    };
+    setActiveRequest(virtualRequest);
+    setActiveView('request');
+    openTab({
+      id: `history_${item.id}`,
+      type: 'request',
+      name: item.name,
+      method: item.method
+    });
+  };
+
   const handleSaveCustomization = async (name: string, color: string, icon: string) => {
     if (!customizationModal.collectionId) return;
     
     setCustomizationModal(prev => ({ ...prev, isOpen: false }));
     
     try {
-      await updateDoc(doc(db, "collections", customizationModal.collectionId), {
+      await apiService.updateCollection(customizationModal.collectionId, {
         name,
         color,
         icon
       });
+      setCollections(collections.map(c => c.id === customizationModal.collectionId ? { ...c, name, color, icon } : c));
+      addToast('Collection customized', 'success', 2000);
     } catch (e) {
       console.error("Failed to update collection customization:", e);
+      addToast('Failed to customize collection', 'error');
     }
   };
 
@@ -156,33 +212,42 @@ export function Sidebar() {
     
     try {
       if (modal.type === 'collection') {
-        const newCollection: ApiCollection = {
+        const newCollection = await apiService.createCollection({
           id: uuidv4(),
           workspaceId: currentWorkspace.id,
           name,
           folders: [],
-          requests: []
-        };
-        await setDoc(doc(db, "collections", newCollection.id), newCollection);
+          requests: [],
+          position: collections.length
+        });
+        setCollections([...collections, newCollection]);
+        addToast(`Collection "${name}" created`, 'success', 2000);
       } else if (modal.type === 'environment') {
-        const newEnv = {
+        const newEnv = await apiService.createEnvironment({
           id: uuidv4(),
           workspaceId: currentWorkspace.id,
           name,
-          variables: []
-        };
-        await setDoc(doc(db, "environments", newEnv.id), newEnv);
+          variables: [],
+          position: environments.length
+        });
+        setEnvironments([...environments, newEnv]);
+        addToast(`Environment "${name}" created`, 'success', 2000);
       } else if (modal.type === 'folder' && modal.targetId) {
         const collectionDoc = collections.find(c => c.id === modal.targetId);
         if (collectionDoc) {
+          const foldersInCurrentLevel = (collectionDoc.folders || []).filter(f => f.parentId === (modal.targetFolderId || null));
           const newFolder = {
             id: uuidv4(),
             name,
-            parentId: modal.targetFolderId || null
+            parentId: modal.targetFolderId || null,
+            position: foldersInCurrentLevel.length
           };
-          await updateDoc(doc(db, "collections", modal.targetId), {
-            folders: [...(collectionDoc.folders || []), newFolder]
+          const updatedFolders = [...(collectionDoc.folders || []), newFolder];
+          await apiService.updateCollection(modal.targetId, {
+            folders: updatedFolders
           });
+          setCollections(collections.map(c => c.id === modal.targetId ? { ...c, folders: updatedFolders } : c));
+          addToast(`Folder "${name}" created`, 'success', 2000);
         }
       } else if (modal.type === 'request' && modal.targetId) {
         const collectionDoc = collections.find(c => c.id === modal.targetId);
@@ -199,69 +264,77 @@ export function Sidebar() {
             folderId: modal.targetFolderId || null,
             body: { type: 'none', content: '' }
           };
-          await updateDoc(doc(db, "collections", modal.targetId), {
-            requests: [...(collectionDoc.requests || []), newRequest]
+          const updatedRequests = [...(collectionDoc.requests || []), newRequest];
+          await apiService.updateCollection(modal.targetId, {
+            requests: updatedRequests
           });
+          setCollections(collections.map(c => c.id === modal.targetId ? { ...c, requests: updatedRequests } : c));
           setActiveRequest(newRequest);
           setActiveView('request');
+          addToast(`Request "${name}" created`, 'success', 2000);
         }
       } else if (modal.type === 'rename_collection' && modal.targetId) {
-        await updateDoc(doc(db, "collections", modal.targetId), { name });
+        await apiService.updateCollection(modal.targetId, { name });
+        setCollections(collections.map(c => c.id === modal.targetId ? { ...c, name } : c));
+        addToast('Collection renamed', 'success', 2000);
       } else if (modal.type === 'rename_folder' && modal.targetId && modal.targetFolderId) {
         const collectionDoc = collections.find(c => c.id === modal.targetId);
         if (collectionDoc) {
           const updatedFolders = (collectionDoc.folders || []).map(f => f.id === modal.targetFolderId ? { ...f, name } : f);
-          await updateDoc(doc(db, "collections", modal.targetId), { folders: updatedFolders });
+          await apiService.updateCollection(modal.targetId, { folders: updatedFolders });
+          setCollections(collections.map(c => c.id === modal.targetId ? { ...c, folders: updatedFolders } : c));
+          addToast('Folder renamed', 'success', 2000);
         }
       } else if (modal.type === 'rename_request' && modal.targetId && modal.targetRequestId) {
         const collectionDoc = collections.find(c => c.id === modal.targetId);
         if (collectionDoc) {
           const updatedRequests = (collectionDoc.requests || []).map(r => r.id === modal.targetRequestId ? { ...r, name } : r);
-          await updateDoc(doc(db, "collections", modal.targetId), { requests: updatedRequests });
-          // If it's the active request, update it there too
+          await apiService.updateCollection(modal.targetId, { requests: updatedRequests });
+          setCollections(collections.map(c => c.id === modal.targetId ? { ...c, requests: updatedRequests } : c));
           if (activeRequest?.id === modal.targetRequestId) {
             setActiveRequest({ ...activeRequest, name });
           }
+          addToast('Request renamed', 'success', 2000);
         }
       } else if (modal.type === 'workspace') {
-        const newWorkspace = {
-          id: uuidv4(),
-          name,
-          ownerId: user?.uid || '',
-          members: []
-        };
-        await setDoc(doc(db, "workspaces", newWorkspace.id), newWorkspace);
+        const newWorkspace = await apiService.createWorkspace(name, user?.uid || '');
+        setWorkspaces([...workspaces, newWorkspace]);
         setCurrentWorkspace(newWorkspace);
+        addToast(`Workspace "${name}" created`, 'success', 2000);
       } else if (modal.type === 'rename_workspace' && modal.targetId) {
-        await updateDoc(doc(db, "workspaces", modal.targetId), { name });
+        await apiService.updateWorkspace(modal.targetId, name);
+        const updatedWSList = workspaces.map(w => w.id === modal.targetId ? { ...w, name } : w);
+        setWorkspaces(updatedWSList);
         if (currentWorkspace && currentWorkspace.id === modal.targetId) {
           setCurrentWorkspace({ ...currentWorkspace, name });
         }
+        addToast('Workspace renamed', 'success', 2000);
       } else if (modal.type === 'invite_member' && currentWorkspace) {
+        // Mock members update locally
         const members = currentWorkspace.members || [];
         if (!members.includes(name)) {
           const updatedMembers = [...members, name];
-          await updateDoc(doc(db, "workspaces", currentWorkspace.id), { members: updatedMembers });
           setCurrentWorkspace({ ...currentWorkspace, members: updatedMembers });
+          addToast(`Invited ${name} to workspace`, 'success', 2000);
         }
       } else if (modal.type === 'deploy' && modal.targetId) {
         const collectionDoc = collections.find(c => c.id === modal.targetId);
         if (collectionDoc) {
-          const deployId = uuidv4();
-          const newDeployment = {
-            id: deployId,
+          const newDeployment = await apiService.createDeployment({
+            id: uuidv4(),
             workspaceId: currentWorkspace.id,
             collectionId: collectionDoc.id,
             collectionName: collectionDoc.name,
             version: name || 'v1',
-            createdAt: new Date().toISOString(),
             requests: collectionDoc.requests || []
-          };
-          await setDoc(doc(db, "deployments", deployId), newDeployment);
+          });
+          setDeployments([newDeployment, ...deployments]);
+          addToast(`Deployed version "${name || 'v1'}" successfully`, 'success', 2000);
         }
       }
     } catch (e) {
       console.error("Failed to submit form:", e);
+      addToast('Operation failed', 'error');
     }
   };
 
@@ -311,16 +384,55 @@ export function Sidebar() {
               requests: newRequests
             };
             
-            await setDoc(doc(db, "collections", newCollectionId), newCollection);
+            const created = await apiService.createCollection(newCollection);
+            const state = useStore.getState();
+            state.setCollections([...state.collections, created]);
           }
           
           // Import environments
+          const importedEnvs = [];
           for (const env of parsedData.environments) {
             const newEnvId = uuidv4();
             const newEnv = { ...env, id: newEnvId, workspaceId: currentWorkspace.id };
-            await setDoc(doc(db, "environments", newEnvId), newEnv);
+            const createdEnv = await apiService.createEnvironment(newEnv);
+            importedEnvs.push(createdEnv);
           }
+          const state = useStore.getState();
+          state.setEnvironments([...state.environments, ...importedEnvs]);
           
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          return;
+        }
+
+        // Single Environment Import (Native or Postman)
+        if ((parsedData.variables || parsedData.values) && parsedData.name && !parsedData.collections && !parsedData.item) {
+          const newEnvId = uuidv4();
+          
+          // Map Postman "values" to our "variables" if needed
+          const variables = parsedData.variables || (parsedData.values || []).map((v: any) => ({
+            key: v.key || '',
+            value: v.value || '',
+            enabled: v.enabled !== undefined ? v.enabled : true
+          }));
+
+          const newEnv = { 
+            ...parsedData, 
+            id: newEnvId, 
+            workspaceId: currentWorkspace.id,
+            variables,
+            createdAt: parsedData.createdAt || Date.now()
+          };
+          
+          // Cleanup Postman specific fields if they exist
+          delete (newEnv as any).values;
+          delete (newEnv as any)._postman_variable_scope;
+          delete (newEnv as any)._postman_exported_at;
+          delete (newEnv as any)._postman_exported_using;
+
+          const createdEnv = await apiService.createEnvironment(newEnv);
+          const state = useStore.getState();
+          state.setEnvironments([...state.environments, createdEnv]);
+          addToast(`Environment "${newEnv.name}" imported`, 'success', 2000);
           if (fileInputRef.current) fileInputRef.current.value = '';
           return;
         }
@@ -375,8 +487,10 @@ export function Sidebar() {
             requests,
           };
 
-          // Save to Firebase
-          await setDoc(doc(db, "collections", newCollectionId), collectionDoc);
+          // Save to Postgres
+          const created = await apiService.createCollection(collectionDoc);
+          const state = useStore.getState();
+          state.setCollections([...state.collections, created]);
           
         }
       } catch (error) {
@@ -413,7 +527,38 @@ export function Sidebar() {
     URL.revokeObjectURL(url);
   };
 
-  const handleDragStart = (e: React.DragEvent, id: string, type: 'folder' | 'request', collectionId: string) => {
+  const handleGatewayExport = (collection: ApiCollection, type: GatewayType) => {
+    const config = exportToGateway(collection, type);
+    const extension = type === 'spring_cloud_gateway' ? 'yaml' : 'json';
+    const blob = new Blob([config], { type: extension === 'json' ? 'application/json' : 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${collection.name.replace(/\s+/g, '_').toLowerCase()}_${type}.${extension}`;
+    document.body.appendChild(a);
+    a.click();
+    
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    addToast(`${type.replace(/_/g, ' ')} config exported`, 'success', 2000);
+  };
+
+  const handleExportEnvironment = (env: Environment) => {
+    const dataStr = JSON.stringify(env, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${env.name.replace(/\s+/g, '_').toLowerCase()}_env.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    addToast('Environment exported', 'success', 2000);
+  };
+
+  const handleDragStart = (e: React.DragEvent, id: string, type: 'folder' | 'request' | 'collection' | 'environment', collectionId: string) => {
     e.dataTransfer.setData('application/json', JSON.stringify({ id, type, collectionId }));
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -432,12 +577,97 @@ export function Sidebar() {
       
       const source = JSON.parse(dataStr);
       
-      if (source.collectionId !== collectionId) return; // Disallow cross-collection drag for now
-      if (source.type === 'folder' && source.id === targetId) return;
-
+      // REORDERING LOGIC
+      // If same type and same parent (or root for collections), perform reordering
+      if (source.type === targetType && source.id !== targetId) {
+        if (source.type === 'collection') {
+          // Reorder collections
+          const sourceIndex = collections.findIndex(c => c.id === source.id);
+          const targetIndex = collections.findIndex(c => c.id === targetId);
+          if (sourceIndex !== -1 && targetIndex !== -1) {
+            const sorted = [...collections].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+            const sIdx = sorted.findIndex(c => c.id === source.id);
+            const tIdx = sorted.findIndex(c => c.id === targetId);
+            
+            const newCollections = [...sorted];
+            const [moved] = newCollections.splice(sIdx, 1);
+            newCollections.splice(tIdx, 0, moved);
+            
+            // Update all positions in database and local store
+            const positioned = newCollections.map((c, index) => ({ ...c, position: index }));
+            setCollections(positioned);
+            
+            for (let i = 0; i < positioned.length; i++) {
+              if (sorted[i]?.position !== i) {
+                await apiService.updateCollection(positioned[i].id, { position: i });
+              }
+            }
+            return;
+          }
+        } else if (source.type === 'folder' && source.collectionId === collectionId) {
+          // Reorder folders within same collection and same parent level
+          const collectionDoc = collections.find(c => c.id === collectionId);
+          if (collectionDoc) {
+            const sourceFolder = collectionDoc.folders?.find(f => f.id === source.id);
+            const targetFolder = collectionDoc.folders?.find(f => f.id === targetId);
+            
+            if (sourceFolder && targetFolder && sourceFolder.parentId === targetFolder.parentId) {
+              const sameLevelFolders = (collectionDoc.folders || [])
+                .filter(f => f.parentId === sourceFolder.parentId)
+                .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+              
+              const sIdx = sameLevelFolders.findIndex(f => f.id === source.id);
+              const tIdx = sameLevelFolders.findIndex(f => f.id === targetId);
+              
+              if (sIdx !== -1 && tIdx !== -1) {
+                const newLevel = [...sameLevelFolders];
+                const [moved] = newLevel.splice(sIdx, 1);
+                newLevel.splice(tIdx, 0, moved);
+                
+                const updatedFolders = (collectionDoc.folders || []).map(f => {
+                  const idx = newLevel.findIndex(nl => nl.id === f.id);
+                  if (idx !== -1) return { ...f, position: idx };
+                  return f;
+                });
+                
+                setCollections(collections.map(c => c.id === collectionId ? { ...c, folders: updatedFolders } : c));
+                await apiService.updateCollection(collectionId, { folders: updatedFolders });
+                return;
+              }
+            }
+          }
+        } else if (source.type === 'environment' && activeTab === 'environments') {
+          // Reorder environments
+          const sourceIndex = environments.findIndex(e => e.id === source.id);
+          const targetIndex = environments.findIndex(e => e.id === targetId);
+          if (sourceIndex !== -1 && targetIndex !== -1) {
+            const sorted = [...environments].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+            const sIdx = sorted.findIndex(e => e.id === source.id);
+            const tIdx = sorted.findIndex(e => e.id === targetId);
+            
+            const newEnvs = [...sorted];
+            const [moved] = newEnvs.splice(sIdx, 1);
+            newEnvs.splice(tIdx, 0, moved);
+            
+            const positioned = newEnvs.map((env, index) => ({ ...env, position: index }));
+            setEnvironments(positioned);
+            
+            for (let i = 0; i < positioned.length; i++) {
+              if (sorted[i]?.position !== i) {
+                await apiService.updateEnvironment(positioned[i].id, { position: i });
+              }
+            }
+            return;
+          }
+        }
+      }
+ 
+      // NESTING LOGIC
+      if (source.type === 'environment') return; // Environments don't nest
+ 
       const collectionDoc = collections.find(c => c.id === collectionId);
       if (!collectionDoc) return;
-
+ 
       if (source.type === 'request') {
         const reqIndex = collectionDoc.requests.findIndex(r => r.id === source.id);
         if (reqIndex === -1) return;
@@ -448,7 +678,8 @@ export function Sidebar() {
            folderId: targetType === 'collection' ? null : targetId
         };
         
-        await updateDoc(doc(db, "collections", collectionId), { requests: updatedRequests });
+        setCollections(collections.map(c => c.id === collectionId ? { ...c, requests: updatedRequests } : c));
+        await apiService.updateCollection(collectionId, { requests: updatedRequests });
       } else if (source.type === 'folder') {
         const folderIndex = collectionDoc.folders.findIndex(f => f.id === source.id);
         if (folderIndex === -1) return;
@@ -460,14 +691,15 @@ export function Sidebar() {
               current = collectionDoc.folders.find(f => f.id === current?.parentId);
            }
         }
-
+ 
         const updatedFolders = [...collectionDoc.folders];
         updatedFolders[folderIndex] = {
            ...updatedFolders[folderIndex],
            parentId: targetType === 'collection' ? null : targetId
         };
         
-        await updateDoc(doc(db, "collections", collectionId), { folders: updatedFolders });
+        setCollections(collections.map(c => c.id === collectionId ? { ...c, folders: updatedFolders } : c));
+        await apiService.updateCollection(collectionId, { folders: updatedFolders });
       }
     } catch (err) {
       console.error('Drag and drop error', err);
@@ -475,7 +707,9 @@ export function Sidebar() {
   };
 
   const renderCollectionItems = (collectionId: string, requests: RequestItem[], folders: any[], parentId: string | null = null) => {
-    const currentFolders = folders.filter(f => (f.parentId || null) === parentId);
+    const currentFolders = (folders || [])
+      .filter(f => (f.parentId || null) === parentId)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     const currentRequests = requests.filter(r => (r.folderId || null) === parentId);
 
     return (
@@ -496,7 +730,7 @@ export function Sidebar() {
                   <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
                     {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)]" /> : <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />}
                   </div>
-                  <Folder className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                  <Folder className="w-3.5 h-3.5 text-[var(--icon-color)]" />
                   <span className="text-xs truncate">{folder.name}</span>
                 </div>
                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
@@ -512,7 +746,7 @@ export function Sidebar() {
                     className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded"
                     title="New Folder"
                   >
-                    <Folder className="w-3.5 h-3.5" />
+                    <Folder className="w-3.5 h-3.5 text-[var(--icon-color)]" />
                   </button>
                   <button 
                     onClick={(e) => { e.stopPropagation(); setModal({ isOpen: true, title: 'New Request', type: 'request', targetId: collectionId, targetFolderId: folder.id }); }}
@@ -556,7 +790,8 @@ export function Sidebar() {
                         
                         const updatedFolders = [...(collectionDoc.folders || []), ...newFolders];
                         const updatedRequests = [...(collectionDoc.requests || []), ...newRequests];
-                        await updateDoc(doc(db, "collections", collectionDoc.id), { folders: updatedFolders, requests: updatedRequests });
+                        await apiService.updateCollection(collectionDoc.id, { folders: updatedFolders, requests: updatedRequests });
+                        setCollections(collections.map(c => c.id === collectionDoc.id ? { ...c, folders: updatedFolders, requests: updatedRequests } : c));
                       } catch (error) {
                         console.error("Failed to duplicate folder:", error);
                       }
@@ -597,10 +832,11 @@ export function Sidebar() {
                               const updatedFolders = (collection.folders || []).filter(f => !folderIdsToRemove.has(f.id));
                               const updatedRequests = (collection.requests || []).filter(r => !requestIdsToRemove.has(r.id));
                               
-                              await updateDoc(doc(db, "collections", collection.id), { 
+                              await apiService.updateCollection(collection.id, { 
                                 folders: updatedFolders,
                                 requests: updatedRequests
                               });
+                              setCollections(collections.map(c => c.id === collection.id ? { ...c, folders: updatedFolders, requests: updatedRequests } : c));
                             }
                           } catch (error) {
                             console.error("Failed to delete folder:", error);
@@ -669,7 +905,8 @@ export function Sidebar() {
                         name: `Copy of ${req.name}`,
                       };
                       const updatedRequests = [...(collection.requests || []), newRequest];
-                      await updateDoc(doc(db, "collections", collection.id), { requests: updatedRequests });
+                      await apiService.updateCollection(collection.id, { requests: updatedRequests });
+                      setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
                     }
                   } catch (error) {
                     console.error("Failed to duplicate request:", error);
@@ -693,7 +930,8 @@ export function Sidebar() {
                         const collection = collections.find(c => c.id === collectionId);
                         if (collection) {
                           const updatedRequests = collection.requests.filter(r => r.id !== req.id);
-                          await updateDoc(doc(db, "collections", collection.id), { requests: updatedRequests });
+                          await apiService.updateCollection(collection.id, { requests: updatedRequests });
+                          setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
                         }
                       } catch (error) {
                         console.error("Failed to delete request:", error);
@@ -814,8 +1052,9 @@ export function Sidebar() {
                               message: `Are you sure you want to delete "${ws.name}"? This action is permanent and cannot be undone.`,
                               onConfirm: async () => {
                                 try {
-                                  await deleteDoc(doc(db, "workspaces", ws.id));
+                                  await apiService.deleteWorkspace(ws.id);
                                   const remaining = workspaces.filter(w => w.id !== ws.id);
+                                  setWorkspaces(remaining);
                                   if (remaining.length > 0) {
                                     setCurrentWorkspace(remaining[0]);
                                   }
@@ -872,7 +1111,7 @@ export function Sidebar() {
         <button 
           onClick={() => setActiveTab('collections')}
           className={cn(
-            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-1",
+            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
             activeTab === 'collections' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           )}
           title="Collections"
@@ -882,7 +1121,7 @@ export function Sidebar() {
         <button 
           onClick={() => setActiveTab('environments')}
           className={cn(
-            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-1",
+            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
             activeTab === 'environments' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           )}
           title="Environments"
@@ -892,18 +1131,38 @@ export function Sidebar() {
         <button 
           onClick={() => setActiveTab('deployments')}
           className={cn(
-            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-1",
+            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
             activeTab === 'deployments' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           )}
           title="Mock Deployments"
         >
           Mocks
         </button>
+        <button 
+          onClick={() => setActiveTab('history')}
+          className={cn(
+            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
+            activeTab === 'history' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          )}
+          title="Request History"
+        >
+          History
+        </button>
+        <button 
+          onClick={() => setActiveTab('tests')}
+          className={cn(
+            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
+            activeTab === 'tests' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          )}
+          title="Test Suites"
+        >
+          Tests
+        </button>
       </div>
 
       <div className="p-2 border-b border-[var(--border-subtle)]">
         <div className="relative">
-          <Search className="w-4 h-4 absolute left-2.5 top-2 text-[var(--text-secondary)]" />
+          <Search className="w-4 h-4 absolute left-2.5 top-2 text-[var(--icon-color)]" />
           <input
             type="text"
             placeholder="Search..."
@@ -921,7 +1180,7 @@ export function Sidebar() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Collections</span>
               <button 
                 onClick={() => setModal({ isOpen: true, title: 'New Collection', type: 'collection' })}
-                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-[var(--icon-color)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -931,6 +1190,8 @@ export function Sidebar() {
               return (
                 <div key={collection.id} className="mb-2">
                   <div 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, collection.id, 'collection', collection.id)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, collection.id, 'collection', collection.id)}
                     onClick={(e) => toggleExpand(collection.id, e)}
@@ -1025,7 +1286,7 @@ export function Sidebar() {
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
                             >
-                              <Folder className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+                              <Folder className="w-4 h-4 text-[var(--icon-color)] shrink-0" />
                               <span>New Folder</span>
                             </button>
                             <button
@@ -1069,7 +1330,9 @@ export function Sidebar() {
                                     return { ...r, id: newId, folderId: r.folderId ? (idMap.get(r.folderId) || null) : null };
                                   }) || [];
                                   
-                                  await setDoc(doc(db, "collections", newCollection.id), newCollection);
+                                  const created = await apiService.createCollection(newCollection);
+                                  const state = useStore.getState();
+                                  state.setCollections([...state.collections, created]);
                                 } catch (error) {
                                   console.error("Failed to duplicate collection:", error);
                                 }
@@ -1079,6 +1342,42 @@ export function Sidebar() {
                               <Copy className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
                               <span>Duplicate Collection</span>
                             </button>
+                            <div className="h-px bg-[var(--border-subtle)] my-1" />
+                            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Export Gateway Config</div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGatewayExport(collection, 'krakend');
+                                setActiveDropdown(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <FileDown className="w-4 h-4 text-orange-500 shrink-0" />
+                              <span>KrakenD Config</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGatewayExport(collection, 'kong');
+                                setActiveDropdown(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <FileDown className="w-4 h-4 text-blue-500 shrink-0" />
+                              <span>Kong Declarative</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGatewayExport(collection, 'spring_cloud_gateway');
+                                setActiveDropdown(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <FileDown className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <span>Spring Cloud Gateway</span>
+                            </button>
+                            <div className="h-px bg-[var(--border-subtle)] my-1" />
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1102,7 +1401,8 @@ export function Sidebar() {
                                   onConfirm: async () => {
                                     setConfirmModal(prev => ({ ...prev, isOpen: false }));
                                     try {
-                                      await deleteDoc(doc(db, "collections", collection.id));
+                                      await apiService.deleteCollection(collection.id);
+                                      setCollections(collections.filter(c => c.id !== collection.id));
                                     } catch (error) {
                                       console.error("Failed to delete collection:", error);
                                     }
@@ -1137,16 +1437,30 @@ export function Sidebar() {
           <div>
              <div className="flex items-center justify-between px-2 py-2 group">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Environments</span>
-              <button 
-                onClick={() => setModal({ isOpen: true, title: 'New Environment', type: 'environment' })}
-                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  title="Import Environment"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => setModal({ isOpen: true, title: 'New Environment', type: 'environment' })}
+                  className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  title="New Environment"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
             {filteredEnvironments.map(env => (
               <div 
                 key={env.id} 
+                draggable
+                onDragStart={(e) => handleDragStart(e, env.id, 'environment', 'env_root')}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, env.id, 'environment' as any, 'env_root')}
                 onClick={() => { 
                   setEditingEnvironment(env); 
                   setActiveView('environment'); 
@@ -1155,28 +1469,64 @@ export function Sidebar() {
                 className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group/env justify-between"
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <Settings2 className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
+                  <Settings2 className="w-4 h-4 shrink-0 text-[var(--icon-color)]" />
                   <span className="text-xs truncate">{env.name}</span>
                 </div>
-                <div className="flex items-center opacity-0 group-hover/env:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 opacity-0 group-hover/env:opacity-100 transition-opacity">
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleExportEnvironment(env);
+                    }}
+                    className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                    title="Export Environment"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </button>
                   <button 
                     onClick={async (e) => {
                       e.stopPropagation();
                       try {
-                        const newEnv = {
-                          ...env,
+                        const newEnv = await apiService.createEnvironment({
                           id: uuidv4(),
+                          workspaceId: currentWorkspace.id,
                           name: `Copy of ${env.name}`,
-                        };
-                        await setDoc(doc(db, "environments", newEnv.id), newEnv);
+                          variables: env.variables || [],
+                          position: environments.length
+                        });
+                        setEnvironments([...environments, newEnv]);
                       } catch (error) {
                         console.error("Failed to duplicate environment:", error);
                       }
                     }}
-                    className="p-0.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                    className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                     title="Duplicate Environment"
                   >
                     <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmModal({
+                        isOpen: true,
+                        title: 'Delete Environment',
+                        message: `Are you sure you want to delete the environment "${env.name}"?`,
+                        onConfirm: async () => {
+                          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                          try {
+                            await apiService.deleteEnvironment(env.id);
+                            setEnvironments(environments.filter(e => e.id !== env.id));
+                            addToast('Environment deleted', 'success', 2000);
+                          } catch (error) {
+                            console.error("Failed to delete environment:", error);
+                          }
+                        }
+                      });
+                    }}
+                    className="p-1 rounded text-[var(--text-secondary)] hover:text-red-500 transition-colors"
+                    title="Delete Environment"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1187,7 +1537,7 @@ export function Sidebar() {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'deployments' ? (
           <div>
             <div className="flex items-center justify-between px-2 py-2 group">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Mock API Servers</span>
@@ -1218,7 +1568,8 @@ export function Sidebar() {
                           onConfirm: async () => {
                             setConfirmModal(prev => ({ ...prev, isOpen: false }));
                             try {
-                              await deleteDoc(doc(db, "deployments", deploy.id));
+                              await apiService.deleteDeployment(deploy.id);
+                              setDeployments(deployments.filter(d => d.id !== deploy.id));
                             } catch (error) {
                               console.error("Failed to delete deployment:", error);
                             }
@@ -1258,7 +1609,118 @@ export function Sidebar() {
               </div>
             )}
           </div>
-        )}
+        ) : activeTab === 'history' ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between px-2 py-1.5 group">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Request History</span>
+              {filteredHistory.length > 0 && (
+                <button 
+                  onClick={() => {
+                    setConfirmModal({
+                      isOpen: true,
+                      title: 'Clear History',
+                      message: 'Are you sure you want to clear your entire request history for this workspace?',
+                      onConfirm: () => {
+                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                        clearHistory(currentWorkspace?.id || 'default');
+                        addToast('History cleared', 'success');
+                      }
+                    });
+                  }}
+                  className="text-[10px] text-red-500 hover:text-red-400 font-semibold px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
+                  title="Clear Workspace History"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
+            
+            <div className="flex flex-col gap-2 max-h-[calc(100vh-250px)] overflow-y-auto pr-1">
+              {filteredHistory.map((item) => {
+                const isSuccess = item.responseStatus && item.responseStatus < 400;
+                const statusColor = item.responseStatus === 0 
+                  ? 'text-gray-400 border-gray-500/30 bg-gray-500/10'
+                  : isSuccess 
+                    ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10' 
+                    : 'text-red-500 border-red-500/30 bg-red-500/10';
+                    
+                const methodColor = item.method === 'GET' ? 'text-blue-400'
+                  : item.method === 'POST' ? 'text-emerald-400'
+                  : item.method === 'PUT' ? 'text-amber-400'
+                  : item.method === 'DELETE' ? 'text-red-400'
+                  : 'text-purple-400';
+
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleHistoryItemClick(item)}
+                    className="flex flex-col gap-1.5 p-2 rounded border border-[var(--border-subtle)] hover:border-[var(--border-strong)] bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer group/hist relative"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                        <span className={cn("text-[10px] font-bold font-mono px-1.5 py-0.5 rounded border shrink-0", statusColor)}>
+                          {item.responseStatus || 'ERR'}
+                        </span>
+                        <span className={cn("text-[10px] font-mono font-bold shrink-0", methodColor)}>
+                          {item.method}
+                        </span>
+                        <span className="text-xs font-medium text-[var(--text-primary)] truncate" title={item.name}>
+                          {item.name}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 opacity-0 group-hover/hist:opacity-100 transition-opacity shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleHistoryItemClick(item, true);
+                          }}
+                          className="p-1 rounded text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors"
+                          title="Re-run Request"
+                        >
+                          <Play className="w-3 h-3 fill-emerald-500/20" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeHistoryItem(item.id);
+                            addToast('History item removed', 'success', 2000);
+                          }}
+                          className="p-1 rounded text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                          title="Remove from history"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="text-[10px] text-[var(--text-secondary)] font-mono truncate px-1">
+                      {item.url}
+                    </div>
+
+                    <div className="flex items-center justify-between text-[9px] text-[var(--text-secondary)] px-1 pt-1 border-t border-[var(--border-subtle)]/50">
+                      <span>{item.timestamp}</span>
+                      {item.timeMs !== undefined && item.timeMs > 0 && (
+                        <span>{item.timeMs} ms</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredHistory.length === 0 && (
+                <div className="text-center p-8 text-xs text-[var(--text-secondary)] flex flex-col items-center gap-2">
+                  <History className="w-8 h-8 text-[var(--border-strong)]" />
+                  <span>
+                    {searchQuery ? "No history matches your search." : "No past requests. Execute a request to see it here!"}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'tests' ? (
+          <TestRunnerSidebar searchQuery={searchQuery} />
+        ) : null}
       </div>
 
       <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-1 bg-[var(--bg-hover)]/30">
@@ -1291,7 +1753,6 @@ export function Sidebar() {
                     onClick={async (e) => {
                       e.stopPropagation();
                       const updated = (currentWorkspace.members || []).filter(x => x !== m);
-                      await updateDoc(doc(db, "workspaces", currentWorkspace.id), { members: updated });
                       setCurrentWorkspace({ ...currentWorkspace, members: updated });
                     }}
                     className="text-red-500 hover:text-red-600 opacity-0 group-hover/m:opacity-100 transition-opacity ml-1"

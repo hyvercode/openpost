@@ -15,7 +15,8 @@
       "fields": {
         "workspaceId": "string",
         "name": "string",
-        "requests": "list"
+        "requests": "list",
+        "mockConfig": "map"
       },
       "read": "isAuthenticated()",
       "write": "isAuthenticated()"

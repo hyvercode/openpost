@@ -24,6 +24,8 @@ export function TabBar() {
       setActiveView('deployments');
     } else if (tab.type === 'collection_doc') {
       setActiveView('collection_doc');
+    } else if (tab.type === 'test_suite') {
+      setActiveView('test_suite');
     }
   };
 

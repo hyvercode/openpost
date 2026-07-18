@@ -5,8 +5,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { auth, db, loginWithGoogle, logout } from './lib/firebase';
+import { auth, loginWithGoogle, logout } from './lib/firebase';
+import { apiService } from './lib/api';
 import { useStore } from './store/useStore';
 import { Sidebar } from './components/Sidebar';
 import { RequestPanel } from './components/RequestPanel';
@@ -14,10 +14,15 @@ import { ResponsePanel } from './components/ResponsePanel';
 import { EnvironmentPanel } from './components/EnvironmentPanel';
 import { DeploymentPanel } from './components/DeploymentPanel';
 import { CollectionDocPanel } from './components/CollectionDocPanel';
+import { SettingsView } from './components/SettingsView';
+import { TestRunnerPanel } from './components/TestRunnerPanel';
 import { TabBar } from './components/TabBar';
 import { BottomDrawer } from './components/BottomDrawer';
-import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal } from 'lucide-react';
-import { Workspace } from './types';
+import { LoadingScreen } from './components/LoadingScreen';
+import { AuthScreen } from './components/AuthScreen';
+import { Toaster } from './components/Toaster';
+import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User } from 'lucide-react';
+import { Workspace, Theme } from './types';
 import { cn } from './utils';
 
 export default function App() {
@@ -34,6 +39,7 @@ export default function App() {
     currentEnvironment, 
     setCurrentEnvironment, 
     activeView, 
+    setActiveView,
     theme, 
     setTheme,
     sidebarCollapsed,
@@ -48,6 +54,7 @@ export default function App() {
     setLayoutMode
   } = useStore();
   const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isResizingPanels, setIsResizingPanels] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
@@ -293,14 +300,20 @@ export default function App() {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        setUser({
+        const userData = {
           uid: currentUser.uid,
           email: currentUser.email,
           displayName: currentUser.displayName,
           photoURL: currentUser.photoURL,
-        });
+        };
+        setUser(userData);
+        try {
+          await apiService.saveUser(userData);
+        } catch (e) {
+          console.error("Failed to save user in PostgreSQL:", e);
+        }
       } else {
         setUser(null);
       }
@@ -312,110 +325,127 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     
-    const q1 = query(collection(db, "workspaces"), where("ownerId", "==", user.uid));
-    const q2 = query(collection(db, "workspaces"), where("members", "array-contains", user.uid));
+    let isMounted = true;
     
-    let ownedWorkspaces: Workspace[] = [];
-    let memberWorkspaces: Workspace[] = [];
-    
-    const updateMergedWorkspaces = () => {
-      const all = [...ownedWorkspaces];
-      memberWorkspaces.forEach(w => {
-        if (!all.some(x => x.id === w.id)) {
-          all.push(w);
+    const loadWorkspaces = async () => {
+      try {
+        let list = await apiService.getWorkspaces(user.uid);
+        if (!isMounted) return;
+
+        if (list.length === 0) {
+          // Create default workspace if none exist
+          const newWS = await apiService.createWorkspace("My Workspace", user.uid);
+          list = [newWS];
         }
-      });
-      
-      setWorkspaces(all);
-      
-      const storedId = localStorage.getItem('lastWorkspaceId');
-      if (all.length > 0) {
-        const found = all.find(w => w.id === storedId);
-        if (found) {
-          if (!currentWorkspace || currentWorkspace.id !== found.id) {
-            setCurrentWorkspace(found);
+
+        setWorkspaces(list);
+        setDataLoaded(true);
+
+        const storedId = localStorage.getItem('lastWorkspaceId');
+        if (list.length > 0) {
+          const found = list.find(w => w.id === storedId);
+          if (found) {
+            if (!currentWorkspace || currentWorkspace.id !== found.id) {
+              setCurrentWorkspace(found);
+            }
+          } else if (!currentWorkspace || !list.some(w => w.id === currentWorkspace.id)) {
+            setCurrentWorkspace(list[0]);
           }
-        } else if (!currentWorkspace || !all.some(w => w.id === currentWorkspace.id)) {
-          setCurrentWorkspace(all[0]);
+        }
+      } catch (err) {
+        console.error("Failed to load workspaces:", err);
+        if (isMounted) {
+          setDataLoaded(true);
         }
       }
     };
 
-    const unsubscribe1 = onSnapshot(q1, async (snapshot) => {
-      ownedWorkspaces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workspace));
-      
-      if (ownedWorkspaces.length === 0 && memberWorkspaces.length === 0) {
-        const { doc, setDoc } = await import('firebase/firestore');
-        const { v4: uuidv4 } = await import('uuid');
-        const newWorkspace = {
-          id: uuidv4(),
-          name: "My Workspace",
-          ownerId: user.uid,
-          members: []
-        };
-        await setDoc(doc(db, "workspaces", newWorkspace.id), newWorkspace);
-      } else {
-        updateMergedWorkspaces();
-      }
-    });
-
-    const unsubscribe2 = onSnapshot(q2, (snapshot) => {
-      memberWorkspaces = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Workspace));
-      updateMergedWorkspaces();
-    });
-
+    loadWorkspaces();
     return () => {
-      unsubscribe1();
-      unsubscribe2();
+      isMounted = false;
     };
   }, [user, setWorkspaces, setCurrentWorkspace, currentWorkspace]);
 
   useEffect(() => {
     if (!currentWorkspace) return;
 
-    const unsubCollections = onSnapshot(query(collection(db, "collections"), where("workspaceId", "==", currentWorkspace.id)), (snapshot) => {
-      setCollections(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
-    });
+    let isMounted = true;
 
-    const unsubEnvironments = onSnapshot(query(collection(db, "environments"), where("workspaceId", "==", currentWorkspace.id)), (snapshot) => {
-      setEnvironments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
-    });
+    const loadWorkspaceData = async () => {
+      try {
+        const [collectionsData, environmentsData, deploymentsData] = await Promise.all([
+          apiService.getCollections(currentWorkspace.id),
+          apiService.getEnvironments(currentWorkspace.id),
+          apiService.getDeployments(currentWorkspace.id),
+        ]);
 
-    const unsubDeployments = onSnapshot(query(collection(db, "deployments"), where("workspaceId", "==", currentWorkspace.id)), (snapshot) => {
-      setDeployments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any)));
-    });
+        if (!isMounted) return;
 
+        setCollections(collectionsData);
+        setEnvironments(environmentsData);
+        setDeployments(deploymentsData);
+      } catch (err) {
+        console.error("Failed to load workspace data:", err);
+      }
+    };
+
+    loadWorkspaceData();
     return () => {
-      unsubCollections();
-      unsubEnvironments();
-      unsubDeployments();
+      isMounted = false;
     };
   }, [currentWorkspace, setCollections, setEnvironments, setDeployments]);
 
-  if (loading) {
-    return <div className="min-h-screen bg-gray-900 text-[var(--text-primary)] flex items-center justify-center">Loading...</div>;
-  }
+  if (window.location.pathname.startsWith('/auth/callback')) {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    const error = params.get('error') || params.get('error_description');
 
-  if (!user) {
+    if (window.opener) {
+      if (error) {
+        window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error }, window.location.origin);
+      } else if (code) {
+        window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', code, state }, window.location.origin);
+      }
+    }
+
+    setTimeout(() => {
+      window.close();
+    }, 2000);
+
     return (
-      <div className="min-h-screen bg-gray-900 text-[var(--text-primary)] flex flex-col items-center justify-center p-4">
-        <div className="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full text-center">
-          <MonitorSmartphone className="w-16 h-16 mx-auto mb-6 text-indigo-500" />
-          <h1 className="text-3xl font-bold mb-2">OpenPost</h1>
-          <p className="text-[var(--text-secondary)] mb-8">Collaborative API Testing Platform.</p>
-          <button 
-            onClick={loginWithGoogle}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-[var(--text-primary)] font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            Sign in with Google
-          </button>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f111a] text-white p-6 font-sans">
+        <div className="w-full max-w-sm bg-[#151824] border border-[#23273a] p-6 rounded-lg text-center shadow-xl flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full bg-green-500/15 text-green-500 flex items-center justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 animate-pulse">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.745 3.745 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+            </svg>
+          </div>
+          <h2 className="text-sm font-semibold text-white mb-1">Authorization Successful!</h2>
+          <p className="text-xs text-gray-400 mb-4">You have successfully authenticated with the provider.</p>
+          <p className="text-[10px] text-gray-500 animate-pulse">This window will close automatically in a moment...</p>
         </div>
       </div>
     );
   }
 
+  if (loading) {
+    return <LoadingScreen message="Authenticating session..." />;
+  }
+
+  if (user && !dataLoaded) {
+    return <LoadingScreen message="Fetching workspaces..." />;
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
   return (
-    <div className={`flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] font-sans overflow-hidden ${theme === 'light' ? 'theme-light' : ''}`}>
+    <div className={cn(
+      "flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] font-sans overflow-hidden",
+      theme === 'light' ? 'theme-light' : theme === 'dark' ? 'theme-dark' : 'theme-default'
+    )}>
       {!sidebarCollapsed && (
         <>
           <Sidebar />
@@ -469,7 +499,7 @@ export default function App() {
                   "p-1 rounded transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
                   layoutMode === 'horizontal' 
                     ? "bg-[var(--primary)] text-white shadow-sm" 
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Horizontal Split (Side by Side)"
               >
@@ -482,7 +512,7 @@ export default function App() {
                   "p-1 rounded transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
                   layoutMode === 'vertical' 
                     ? "bg-[var(--primary)] text-white shadow-sm" 
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Vertical Split (Stacked)"
               >
@@ -495,7 +525,7 @@ export default function App() {
                   "p-1 rounded transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
                   layoutMode === 'floating' 
                     ? "bg-[var(--primary)] text-white shadow-sm" 
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Docking Workspace (Floating Windows)"
               >
@@ -507,17 +537,38 @@ export default function App() {
             <div className="h-4 w-px bg-[var(--border-strong)]"></div>
 
             <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md text-[var(--text-primary)] transition-colors"
-              title="Toggle Theme"
+              onClick={() => {
+                const themes: Theme[] = ['default', 'light', 'dark'];
+                const nextIndex = (themes.indexOf(theme) + 1) % themes.length;
+                setTheme(themes[nextIndex]);
+              }}
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md text-[var(--text-primary)] transition-colors flex items-center gap-1.5"
+              title={`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`}
             >
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === 'default' ? <MonitorSmartphone className="w-4 h-4 text-[var(--icon-color)]" /> : 
+               theme === 'light' ? <Sun className="w-4 h-4 text-[var(--icon-color)]" /> : 
+               <Moon className="w-4 h-4 text-[var(--icon-color)]" />}
+              <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
+                {theme}
+              </span>
             </button>
             <div className="h-4 w-px bg-[var(--border-strong)]"></div>
-            <div className="flex items-center gap-2">
-              {user.photoURL && <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />}
-              <span className="text-sm text-[var(--text-primary)]">{user.email}</span>
-            </div>
+            <button 
+              onClick={() => setActiveView('settings')}
+              className={cn(
+                "flex items-center gap-2 p-1 rounded-full transition-all border-2",
+                activeView === 'settings' ? "border-[var(--primary)] shadow-sm" : "border-transparent hover:border-[var(--border-subtle)]"
+              )}
+              title="Profile Settings"
+            >
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-[var(--bg-hover)] flex items-center justify-center">
+                  <User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                </div>
+              )}
+            </button>
             <button onClick={logout} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md text-[var(--text-primary)] transition-colors" title="Logout">
               <LogOut className="w-4 h-4" />
             </button>
@@ -771,6 +822,12 @@ export default function App() {
             <div className="flex-1 flex flex-col min-h-0">
               <CollectionDocPanel />
             </div>
+          ) : activeView === 'settings' ? (
+            <SettingsView />
+          ) : activeView === 'test_suite' ? (
+            <div className="flex-1 flex flex-col min-h-0">
+              <TestRunnerPanel />
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-sm bg-[var(--bg-base)]">
               <div className="text-center">
@@ -800,6 +857,7 @@ export default function App() {
           </div>
         </footer>
       </div>
+      <Toaster />
     </div>
   );
 }
