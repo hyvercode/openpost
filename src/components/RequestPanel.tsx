@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
-import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield } from 'lucide-react';
+import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import { KeyValue, RequestAuth } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,6 +12,7 @@ import { JsonEditor } from './JsonEditor';
 import { motion, AnimatePresence } from 'motion/react';
 import { AuthModal } from './AuthModal';
 import { wsManager } from '../lib/websocketManager';
+import { GraphQLSchemaExplorer } from './GraphQLSchemaExplorer';
 
 export function RequestPanel() {
   const { 
@@ -54,6 +55,8 @@ export function RequestPanel() {
   const [urlTouched, setUrlTouched] = useState(false);
   const [authConfig, setAuthConfig] = useState<RequestAuth>({ type: 'none' });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [introspectionSchema, setIntrospectionSchema] = useState<any>(null);
+  const [isDetectingGql, setIsDetectingGql] = useState(false);
 
   const activeRequestIdRef = useRef<string | null>(null);
   const skipNextAutosave = useRef(false);
@@ -98,6 +101,7 @@ export function RequestPanel() {
         setAuthConfig(activeRequest.auth || { type: 'none' });
         setSaveStatus('');
         setUrlTouched(false);
+        setIntrospectionSchema(null);
         if (activeRequest.method === 'WS') {
           setActiveTab('ws_messages');
         } else if (activeTab === 'ws_messages') {
@@ -126,6 +130,7 @@ export function RequestPanel() {
       setAuthConfig({ type: 'none' });
       setSaveStatus('');
       setUrlTouched(false);
+      setIntrospectionSchema(null);
     }
   }, [activeRequest]);
 
@@ -721,6 +726,7 @@ export function RequestPanel() {
 
       setResponse(res.data);
       if (res.data.data?.__schema) {
+        setIntrospectionSchema(res.data.data.__schema);
         addToast('Introspection successful', 'success');
         addConsoleLog('success', 'GraphQL schema fetched successfully', 'POST', finalUrl);
       } else {
@@ -732,6 +738,60 @@ export function RequestPanel() {
       addConsoleLog('error', `Introspection error: ${err.message}`, 'POST', finalUrl);
     } finally {
       setIsRequestLoading(false);
+    }
+  };
+
+  const handleDetectGraphQL = async () => {
+    if (!url) {
+      addToast('Please enter a URL first', 'error');
+      return;
+    }
+    setIsDetectingGql(true);
+    const { currentEnvironment } = useStore.getState();
+    const processedEnvVars = currentEnvironment?.variables || [];
+    const finalUrl = replaceEnvironmentVariables(url, processedEnvVars);
+    
+    addConsoleLog('info', `Testing if ${finalUrl} is a GraphQL endpoint...`, 'POST', finalUrl);
+
+    try {
+      const finalHeaders: Record<string, string> = {};
+      headers.forEach(h => {
+        if (h.enabled && h.key) {
+          finalHeaders[h.key] = replaceEnvironmentVariables(h.value, processedEnvVars);
+        }
+      });
+
+      const { proxyConfig } = useStore.getState();
+      const res = await axios.post('/api/proxy', {
+        method: 'POST',
+        url: finalUrl,
+        headers: {
+          ...finalHeaders,
+          'Content-Type': 'application/json'
+        },
+        body: { query: '{ __typename }' },
+        proxyConfig
+      });
+
+      if (res.data?.data?.__typename || res.data?.errors) {
+        addToast('GraphQL Endpoint Confirmed!', 'success');
+        addConsoleLog('success', 'GraphQL confirmed! Switched to GraphQL editor and triggered schema introspection.', 'POST', finalUrl);
+        setMethod('GQL');
+        setActiveTab('graphql');
+        
+        // Fetch schema automatically
+        setTimeout(() => {
+          handleIntrospect();
+        }, 100);
+      } else {
+        addToast('Endpoint did not return a valid GraphQL response', 'warning');
+        addConsoleLog('warn', 'GraphQL check returned response that does not match GraphQL specification.', 'POST', finalUrl);
+      }
+    } catch (err: any) {
+      addToast('Connection failed or endpoint is not GraphQL', 'error');
+      addConsoleLog('error', `GraphQL verification failed: ${err.message}`, 'POST', finalUrl);
+    } finally {
+      setIsDetectingGql(false);
     }
   };
 
@@ -966,6 +1026,21 @@ export function RequestPanel() {
               placeholder={method === 'WS' ? "Enter ws:// or wss:// URL" : "Enter URL or paste text"}
               className="bg-transparent flex-1 px-3 text-sm text-[var(--text-primary)] focus:outline-none"
             />
+            {url && !getUrlError(url) && (
+              <button
+                onClick={handleDetectGraphQL}
+                disabled={isDetectingGql}
+                title="Auto-detect if this is a GraphQL endpoint"
+                className="flex items-center gap-1.5 text-[10px] px-3 font-semibold text-[var(--text-secondary)] hover:text-[var(--primary)] border-l border-[var(--border-strong)] transition-colors duration-150 disabled:opacity-50"
+              >
+                {isDetectingGql ? (
+                  <span className="w-3 h-3 border-2 border-[var(--primary)]/20 border-t-[var(--primary)] rounded-full animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-500" />
+                )}
+                <span>Detect GQL</span>
+              </button>
+            )}
           </div>
           <button 
             onClick={handleSend}
@@ -1005,6 +1080,24 @@ export function RequestPanel() {
           <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium px-1">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <span>{urlErrorMsg}</span>
+          </div>
+        )}
+
+        {url && !getUrlError(url) && /graphql|gql/i.test(url) && method !== 'GQL' && (
+          <div className="mt-2 px-3 py-2 bg-[var(--primary)]/10 border border-[var(--primary)]/20 rounded-md flex items-center justify-between text-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-[var(--text-primary)]">
+              <Sparkles className="w-4 h-4 text-yellow-500 animate-pulse shrink-0" />
+              <span>We detected that this URL might be a GraphQL endpoint. Switch to GraphQL Editor?</span>
+            </div>
+            <button
+              onClick={() => {
+                setMethod('GQL');
+                setActiveTab('graphql');
+              }}
+              className="bg-[var(--primary)] text-white px-3 py-1 rounded font-bold text-[10px] uppercase tracking-wider hover:opacity-90 transition-opacity"
+            >
+              Switch to GraphQL
+            </button>
           </div>
         )}
       </div>
@@ -1112,7 +1205,7 @@ export function RequestPanel() {
             )}
             {activeTab === 'graphql' && (
               <div className="h-full flex flex-col min-h-0 bg-[var(--bg-base)]">
-                <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)]">
+                <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] shrink-0">
                    <div className="flex items-center gap-2">
                      <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-secondary)]">GraphQL Editor</span>
                      <div className="h-3 w-px bg-[var(--border-subtle)] mx-1" />
@@ -1126,10 +1219,10 @@ export function RequestPanel() {
                      </button>
                    </div>
                 </div>
-                <div className="flex-1 flex min-h-0">
-                  <div className="flex-1 flex flex-col border-r border-[var(--border-subtle)]">
-                    <div className="px-4 py-1.5 bg-[var(--bg-panel)] text-[10px] text-[var(--text-secondary)] font-bold uppercase border-b border-[var(--border-subtle)]">Query</div>
-                    <div className="flex-1">
+                <div className="flex-1 flex min-h-0 overflow-hidden">
+                  <div className="flex-1 flex flex-col border-r border-[var(--border-subtle)] min-w-0">
+                    <div className="px-4 py-1.5 bg-[var(--bg-panel)] text-[10px] text-[var(--text-secondary)] font-bold uppercase border-b border-[var(--border-subtle)] select-none">Query</div>
+                    <div className="flex-1 min-h-0">
                       <AutocompleteTextarea
                         value={bodyContent}
                         onValueChange={setBodyContent}
@@ -1138,15 +1231,24 @@ export function RequestPanel() {
                       />
                     </div>
                   </div>
-                  <div className="w-1/3 flex flex-col">
-                    <div className="px-4 py-1.5 bg-[var(--bg-panel)] text-[10px] text-[var(--text-secondary)] font-bold uppercase border-b border-[var(--border-subtle)]">Variables (JSON)</div>
-                    <div className="flex-1">
+                  <div className="w-1/3 flex flex-col min-w-0">
+                    <div className="px-4 py-1.5 bg-[var(--bg-panel)] text-[10px] text-[var(--text-secondary)] font-bold uppercase border-b border-[var(--border-subtle)] select-none">Variables (JSON)</div>
+                    <div className="flex-1 min-h-0">
                       <JsonEditor
                         value={gqlVariables}
                         onChange={setGqlVariables}
                       />
                     </div>
                   </div>
+                  {introspectionSchema && (
+                    <GraphQLSchemaExplorer 
+                      schema={introspectionSchema}
+                      onInsertQuery={(queryStub) => {
+                        setBodyContent(queryStub);
+                        addToast('Query template inserted!', 'success', 2000);
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             )}
