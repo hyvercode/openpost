@@ -9,6 +9,7 @@ import { PromptModal } from './PromptModal';
 import { ConfirmModal } from './ConfirmModal';
 import { CustomizeCollectionModal, getCollectionIcon } from './CustomizeCollectionModal';
 import { exportToGateway, GatewayType } from '../utils/gatewayExports';
+import { exportToOpenAPI } from '../utils/openapiExport';
 import { TestRunnerSidebar } from './TestRunnerSidebar';
 
 export function Sidebar() {
@@ -542,6 +543,22 @@ export function Sidebar() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     addToast(`${type.replace(/_/g, ' ')} config exported`, 'success', 2000);
+  };
+
+  const handleOpenAPIExport = (collection: ApiCollection) => {
+    const config = exportToOpenAPI(collection);
+    const blob = new Blob([config], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${collection.name.replace(/\s+/g, '_').toLowerCase()}_openapi.json`;
+    document.body.appendChild(a);
+    a.click();
+    
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    addToast('OpenAPI JSON exported', 'success', 2000);
   };
 
   const handleExportEnvironment = (env: Environment) => {
@@ -1341,6 +1358,19 @@ export function Sidebar() {
                             >
                               <Copy className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
                               <span>Duplicate Collection</span>
+                            </button>
+                            <div className="h-px bg-[var(--border-subtle)] my-1" />
+                            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Export Data & Docs</div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenAPIExport(collection);
+                                setActiveDropdown(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <FileDown className="w-4 h-4 text-purple-500 shrink-0" />
+                              <span>Swagger / OpenAPI (JSON)</span>
                             </button>
                             <div className="h-px bg-[var(--border-subtle)] my-1" />
                             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Export Gateway Config</div>
