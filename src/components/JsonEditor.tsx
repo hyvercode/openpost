@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { cn } from '../utils';
+import { cn, replaceEnvironmentVariables } from '../utils';
 import { useStore } from '../store/useStore';
 import { Play, Copy, Check, FileCode, RefreshCw, Minimize2, Trash2, HelpCircle, Code, AlertTriangle } from 'lucide-react';
 
@@ -74,7 +74,7 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
   placeholder = '{\n  "key": "value"\n}',
   className
 }) => {
-  const { addToast } = useStore();
+  const { addToast, currentEnvironment } = useStore();
   const [copied, setCopied] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -82,6 +82,8 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
+
+  const envVars = currentEnvironment ? currentEnvironment.variables : [];
 
   // Auto-close templates dropdown
   useEffect(() => {
@@ -132,9 +134,25 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
         addToast('Editor is empty', 'warning', 1500);
         return;
       }
-      const parsed = JSON.parse(value);
-      onChange(JSON.stringify(parsed, null, spaces));
-      addToast(`Beautified JSON (${spaces} spaces)`, 'success', 1500);
+      
+      // Try parsing with replaced variables first to validate
+      const replaced = replaceEnvironmentVariables(value, envVars);
+      JSON.parse(replaced);
+      
+      // If valid after replacement, we can try to format the original string
+      // But JSON.parse(value) might fail if it has {{var}} outside quotes.
+      // So we have to be careful. If it's standard JSON, we format normally.
+      // If it has variables, we try a best-effort approach or just replace, format, and put variables back? No.
+      
+      // For now, let's just try to parse the original if possible
+      try {
+        const parsed = JSON.parse(value);
+        onChange(JSON.stringify(parsed, null, spaces));
+        addToast(`Beautified JSON (${spaces} spaces)`, 'success', 1500);
+      } catch (err) {
+        // If parsing original fails, we can't easily format without breaking variables
+        addToast('Cannot format: Variables outside quotes make JSON invalid for parser. Put variables in quotes or define them to format.', 'warning', 4000);
+      }
     } catch (err: any) {
       addToast(`Format failed: ${err.message}`, 'error', 3000);
     }
@@ -192,7 +210,7 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
 
     // Standard JSON token regex
     // Matches: string, number, boolean, null, object key (with training colon)
-    return escaped.replace(
+    let highlighted = escaped.replace(
       /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
       (match) => {
         let cls = 'text-amber-500 font-semibold'; // Default: numbers (Yellow-amber)
@@ -210,18 +228,33 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
         return `<span class="${cls}">${match}</span>`;
       }
     );
-  }, [value]);
+
+    // Highlight environment variables: {{variable_name}}
+    // We do this after syntax highlighting to handle variables inside strings
+    highlighted = highlighted.replace(/{{([^{}]+)}}/g, (match) => {
+      const varName = match.slice(2, -2);
+      const exists = envVars.some(v => v.key === varName && v.enabled);
+      return `<span class="${cn(
+        "px-0.5 rounded font-bold cursor-help",
+        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 border border-dashed border-gray-500/30"
+      )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
+    });
+
+    return highlighted;
+  }, [value, envVars]);
 
   // Real-time syntax check
   const jsonError = useMemo(() => {
     if (!value.trim()) return null;
     try {
-      JSON.parse(value);
+      // Replace variables before validation
+      const replaced = replaceEnvironmentVariables(value, envVars);
+      JSON.parse(replaced);
       return null;
     } catch (e: any) {
       return e.message;
     }
-  }, [value]);
+  }, [value, envVars]);
 
   // Dynamic lines array for the sidebar gutter
   const lines = useMemo(() => {

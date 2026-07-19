@@ -331,7 +331,12 @@ export function ResponsePanel() {
         key: replaceEnvironmentVariables(p.key, envVars),
         value: replaceEnvironmentVariables(p.value, envVars)
       })),
-      bodyContent: replaceEnvironmentVariables(currentRequestConfig.bodyContent, envVars)
+      bodyContent: replaceEnvironmentVariables(currentRequestConfig.bodyContent, envVars),
+      bodyFormData: currentRequestConfig.bodyFormData ? currentRequestConfig.bodyFormData.map((f: any) => ({
+        ...f,
+        key: replaceEnvironmentVariables(f.key, envVars),
+        value: replaceEnvironmentVariables(f.value, envVars)
+      })) : undefined
     };
     
     // Check for local generators first

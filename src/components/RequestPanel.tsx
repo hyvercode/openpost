@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
-import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles } from 'lucide-react';
+import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip } from 'lucide-react';
 import axios from 'axios';
 import { KeyValue, RequestAuth } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -1455,6 +1455,7 @@ export function RequestPanel() {
                       <div className="flex-1 overflow-y-auto p-1">
                         {bodyFormData.map((item) => {
                           const isRowInvalid = item.enabled && item.value.trim() !== '' && item.key.trim() === '';
+                          const isFile = bodyType === 'form-data' && item.type === 'file';
                           return (
                             <div key={item.id} className="flex items-center group mb-1 border-b border-[var(--bg-panel)] pb-1">
                               <div className="w-8 shrink-0 flex items-center justify-center">
@@ -1468,35 +1469,108 @@ export function RequestPanel() {
                                   className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
                                 />
                               </div>
-                              <div className="flex-1 px-1 relative">
-                                <AutocompleteInput
-                                  type="text"
-                                  placeholder="Key"
-                                  value={item.key || ''}
-                                  onValueChange={(val) => {
-                                    let newItems = bodyFormData.map(b => b.id === item.id ? { ...b, key: val } : b);
-                                    if (bodyFormData[bodyFormData.length - 1].id === item.id && val !== '') {
-                                      newItems.push({ id: uuidv4(), key: '', value: '', enabled: true });
-                                    }
-                                    setBodyFormData(newItems);
-                                  }}
-                                  className={cn(
-                                    "w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors",
-                                    isRowInvalid && "border-red-500 bg-red-500/10 focus:border-red-500 rounded px-2"
-                                  )}
-                                />
+                              <div className="flex-1 px-1 relative flex items-center gap-1.5">
+                                {bodyType === 'form-data' && (
+                                  <div className="shrink-0">
+                                    <select
+                                      value={item.type || 'text'}
+                                      onChange={(e) => {
+                                        const newType = e.target.value as 'text' | 'file';
+                                        const newItems = bodyFormData.map(b => 
+                                          b.id === item.id 
+                                            ? { ...b, type: newType, value: '', fileName: undefined } 
+                                            : b
+                                        );
+                                        setBodyFormData(newItems);
+                                      }}
+                                      className="bg-[var(--bg-surface)] text-[9px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-bold border border-[var(--border-subtle)] rounded px-1.5 py-0.5 cursor-pointer outline-none uppercase transition-all tracking-wider focus:border-[var(--primary)]"
+                                    >
+                                      <option value="text" className="bg-[var(--bg-surface)] text-[var(--text-primary)] font-sans">Text</option>
+                                      <option value="file" className="bg-[var(--bg-surface)] text-[var(--text-primary)] font-sans">File</option>
+                                    </select>
+                                  </div>
+                                )}
+                                <div className="flex-1 min-h-0">
+                                  <AutocompleteInput
+                                    type="text"
+                                    placeholder="Key"
+                                    value={item.key || ''}
+                                    onValueChange={(val) => {
+                                      let newItems = bodyFormData.map(b => b.id === item.id ? { ...b, key: val } : b);
+                                      if (bodyFormData[bodyFormData.length - 1].id === item.id && val !== '') {
+                                        newItems.push({ id: uuidv4(), key: '', value: '', enabled: true, type: 'text' });
+                                      }
+                                      setBodyFormData(newItems);
+                                    }}
+                                    className={cn(
+                                      "w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors",
+                                      isRowInvalid && "border-red-500 bg-red-500/10 focus:border-red-500 rounded px-2"
+                                    )}
+                                  />
+                                </div>
                               </div>
                               <div className="flex-1 px-1">
-                                <AutocompleteInput
-                                  type="text"
-                                  placeholder="Value"
-                                  value={item.value || ''}
-                                  onValueChange={(val) => {
-                                    const newItems = bodyFormData.map(b => b.id === item.id ? { ...b, value: val } : b);
-                                    setBodyFormData(newItems);
-                                  }}
-                                  className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
-                                />
+                                {isFile ? (
+                                  <div className="flex items-center gap-2">
+                                    {item.fileName ? (
+                                      <div className="flex items-center gap-2 bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-1 rounded text-xs text-[var(--text-primary)] max-w-full min-w-0 font-mono flex-1">
+                                        <File className="w-3.5 h-3.5 text-[var(--primary)] shrink-0" />
+                                        <span className="truncate flex-1 text-[11px] font-medium">{item.fileName}</span>
+                                        <button
+                                          onClick={() => {
+                                            const newItems = bodyFormData.map(b => 
+                                              b.id === item.id 
+                                                ? { ...b, value: '', fileName: undefined } 
+                                                : b
+                                            );
+                                            setBodyFormData(newItems);
+                                          }}
+                                          className="text-[var(--text-secondary)] hover:text-[var(--text-delete)] p-0.5 rounded transition-all ml-1"
+                                          title="Clear file"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <label className="flex items-center gap-1.5 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-panel)] border border-dashed border-[var(--border-strong)] px-3 py-1 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all font-medium select-none">
+                                        <Paperclip className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                                        <span className="text-[11px]">Select File</span>
+                                        <input
+                                          type="file"
+                                          className="hidden"
+                                          onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                              const reader = new FileReader();
+                                              reader.onload = () => {
+                                                const result = reader.result as string;
+                                                const base64Content = result.split(',')[1] || result;
+                                                const newItems = bodyFormData.map(b => 
+                                                  b.id === item.id 
+                                                    ? { ...b, value: base64Content, fileName: file.name } 
+                                                    : b
+                                                );
+                                                setBodyFormData(newItems);
+                                              };
+                                              reader.readAsDataURL(file);
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <AutocompleteInput
+                                    type="text"
+                                    placeholder="Value"
+                                    value={item.value || ''}
+                                    onValueChange={(val) => {
+                                      const newItems = bodyFormData.map(b => b.id === item.id ? { ...b, value: val } : b);
+                                      setBodyFormData(newItems);
+                                    }}
+                                    className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
+                                  />
+                                )}
                               </div>
                               <div className="w-10 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button 
