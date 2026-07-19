@@ -7,14 +7,10 @@ import {
   Eye, 
   EyeOff, 
   Loader2, 
-  AlertCircle,
-  Chrome
+  AlertCircle
 } from 'lucide-react';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword,
-} from 'firebase/auth';
-import { auth, loginWithGoogle } from '../lib/firebase';
+import { useStore } from '../store/useStore';
+import axios from 'axios';
 
 export function AuthScreen() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -26,25 +22,23 @@ export function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { setUser } = useStore();
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      if (authMode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-      }
+      const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+      const res = await axios.post(endpoint, { email, password });
+      
+      const { user, token } = res.data;
+      localStorage.setItem('auth_token', token);
+      setUser(user);
     } catch (err: any) {
       console.error("Auth error:", err);
-      let message = "An error occurred. Please try again.";
-      if (err.code === 'auth/user-not-found') message = "No user found with this email.";
-      if (err.code === 'auth/wrong-password') message = "Incorrect password.";
-      if (err.code === 'auth/email-already-in-use') message = "This email is already registered.";
-      if (err.code === 'auth/weak-password') message = "Password should be at least 6 characters.";
-      if (err.code === 'auth/invalid-email') message = "Invalid email address.";
+      let message = err.response?.data?.error || "An error occurred. Please try again.";
       setError(message);
     } finally {
       setLoading(false);
@@ -71,7 +65,7 @@ export function AuthScreen() {
             </h1>
             <p className="text-sm text-white/50 font-medium">
               {authMode === 'login' 
-                ? 'Sign in with your Ubuntu account' 
+                ? 'Sign in to your account' 
                 : 'Start building better APIs today'}
             </p>
           </div>
@@ -88,7 +82,7 @@ export function AuthScreen() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="user@ubuntu.com"
+                  placeholder="user@example.com"
                   className="w-full bg-[#1F0015] border border-white/5 rounded-xl py-3 pl-10 pr-4 text-sm font-medium placeholder:text-white/10 focus:outline-none focus:border-[#E95420]/50 focus:bg-[#2C001E] transition-all"
                 />
               </div>
@@ -135,7 +129,7 @@ export function AuthScreen() {
             <button 
               type="submit"
               disabled={loading}
-              className="w-full h-12 bg-[#E95420] hover:bg-[#c7461b] disabled:opacity-50 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-xl shadow-[#E95420]/20 active:scale-95"
+              className="w-full h-12 bg-[#E95420] hover:bg-[#c7461b] disabled:opacity-50 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-xl shadow-[#E95420]/20 active:scale-95 mt-2"
             >
               {loading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -144,23 +138,6 @@ export function AuthScreen() {
               )}
             </button>
           </form>
-
-          <div className="relative my-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/5"></div>
-            </div>
-            <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest">
-              <span className="bg-[#3D0C2A] px-4 text-white/20">Or continue with</span>
-            </div>
-          </div>
-
-          <button 
-            onClick={() => loginWithGoogle()}
-            className="w-full h-12 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 shadow-sm"
-          >
-            <Chrome className="w-5 h-5 text-[#E95420]" />
-            Sign in with Google
-          </button>
 
           <p className="mt-8 text-center text-xs text-white/40 font-medium">
             {authMode === 'login' ? "Don't have an account?" : "Already have an account?"}{' '}
@@ -174,7 +151,7 @@ export function AuthScreen() {
         </div>
 
         <p className="mt-10 text-center text-[10px] text-white/20 uppercase tracking-[0.2em] font-bold">
-          © 2026 OpenPost • Ubuntu Powered
+          © 2026 OpenPost • API Tester Pro
         </p>
       </motion.div>
     </div>

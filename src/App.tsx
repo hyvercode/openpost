@@ -4,8 +4,7 @@
  */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth, loginWithGoogle, logout } from './lib/firebase';
+import axios from 'axios';
 import { apiService } from './lib/api';
 import { useStore } from './store/useStore';
 import { Sidebar } from './components/Sidebar';
@@ -299,27 +298,35 @@ export default function App() {
     }
   };
 
+  const logout = () => {
+    localStorage.removeItem('auth_token');
+    setUser(null);
+  };
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        const userData = {
-          uid: currentUser.uid,
-          email: currentUser.email,
-          displayName: currentUser.displayName,
-          photoURL: currentUser.photoURL,
-        };
-        setUser(userData);
-        try {
-          await apiService.saveUser(userData);
-        } catch (e) {
-          console.error("Failed to save user in PostgreSQL:", e);
-        }
-      } else {
+    const fetchUser = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
         setUser(null);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
-    });
-    return () => unsubscribe();
+
+      try {
+        const res = await axios.get('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setUser(res.data);
+      } catch (err) {
+        console.error("Failed to authenticate user", err);
+        localStorage.removeItem('auth_token');
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
   }, [setUser]);
 
   useEffect(() => {
