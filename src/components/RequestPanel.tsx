@@ -43,6 +43,8 @@ export function RequestPanel() {
   const [params, setParams] = useState<KeyValue[]>([]);
   const [bodyContent, setBodyContent] = useState('');
   const [gqlVariables, setGqlVariables] = useState('');
+  const [bodyType, setBodyType] = useState<'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded' | 'graphql'>('none');
+  const [bodyFormData, setBodyFormData] = useState<KeyValue[]>([]);
   const [mockStatus, setMockStatus] = useState<number>(200);
   const [mockHeaders, setMockHeaders] = useState<KeyValue[]>([]);
   const [mockBodyContent, setMockBodyContent] = useState('');
@@ -79,8 +81,8 @@ export function RequestPanel() {
   };
 
   useEffect(() => {
-    setCurrentRequestConfig({ url, method, headers, params, bodyContent });
-  }, [url, method, headers, params, bodyContent, setCurrentRequestConfig]);
+    setCurrentRequestConfig({ url, method, headers, params, bodyContent, bodyType, bodyFormData });
+  }, [url, method, headers, params, bodyContent, bodyType, bodyFormData, setCurrentRequestConfig]);
 
   useEffect(() => {
     if (activeRequest) {
@@ -93,6 +95,8 @@ export function RequestPanel() {
         setParams(activeRequest.params?.length ? activeRequest.params : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
         setBodyContent(activeRequest.body?.content || '');
         setGqlVariables(activeRequest.body?.variables || '');
+        setBodyType(activeRequest.body?.type || (activeRequest.body?.content ? 'raw' : 'none'));
+        setBodyFormData(activeRequest.body?.formData?.length ? activeRequest.body.formData : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
         setMockStatus(activeRequest.mockResponse?.status ?? 200);
         setMockHeaders(activeRequest.mockResponse?.headers?.length ? activeRequest.mockResponse.headers : [{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }]);
         setMockBodyContent(activeRequest.mockResponse?.body ?? '');
@@ -122,6 +126,8 @@ export function RequestPanel() {
       setParams([{ id: uuidv4(), key: '', value: '', enabled: true }]);
       setBodyContent('');
       setGqlVariables('');
+      setBodyType('none');
+      setBodyFormData([{ id: uuidv4(), key: '', value: '', enabled: true }]);
       setMockStatus(200);
       setMockHeaders([{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }]);
       setMockBodyContent('');
@@ -148,7 +154,7 @@ export function RequestPanel() {
     }, 1000);
     
     return () => clearTimeout(timeout);
-  }, [url, method, headers, params, bodyContent, gqlVariables, mockStatus, mockHeaders, mockBodyContent, preRequestScript, postResponseScript, JSON.stringify(authConfig)]);
+  }, [url, method, headers, params, bodyContent, gqlVariables, mockStatus, mockHeaders, mockBodyContent, preRequestScript, postResponseScript, JSON.stringify(authConfig), bodyType, JSON.stringify(bodyFormData)]);
 
   const handleFormatBody = (target: 'body' | 'mock') => {
     const content = target === 'body' ? bodyContent : mockBodyContent;
@@ -474,7 +480,9 @@ export function RequestPanel() {
     try {
       const { proxyConfig } = useStore.getState();
       let parsedBody = undefined;
-      if (method === 'GQL') {
+      const computedBodyType = method === 'GQL' ? 'graphql' : (method === 'WS' ? 'none' : bodyType);
+
+      if (computedBodyType === 'graphql') {
         const resolvedVariables = gqlVariables ? replaceEnvironmentVariables(gqlVariables, processedEnvVars) : '{}';
         let variablesObj = {};
         try {
@@ -487,14 +495,46 @@ export function RequestPanel() {
           query: replaceEnvironmentVariables(bodyContent, processedEnvVars),
           variables: variablesObj
         };
-      } else if (bodyContent) {
+        if (!finalHeaders['Content-Type'] && !finalHeaders['content-type']) {
+          finalHeaders['Content-Type'] = 'application/json';
+        }
+      } else if (computedBodyType === 'raw' && bodyContent) {
         try {
           parsedBody = JSON.parse(replaceEnvironmentVariables(bodyContent, processedEnvVars));
+          if (!finalHeaders['Content-Type'] && !finalHeaders['content-type']) {
+            finalHeaders['Content-Type'] = 'application/json';
+          }
         } catch (jsonErr: any) {
           addConsoleLog('warn', `Body contains invalid JSON layout. Sending raw content.`, method, finalUrl);
           addIssue('warning', 'Invalid Request JSON', `Request body payload does not conform to standardized JSON syntax: ${jsonErr.message}`, finalUrl, method, 'Verify brackets, double quotes, and correct comma positions in request body tab.');
           parsedBody = replaceEnvironmentVariables(bodyContent, processedEnvVars);
+          if (!finalHeaders['Content-Type'] && !finalHeaders['content-type']) {
+            finalHeaders['Content-Type'] = 'text/plain';
+          }
         }
+      } else if (computedBodyType === 'form-data') {
+        const boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW';
+        let rawBody = '';
+        bodyFormData.filter(f => f.enabled && f.key).forEach(f => {
+          rawBody += `--${boundary}\r\n`;
+          rawBody += `Content-Disposition: form-data; name="${replaceEnvironmentVariables(f.key, processedEnvVars)}"\r\n\r\n`;
+          rawBody += `${replaceEnvironmentVariables(f.value, processedEnvVars)}\r\n`;
+        });
+        if (bodyFormData.filter(f => f.enabled && f.key).length > 0) {
+          rawBody += `--${boundary}--\r\n`;
+        }
+        parsedBody = rawBody;
+        finalHeaders['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
+      } else if (computedBodyType === 'x-www-form-urlencoded') {
+        const urlParams = new URLSearchParams();
+        bodyFormData.filter(f => f.enabled && f.key).forEach(f => {
+          urlParams.append(
+            replaceEnvironmentVariables(f.key, processedEnvVars),
+            replaceEnvironmentVariables(f.value, processedEnvVars)
+          );
+        });
+        parsedBody = urlParams.toString();
+        finalHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
       }
 
       const res = await axios.post('/api/proxy', {
@@ -517,9 +557,9 @@ export function RequestPanel() {
         headers: headers.filter(h => h.key || h.value),
         params: params.filter(p => p.key || p.value),
         body: {
-          type: (activeRequest?.body?.type || (bodyContent ? 'raw' : 'none')) as any,
+          type: computedBodyType as any,
           content: bodyContent,
-          formData: activeRequest?.body?.formData || []
+          formData: bodyFormData
         },
         auth: authConfig,
         responseStatus: res.data.status || 200,
@@ -630,9 +670,9 @@ export function RequestPanel() {
         headers: headers.filter(h => h.key || h.value),
         params: params.filter(p => p.key || p.value),
         body: {
-          type: (activeRequest?.body?.type || (bodyContent ? 'raw' : 'none')) as any,
+          type: (method === 'GQL' ? 'graphql' : (method === 'WS' ? 'none' : bodyType)) as any,
           content: bodyContent,
-          formData: activeRequest?.body?.formData || []
+          formData: bodyFormData
         },
         auth: authConfig,
         responseStatus: error.response?.status || 0,
@@ -815,7 +855,8 @@ export function RequestPanel() {
           ...activeRequest.body, 
           content: bodyContent, 
           variables: gqlVariables,
-          type: method === 'GQL' ? 'graphql' : (method === 'WS' ? 'none' : activeRequest.body?.type || (bodyContent ? 'raw' : 'none'))
+          type: method === 'GQL' ? 'graphql' : (method === 'WS' ? 'none' : bodyType),
+          formData: bodyFormData
         },
         mockResponse: {
           status: mockStatus,
@@ -966,6 +1007,19 @@ export function RequestPanel() {
               </div>
             );
           })}
+          <div className="px-2 py-1.5 mt-1 flex justify-start">
+            <button
+              onClick={() => {
+                const setter = type === 'headers' ? setHeaders : type === 'params' ? setParams : setMockHeaders;
+                const currentItems = type === 'headers' ? headers : type === 'params' ? params : mockHeaders;
+                setter([...currentItems, { id: uuidv4(), key: '', value: '', enabled: true }]);
+              }}
+              className="flex items-center gap-1.5 text-xs text-[var(--primary)] hover:opacity-85 font-medium px-2 py-1 rounded border border-dashed border-[var(--primary)]/30 hover:border-[var(--primary)] bg-[var(--primary)]/5 transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Row</span>
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1344,12 +1398,138 @@ export function RequestPanel() {
               </div>
             )}
             {activeTab === 'body' && (
-              <div className="h-full flex flex-col">
-                <JsonEditor
-                  value={bodyContent}
-                  onChange={setBodyContent}
-                  placeholder="{\n  &quot;key&quot;: &quot;value&quot;\n}"
-                />
+              <div className="h-full flex flex-col gap-3 min-h-0">
+                {/* Body type selectors */}
+                <div className="flex items-center gap-4 border-b border-[var(--border-subtle)] pb-2.5 shrink-0 overflow-x-auto no-scrollbar">
+                  {[
+                    { id: 'none', label: 'none' },
+                    { id: 'raw', label: 'raw (JSON)' },
+                    { id: 'form-data', label: 'form-data' },
+                    { id: 'x-www-form-urlencoded', label: 'x-www-form-urlencoded' }
+                  ].map((option) => (
+                    <label key={option.id} className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                      <input
+                        type="radio"
+                        name="bodyType"
+                        value={option.id}
+                        checked={bodyType === option.id}
+                        onChange={() => setBodyType(option.id as any)}
+                        className="w-3.5 h-3.5 rounded-full border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
+                      />
+                      <span className={cn(bodyType === option.id && "text-[var(--text-primary)] font-semibold")}>
+                        {option.label}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Body Content depending on type */}
+                <div className="flex-1 min-h-0">
+                  {bodyType === 'none' && (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg">
+                      <p className="text-[var(--text-secondary)] text-xs">
+                        This request does not have a body payload.
+                      </p>
+                    </div>
+                  )}
+
+                  {bodyType === 'raw' && (
+                    <div className="h-full flex flex-col">
+                      <JsonEditor
+                        value={bodyContent}
+                        onChange={setBodyContent}
+                        placeholder="{\n  &quot;key&quot;: &quot;value&quot;\n}"
+                      />
+                    </div>
+                  )}
+
+                  {(bodyType === 'form-data' || bodyType === 'x-www-form-urlencoded') && (
+                    <div className="flex flex-col h-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded overflow-hidden">
+                      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] py-1.5 px-3 select-none">
+                        <div className="flex flex-1">
+                          <div className="w-8 shrink-0 border-r border-[var(--border-subtle)]"></div>
+                          <div className="flex-1 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)] border-r border-[var(--border-subtle)] px-3">Key</div>
+                          <div className="flex-1 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)] px-3">Value</div>
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-1">
+                        {bodyFormData.map((item) => {
+                          const isRowInvalid = item.enabled && item.value.trim() !== '' && item.key.trim() === '';
+                          return (
+                            <div key={item.id} className="flex items-center group mb-1 border-b border-[var(--bg-panel)] pb-1">
+                              <div className="w-8 shrink-0 flex items-center justify-center">
+                                <input 
+                                  type="checkbox" 
+                                  checked={item.enabled}
+                                  onChange={(e) => {
+                                    const newItems = bodyFormData.map(b => b.id === item.id ? { ...b, enabled: e.target.checked } : b);
+                                    setBodyFormData(newItems);
+                                  }}
+                                  className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
+                                />
+                              </div>
+                              <div className="flex-1 px-1 relative">
+                                <AutocompleteInput
+                                  type="text"
+                                  placeholder="Key"
+                                  value={item.key || ''}
+                                  onValueChange={(val) => {
+                                    let newItems = bodyFormData.map(b => b.id === item.id ? { ...b, key: val } : b);
+                                    if (bodyFormData[bodyFormData.length - 1].id === item.id && val !== '') {
+                                      newItems.push({ id: uuidv4(), key: '', value: '', enabled: true });
+                                    }
+                                    setBodyFormData(newItems);
+                                  }}
+                                  className={cn(
+                                    "w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors",
+                                    isRowInvalid && "border-red-500 bg-red-500/10 focus:border-red-500 rounded px-2"
+                                  )}
+                                />
+                              </div>
+                              <div className="flex-1 px-1">
+                                <AutocompleteInput
+                                  type="text"
+                                  placeholder="Value"
+                                  value={item.value || ''}
+                                  onValueChange={(val) => {
+                                    const newItems = bodyFormData.map(b => b.id === item.id ? { ...b, value: val } : b);
+                                    setBodyFormData(newItems);
+                                  }}
+                                  className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
+                                />
+                              </div>
+                              <div className="w-10 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={() => {
+                                    if (bodyFormData.length === 1) {
+                                      setBodyFormData([{ id: uuidv4(), key: '', value: '', enabled: true }]);
+                                    } else {
+                                      setBodyFormData(bodyFormData.filter(b => b.id !== item.id));
+                                    }
+                                  }}
+                                  className="text-[var(--text-secondary)] hover:text-[var(--text-delete)] p-1"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="px-2 py-1.5 border-t border-[var(--border-subtle)] mt-1 flex justify-start">
+                          <button
+                            onClick={() => {
+                              setBodyFormData([...bodyFormData, { id: uuidv4(), key: '', value: '', enabled: true }]);
+                            }}
+                            className="flex items-center gap-1.5 text-xs text-[var(--primary)] hover:opacity-85 font-medium px-2 py-1 rounded border border-dashed border-[var(--primary)]/30 hover:border-[var(--primary)] bg-[var(--primary)]/5 transition-all"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Add Field</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {activeTab === 'mock' && (
