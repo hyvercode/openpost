@@ -19,6 +19,8 @@ export interface KeyValue {
   key: string;
   value: string;
   enabled: boolean;
+  type?: 'text' | 'file';
+  fileName?: string;
 }
 
 export interface ApiFolder {
