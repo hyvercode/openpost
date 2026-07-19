@@ -14,14 +14,24 @@ export interface CollectionData {
 }
 
 export class CollectionRepository {
+  private parseCollection(c: any) {
+    return {
+      ...c,
+      mockConfig: c.mockConfig ? JSON.parse(c.mockConfig) : {},
+      folders: c.folders ? JSON.parse(c.folders) : [],
+      requests: c.requests ? JSON.parse(c.requests) : []
+    };
+  }
+
   async findByWorkspaceId(workspaceId: string) {
-    return prisma.collection.findMany({
+    const collections = await prisma.collection.findMany({
       where: { workspaceId }
     });
+    return collections.map(this.parseCollection);
   }
 
   async create(data: CollectionData) {
-    return prisma.collection.create({
+    const created = await prisma.collection.create({
       data: {
         id: data.id,
         workspaceId: data.workspaceId,
@@ -30,15 +40,16 @@ export class CollectionRepository {
         color: data.color || null,
         icon: data.icon || null,
         position: data.position || 0,
-        mockConfig: data.mockConfig ? JSON.parse(JSON.stringify(data.mockConfig)) : {},
-        folders: data.folders ? JSON.parse(JSON.stringify(data.folders)) : [],
-        requests: data.requests ? JSON.parse(JSON.stringify(data.requests)) : []
+        mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : "{}",
+        folders: data.folders ? JSON.stringify(data.folders) : "[]",
+        requests: data.requests ? JSON.stringify(data.requests) : "[]"
       }
     });
+    return this.parseCollection(created);
   }
 
   async update(id: string, data: Partial<CollectionData>) {
-    return prisma.collection.update({
+    const updated = await prisma.collection.update({
       where: { id },
       data: {
         ...(data.name !== undefined && { name: data.name }),
@@ -46,16 +57,18 @@ export class CollectionRepository {
         ...(data.color !== undefined && { color: data.color }),
         ...(data.icon !== undefined && { icon: data.icon }),
         ...(data.position !== undefined && { position: data.position }),
-        ...(data.mockConfig !== undefined && { mockConfig: JSON.parse(JSON.stringify(data.mockConfig)) }),
-        ...(data.folders !== undefined && { folders: JSON.parse(JSON.stringify(data.folders)) }),
-        ...(data.requests !== undefined && { requests: JSON.parse(JSON.stringify(data.requests)) })
+        ...(data.mockConfig !== undefined && { mockConfig: JSON.stringify(data.mockConfig) }),
+        ...(data.folders !== undefined && { folders: JSON.stringify(data.folders) }),
+        ...(data.requests !== undefined && { requests: JSON.stringify(data.requests) })
       }
     });
+    return this.parseCollection(updated);
   }
 
   async delete(id: string) {
-    return prisma.collection.delete({
+    const deleted = await prisma.collection.delete({
       where: { id }
     });
+    return this.parseCollection(deleted);
   }
 }

@@ -11,47 +11,61 @@ export interface DeploymentData {
 }
 
 export class DeploymentRepository {
+  private parseDep(d: any) {
+    if (!d) return d;
+    return {
+      ...d,
+      requests: d.requests ? JSON.parse(d.requests) : [],
+      mockConfig: d.mockConfig ? JSON.parse(d.mockConfig) : {}
+    };
+  }
+
   async findByWorkspaceId(workspaceId: string) {
-    return prisma.deployment.findMany({
+    const deps = await prisma.deployment.findMany({
       where: { workspaceId },
       orderBy: { createdAt: 'desc' }
     });
+    return deps.map(this.parseDep);
   }
 
   async findById(id: string) {
-    return prisma.deployment.findUnique({
+    const dep = await prisma.deployment.findUnique({
       where: { id }
     });
+    return this.parseDep(dep);
   }
 
   async create(data: DeploymentData) {
-    return prisma.deployment.create({
+    const created = await prisma.deployment.create({
       data: {
         id: data.id,
         workspaceId: data.workspaceId,
         collectionId: data.collectionId,
         collectionName: data.collectionName,
         version: data.version || 'v1',
-        requests: data.requests ? JSON.parse(JSON.stringify(data.requests)) : [],
-        mockConfig: data.mockConfig ? JSON.parse(JSON.stringify(data.mockConfig)) : {}
+        requests: data.requests ? JSON.stringify(data.requests) : "[]",
+        mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : "{}"
       }
     });
+    return this.parseDep(created);
   }
 
   async update(id: string, data: Partial<DeploymentData>) {
-    return prisma.deployment.update({
+    const updated = await prisma.deployment.update({
       where: { id },
       data: {
-        ...(data.mockConfig !== undefined && { mockConfig: data.mockConfig ? JSON.parse(JSON.stringify(data.mockConfig)) : undefined }),
-        ...(data.requests !== undefined && { requests: data.requests ? JSON.parse(JSON.stringify(data.requests)) : undefined }),
+        ...(data.mockConfig !== undefined && { mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : undefined }),
+        ...(data.requests !== undefined && { requests: data.requests ? JSON.stringify(data.requests) : undefined }),
         ...(data.collectionName !== undefined && { collectionName: data.collectionName })
       }
     });
+    return this.parseDep(updated);
   }
 
   async delete(id: string) {
-    return prisma.deployment.delete({
+    const deleted = await prisma.deployment.delete({
       where: { id }
     });
+    return this.parseDep(deleted);
   }
 }

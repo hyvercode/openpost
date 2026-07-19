@@ -14,6 +14,7 @@ import collectionRoutes from './server/src/routes/collection.routes';
 import environmentRoutes from './server/src/routes/environment.routes';
 import deploymentRoutes from './server/src/routes/deployment.routes';
 import userRoutes from './server/src/routes/user.routes';
+import authRoutes from './server/src/routes/auth.routes';
 import { prisma } from './server/src/db';
 
 async function startServer() {
@@ -24,6 +25,7 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
 
   // Mount Prisma API Routes
+  app.use('/api/auth', authRoutes);
   app.use('/api/workspaces', workspaceRoutes);
   app.use('/api/collections', collectionRoutes);
   app.use('/api/environments', environmentRoutes);

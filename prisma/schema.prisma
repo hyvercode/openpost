@@ -8,12 +8,13 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model User {
-  uid         String            @id
-  email       String?
+  uid         String            @id @default(uuid())
+  email       String?           @unique
+  password    String?
   displayName String?
   photoURL    String?
   workspaces  WorkspaceMember[]
@@ -46,9 +47,9 @@ model Collection {
   color       String?
   icon        String?
   position    Int      @default(0)
-  mockConfig  Json?    @default("{}")
-  folders     Json     @default("[]")
-  requests    Json     @default("[]")
+  mockConfig  String?
+  folders     String   @default("[]")
+  requests    String   @default("[]")
   
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
@@ -57,7 +58,7 @@ model Environment {
   id          String    @id @default(uuid())
   workspaceId String
   name        String
-  variables   Json      @default("[]")
+  variables   String    @default("[]")
   position    Int       @default(0)
   
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -70,8 +71,8 @@ model Deployment {
   collectionName String
   version        String
   createdAt      DateTime  @default(now())
-  requests       Json      @default("[]")
-  mockConfig     Json?
+  requests       String    @default("[]")
+  mockConfig     String?
   
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

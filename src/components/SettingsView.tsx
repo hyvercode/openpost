@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { User, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop } from 'lucide-react';
-import { auth } from '../lib/firebase';
-import { updateProfile, updatePassword } from 'firebase/auth';
 import { cn } from '../utils';
 
 export const SettingsView: React.FC = () => {
@@ -44,47 +42,12 @@ export const SettingsView: React.FC = () => {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth.currentUser) return;
-
-    setIsSaving(true);
-    try {
-      await updateProfile(auth.currentUser, {
-        displayName,
-        photoURL
-      });
-      setUser({
-        ...user!,
-        displayName,
-        photoURL
-      });
-      addToast('Profile updated successfully', 'success');
-    } catch (error: any) {
-      addToast(error.message, 'error');
-    } finally {
-      setIsSaving(false);
-    }
+    addToast('Profile updates are currently disabled in this custom auth implementation.', 'info');
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth.currentUser) return;
-
-    if (newPassword !== confirmPassword) {
-      addToast('Passwords do not match', 'error');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await updatePassword(auth.currentUser, newPassword);
-      setNewPassword('');
-      setConfirmPassword('');
-      addToast('Password updated successfully', 'success');
-    } catch (error: any) {
-      addToast(error.message, 'error');
-    } finally {
-      setIsSaving(false);
-    }
+    addToast('Password updates are currently disabled in this custom auth implementation.', 'info');
   };
 
   const handleInviteMember = async (e: React.FormEvent) => {
