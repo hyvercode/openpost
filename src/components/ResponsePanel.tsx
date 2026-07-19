@@ -72,13 +72,245 @@ function LatencyChart({ data }: { data: number[] }) {
   );
 }
 
+const HTML_VOID_ELEMENTS = new Set([
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+  'link', 'meta', 'param', 'source', 'track', 'wbr'
+]);
+
+const MAX_HIGHLIGHT_SIZE = 150 * 1024; // 150 KB
+
+function formatXml(xml: string): string {
+  let formatted = '';
+  let indent = '';
+  const tab = '  ';
+  
+  const cleanXml = xml
+    .replace(/>\s+</g, '><')
+    .trim();
+    
+  const tokens = cleanXml.split(/(<\/?[^>]+>)/g);
+  
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i].trim();
+    if (!token) continue;
+    
+    const tagNameMatch = token.match(/<([^\s>]+)/);
+    const rawTagName = tagNameMatch ? tagNameMatch[1].toLowerCase() : '';
+    const tagName = rawTagName.replace('/', '');
+    const isVoid = HTML_VOID_ELEMENTS.has(tagName);
+    
+    if (token.startsWith('</')) {
+      // Closing tag
+      if (indent.length >= tab.length) {
+        indent = indent.substring(tab.length);
+      }
+      formatted += indent + token + '\n';
+    } else if (token.startsWith('<') && !token.endsWith('/>') && !token.startsWith('<?') && !token.startsWith('<!') && !isVoid) {
+      // Opening tag
+      let isInline = false;
+      if (i + 2 < tokens.length) {
+        const next = tokens[i + 1].trim();
+        const afterNext = tokens[i + 2].trim();
+        const currentTagNameMatch = token.match(/<([^\s>]+)/);
+        const currentTagName = currentTagNameMatch ? currentTagNameMatch[1] : '';
+        if (next && !next.startsWith('<') && afterNext === `</${currentTagName}>`) {
+          isInline = true;
+        }
+      }
+      
+      if (isInline) {
+        formatted += indent + token + tokens[i + 1].trim() + tokens[i + 2].trim() + '\n';
+        i += 2; // skip text and closing tag
+      } else {
+        formatted += indent + token + '\n';
+        indent += tab;
+      }
+    } else {
+      // Self closing, void, comment, declaration or text
+      formatted += indent + token + '\n';
+    }
+  }
+  return formatted.trim();
+}
+
+function highlightJson(json: string, isLightTheme: boolean): string {
+  const escaped = json
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+    
+  return escaped.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, (match) => {
+    let cls = isLightTheme ? 'text-amber-600 font-medium' : 'text-amber-400'; // number
+    if (/^"/.test(match)) {
+      if (/:$/.test(match)) {
+        cls = isLightTheme ? 'text-blue-700 font-semibold' : 'text-sky-400 font-semibold'; // key
+      } else {
+        cls = isLightTheme ? 'text-emerald-700 font-medium' : 'text-emerald-400'; // string
+      }
+    } else if (/true|false/.test(match)) {
+      cls = isLightTheme ? 'text-purple-700 font-semibold' : 'text-purple-400 font-medium'; // boolean
+    } else if (/null/.test(match)) {
+      cls = isLightTheme ? 'text-gray-400 italic' : 'text-gray-500 italic'; // null
+    }
+    return `<span class="${cls}">${match}</span>`;
+  });
+}
+
+function highlightXml(xml: string, isLightTheme: boolean): string {
+  let escaped = xml
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // 1. Comments
+  escaped = escaped.replace(/(&lt;!--[\s\S]*?--&gt;)/g, (match) => {
+    const cls = isLightTheme ? 'text-gray-400 italic' : 'text-gray-500 italic';
+    return `<span class="${cls}">${match}</span>`;
+  });
+
+  // 2. Declarations
+  escaped = escaped.replace(/(&lt;\?xml[\s\S]*?\?&gt;|&lt;!DOCTYPE[\s\S]*?&gt;)/gi, (match) => {
+    const cls = isLightTheme ? 'text-pink-700 font-semibold' : 'text-pink-400 font-semibold';
+    return `<span class="${cls}">${match}</span>`;
+  });
+
+  // 3. Tags and Attributes
+  escaped = escaped.replace(/&lt;(\/?[a-zA-Z0-9_:-]+)([\s\S]*?)(\/?)&gt;/g, (match, tagName, attrs, selfClosed) => {
+    const tagCls = isLightTheme ? 'text-blue-700 font-medium' : 'text-sky-400 font-medium';
+    
+    const highlightedAttrs = attrs.replace(/([a-zA-Z0-9_:-]+)(=(?:"[^"]*"|'[^']*'|[^\s>]+))?/g, (_attrMatch, attrName, attrVal) => {
+      const attrNameCls = isLightTheme ? 'text-amber-700 font-medium' : 'text-amber-400';
+      const attrValCls = isLightTheme ? 'text-emerald-700' : 'text-emerald-400';
+      
+      let formattedAttr = `<span class="${attrNameCls}">${attrName}</span>`;
+      if (attrVal) {
+        const eqIdx = attrVal.indexOf('=');
+        const eq = attrVal.substring(0, eqIdx + 1);
+        const val = attrVal.substring(eqIdx + 1);
+        formattedAttr += `<span class="text-gray-500">${eq}</span><span class="${attrValCls}">${val}</span>`;
+      }
+      return formattedAttr;
+    });
+
+    return `<span class="${tagCls}">&lt;${tagName}</span>${highlightedAttrs}<span class="${tagCls}">${selfClosed}&gt;</span>`;
+  });
+
+  return escaped;
+}
+
+function detectLanguage(response: any): 'json' | 'xml' | 'html' | 'text' {
+  if (!response) return 'text';
+  
+  const headers = response.headers || {};
+  const contentType = Object.keys(headers).reduce((acc, key) => {
+    if (key.toLowerCase() === 'content-type') {
+      return String(headers[key]).toLowerCase();
+    }
+    return acc;
+  }, '');
+  
+  if (contentType.includes('application/json') || contentType.includes('text/json')) {
+    return 'json';
+  }
+  if (contentType.includes('text/html') || contentType.includes('application/xhtml+xml')) {
+    return 'html';
+  }
+  if (contentType.includes('application/xml') || contentType.includes('text/xml')) {
+    return 'xml';
+  }
+  
+  const data = response.data;
+  if (typeof data === 'object' && data !== null) {
+    return 'json';
+  }
+  
+  if (typeof data === 'string') {
+    const trimmed = data.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        JSON.parse(trimmed);
+        return 'json';
+      } catch (_) {}
+    }
+    if (trimmed.startsWith('<')) {
+      if (trimmed.startsWith('<!DOCTYPE html') || trimmed.toLowerCase().includes('<html') || trimmed.toLowerCase().includes('<body>')) {
+        return 'html';
+      }
+      return 'xml';
+    }
+  }
+  
+  return 'text';
+}
+
+function getFormattedContent(data: any, lang: 'json' | 'xml' | 'html' | 'text'): string {
+  if (data === null || data === undefined) return '';
+  
+  if (lang === 'json') {
+    if (typeof data === 'object') {
+      return JSON.stringify(data, null, 2);
+    }
+    if (typeof data === 'string') {
+      try {
+        return JSON.stringify(JSON.parse(data), null, 2);
+      } catch (_) {
+        return data;
+      }
+    }
+  }
+  
+  if (lang === 'xml' || lang === 'html') {
+    if (typeof data === 'string') {
+      try {
+        return formatXml(data);
+      } catch (_) {
+        return data;
+      }
+    }
+  }
+  
+  if (typeof data === 'object') {
+    return JSON.stringify(data, null, 2);
+  }
+  
+  return String(data);
+}
+
+function getHighlightedContent(content: string, lang: 'json' | 'xml' | 'html' | 'text', isLightTheme: boolean): string {
+  if (lang === 'json') {
+    return highlightJson(content, isLightTheme);
+  }
+  if (lang === 'xml' || lang === 'html') {
+    return highlightXml(content, isLightTheme);
+  }
+  return content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export function ResponsePanel() {
-  const { response, currentRequestConfig, currentEnvironment, latencyHistory, isRequestLoading, activeRequest, wsStatus, wsMessages, clearWsMessages } = useStore();
+  const { response, currentRequestConfig, currentEnvironment, latencyHistory, isRequestLoading, activeRequest, wsStatus, wsMessages, clearWsMessages, theme } = useStore();
+  const isLightTheme = theme === 'light';
+
   const [activeTab, setActiveTab] = useState<'body' | 'preview' | 'headers' | 'code' | 'stats'>('body');  
   const [generatedCode, setGeneratedCode] = useState('');
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [codeLanguage, setCodeLanguage] = useState('fetch');
   const [copied, setCopied] = useState(false);
+
+  const [viewMode, setViewMode] = useState<'pretty' | 'raw'>('pretty');
+  const [selectedLang, setSelectedLang] = useState<'json' | 'xml' | 'html' | 'text' | 'auto'>('auto');
+  const [bodyCopied, setBodyCopied] = useState(false);
+  const [detectedLang, setDetectedLang] = useState<'json' | 'xml' | 'html' | 'text'>('text');
+
+  useEffect(() => {
+    if (response && !response.error) {
+      setDetectedLang(detectLanguage(response));
+    }
+  }, [response]);
+
+  const currentLang = selectedLang === 'auto' ? detectedLang : selectedLang;
 
   const handleGenerateCode = async (lang?: string) => {
     if (!currentRequestConfig) return;
@@ -610,19 +842,117 @@ export function ResponsePanel() {
                 <pre className="whitespace-pre-wrap">{JSON.stringify(response.data, null, 2)}</pre>
               </div>
             ) : (
-              <div className="flex-1 overflow-auto bg-[var(--bg-input)] p-4 font-mono text-sm"> 
-                 <div className="flex gap-4 mb-2 text-[11px] text-[var(--text-secondary)] border-b border-[var(--bg-panel)] pb-2">
-                   <span className="text-[var(--primary)] font-medium">JSON</span>
-                   <span className="hover:text-[var(--text-primary)] cursor-pointer ml-auto" onClick={() => {
-                     const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
-                     navigator.clipboard.writeText(text);
-                   }}>Copy Response</span>
+              <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-input)]">
+                {/* Format and language selector toolbar */}
+                <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 gap-2">
+                  <div className="flex items-center gap-3">
+                    {/* View mode toggle */}
+                    <div className="flex items-center bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded p-0.5">
+                      <button
+                        onClick={() => setViewMode('pretty')}
+                        className={cn(
+                          "px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer",
+                          viewMode === 'pretty'
+                            ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm font-semibold"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        )}
+                      >
+                        Pretty
+                      </button>
+                      <button
+                        onClick={() => setViewMode('raw')}
+                        className={cn(
+                          "px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer",
+                          viewMode === 'raw'
+                            ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm font-semibold"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        )}
+                      >
+                        Raw
+                      </button>
+                    </div>
+
+                    {/* Language selector */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Type:</span>
+                      <select
+                        className="bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[11px] text-[var(--text-primary)] rounded px-2 py-1 outline-none focus:border-[var(--border-focus)] font-medium cursor-pointer"
+                        value={selectedLang}
+                        onChange={(e) => setSelectedLang(e.target.value as any)}
+                      >
+                        <option value="auto">Auto ({detectedLang.toUpperCase()})</option>
+                        <option value="json">JSON</option>
+                        <option value="xml">XML</option>
+                        <option value="html">HTML</option>
+                        <option value="text">Text</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Copy response body button */}
+                  <button
+                    onClick={() => {
+                      const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
+                      navigator.clipboard.writeText(text);
+                      setBodyCopied(true);
+                      setTimeout(() => setBodyCopied(false), 2000);
+                    }}
+                    className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                  >
+                    {bodyCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-green-500" />
+                        <span className="text-green-500">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                        <span>Copy</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-                <pre className="text-[var(--text-code)] leading-relaxed overflow-hidden">
-                  {typeof response.data === 'object' 
-                    ? JSON.stringify(response.data, null, 2) 
-                    : response.data}
-                </pre>
+
+                {/* Response Code/Text viewer */}
+                <div className="flex-1 overflow-auto p-4 font-mono text-sm bg-[var(--bg-base)]">
+                  {(() => {
+                    const rawContent = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
+                    
+                    if (viewMode === 'raw') {
+                      return (
+                        <pre className="text-[var(--text-code)] leading-relaxed whitespace-pre-wrap break-all">
+                          {rawContent}
+                        </pre>
+                      );
+                    }
+
+                    const formattedContent = getFormattedContent(response.data, currentLang);
+                    const isTooLarge = formattedContent.length > MAX_HIGHLIGHT_SIZE;
+
+                    if (isTooLarge) {
+                      return (
+                        <div className="space-y-3">
+                          <div className="text-[11px] bg-amber-500/15 text-amber-500 border border-amber-500/20 rounded p-2.5 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            <span>Response body ({(formattedContent.length / 1024).toFixed(1)} KB) is too large for syntax highlighting. Showing formatted raw text instead.</span>
+                          </div>
+                          <pre className="text-[var(--text-code)] leading-relaxed whitespace-pre-wrap break-all">
+                            {formattedContent}
+                          </pre>
+                        </div>
+                      );
+                    }
+
+                    const highlightedHtml = getHighlightedContent(formattedContent, currentLang, isLightTheme);
+
+                    return (
+                      <pre 
+                        className="text-[var(--text-code)] leading-relaxed whitespace-pre"
+                        dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                      />
+                    );
+                  })()}
+                </div>
               </div>
             )}
           </motion.div>
