@@ -3,21 +3,12 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-const getDatabaseUrl = () => {
-  const url = process.env.DATABASE_URL;
-  if (url && (url.startsWith("postgresql://") || url.startsWith("postgres://"))) {
-    // If the system env has a Postgres URL but we are configured for SQLite, use local dev.db
-    return "file:./dev.db";
-  }
-  return url || "file:./dev.db";
-};
-
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: getDatabaseUrl(),
+    url: process.env.DATABASE_URL,
   },
 });
