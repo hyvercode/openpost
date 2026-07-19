@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import axios from "axios";
@@ -19,7 +20,11 @@ import { prisma } from './server/src/db';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  
+  // Enforce port 3000 inside the AI Studio environment to match container routing constraints,
+  // but allow external environments to customize the PORT via env variables or .env.
+  const isAIStudio = !!process.env.APPLET_ID || !!process.env.DEFAULT_APP_PORT;
+  const PORT = isAIStudio ? 3000 : (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000);
 
   app.use(cors());
   app.use(express.json({ limit: "50mb" }));
