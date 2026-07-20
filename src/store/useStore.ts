@@ -104,6 +104,12 @@ interface AppState {
   wsMessages: Record<string, WsMessage[]>;
   addWsMessage: (requestId: string, message: WsMessage) => void;
   clearWsMessages: (requestId: string) => void;
+
+  isBulkEditMode: boolean;
+  setIsBulkEditMode: (mode: boolean) => void;
+  selectedRequestIds: string[];
+  setSelectedRequestIds: (ids: string[]) => void;
+  toggleRequestSelection: (id: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -370,4 +376,17 @@ export const useStore = create<AppState>((set) => ({
   clearWsMessages: (requestId) => set((state) => ({
     wsMessages: { ...state.wsMessages, [requestId]: [] }
   })),
+
+  isBulkEditMode: false,
+  setIsBulkEditMode: (isBulkEditMode) => set({ isBulkEditMode, selectedRequestIds: isBulkEditMode ? [] : [] }),
+  selectedRequestIds: [],
+  setSelectedRequestIds: (selectedRequestIds) => set({ selectedRequestIds }),
+  toggleRequestSelection: (id) => set((state) => {
+    const isSelected = state.selectedRequestIds.includes(id);
+    if (isSelected) {
+      return { selectedRequestIds: state.selectedRequestIds.filter(rid => rid !== id) };
+    } else {
+      return { selectedRequestIds: [...state.selectedRequestIds, id] };
+    }
+  }),
 }));
