@@ -107,21 +107,6 @@ export function BottomDrawer() {
         clearTerminalHistory();
         break;
 
-      case 'env':
-        if (!currentEnvironment) {
-          addTerminalHistory('Error: No active environment selected. Select one in the top bar.');
-        } else {
-          addTerminalHistory(`Active Environment: "${currentEnvironment.name}"`);
-          if (!currentEnvironment.variables || currentEnvironment.variables.length === 0) {
-            addTerminalHistory('  (no variables defined)');
-          } else {
-            currentEnvironment.variables.forEach(v => {
-              addTerminalHistory(`  ${v.key}: ${v.value} (${v.enabled ? 'Enabled' : 'Disabled'})`);
-            });
-          }
-        }
-        break;
-
       case 'env': {
         if (args[0] === 'set') {
           const key = args[1];
@@ -144,7 +129,18 @@ export function BottomDrawer() {
             addTerminalHistory(`[OK] Temporary environment override set: ${key} = ${val}`);
           }
         } else {
-          addTerminalHistory('Usage: env or env set <key> <value>');
+          if (!currentEnvironment) {
+            addTerminalHistory('Error: No active environment selected. Select one in the top bar.');
+          } else {
+            addTerminalHistory(`Active Environment: "${currentEnvironment.name}"`);
+            if (!currentEnvironment.variables || currentEnvironment.variables.length === 0) {
+              addTerminalHistory('  (no variables defined)');
+            } else {
+              currentEnvironment.variables.forEach(v => {
+                addTerminalHistory(`  ${v.key}: ${v.value} (${v.enabled ? 'Enabled' : 'Disabled'})`);
+              });
+            }
+          }
         }
         break;
       }
