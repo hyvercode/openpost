@@ -61,10 +61,19 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
       const invitation = await apiService.inviteMember(workspaceId, inviteEmail, inviteRole);
       const inviteLink = `${window.location.origin}${window.location.pathname}?invitation=${invitation.token}`;
       
-      // Copy to clipboard automatically for convenience
-      await navigator.clipboard.writeText(inviteLink);
+      let clipboardSuccess = false;
+      try {
+        await navigator.clipboard.writeText(inviteLink);
+        clipboardSuccess = true;
+      } catch (err) {
+        console.warn('Could not copy to clipboard:', err);
+      }
       
-      addToast(`Invitation email sent to ${inviteEmail}! Link also copied to clipboard.`, 'success', 5000);
+      if (clipboardSuccess) {
+        addToast(`Invitation email sent to ${inviteEmail}! Link also copied to clipboard.`, 'success', 5000);
+      } else {
+        addToast(`Invitation email sent to ${inviteEmail}!`, 'success', 5000);
+      }
       setInviteEmail('');
       loadInvitations();
     } catch (e) {
@@ -79,8 +88,19 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
     try {
       const updated = await apiService.resendInvitation(invitation.id);
       const inviteLink = `${window.location.origin}${window.location.pathname}?invitation=${updated.token}`;
-      await navigator.clipboard.writeText(inviteLink);
-      addToast(`Invitation email resent to ${invitation.email}! Link also copied to clipboard.`, 'success', 5000);
+      let clipboardSuccess = false;
+      try {
+        await navigator.clipboard.writeText(inviteLink);
+        clipboardSuccess = true;
+      } catch (err) {
+        console.warn('Could not copy to clipboard:', err);
+      }
+      
+      if (clipboardSuccess) {
+        addToast(`Invitation email resent to ${invitation.email}! Link also copied to clipboard.`, 'success', 5000);
+      } else {
+        addToast(`Invitation email resent to ${invitation.email}!`, 'success', 5000);
+      }
       loadInvitations();
     } catch (e) {
       console.error("Failed to resend:", e);
