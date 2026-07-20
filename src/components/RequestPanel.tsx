@@ -348,13 +348,15 @@ export function RequestPanel() {
       const currentVars = [...context.envVars];
       const pm = {
         environment: {
-          set: (key: string, value: string) => {
+          set: (key: string, value: any) => {
+            const valToSet = (value !== null && typeof value === 'object') ? JSON.stringify(value) : String(value);
             const index = currentVars.findIndex(v => v.key === key);
             if (index !== -1) {
-              currentVars[index] = { ...currentVars[index], value };
+              currentVars[index] = { ...currentVars[index], value: valToSet };
             } else {
-              currentVars.push({ id: uuidv4(), key, value, enabled: true });
+              currentVars.push({ id: uuidv4(), key, value: valToSet, enabled: true });
             }
+            addConsoleLog('info', `[Environment] Set ${key} = ${valToSet}`);
           },
           get: (key: string) => {
             const v = currentVars.find(v => v.key === key);
@@ -458,6 +460,11 @@ export function RequestPanel() {
       if (currentEnvironment && JSON.stringify(processedEnvVars) !== JSON.stringify(envVars)) {
         const updatedEnv = { ...currentEnvironment, variables: processedEnvVars };
         useStore.getState().setCurrentEnvironment(updatedEnv);
+        
+        // Also update the item in the environments list to keep store consistent
+        const { environments, setEnvironments } = useStore.getState();
+        setEnvironments(environments.map(e => e.id === currentEnvironment.id ? updatedEnv : e));
+        
         // Persist to Postgres
         apiService.updateEnvironment(currentEnvironment.id, { variables: processedEnvVars }).catch(console.error);
       }
@@ -634,6 +641,11 @@ export function RequestPanel() {
         if (currentEnvironment && JSON.stringify(scriptResult.envVars) !== JSON.stringify(processedEnvVars)) {
           const finalEnv = { ...currentEnvironment, variables: scriptResult.envVars };
           useStore.getState().setCurrentEnvironment(finalEnv);
+          
+          // Also update the item in the environments list to keep store consistent
+          const { environments, setEnvironments } = useStore.getState();
+          setEnvironments(environments.map(e => e.id === currentEnvironment.id ? finalEnv : e));
+          
           apiService.updateEnvironment(currentEnvironment.id, { variables: scriptResult.envVars }).catch(console.error);
         }
       }

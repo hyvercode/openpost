@@ -17,19 +17,32 @@ export function EnvironmentPanel() {
 
   useEffect(() => {
     if (editingEnvironment) {
-      if (editingEnvironment.id !== loadedEnvIdRef.current) {
-        loadedEnvIdRef.current = editingEnvironment.id;
-        skipNextAutosave.current = true;
+      const storeVars = editingEnvironment.variables || [];
+      // Check if store version is different from local version
+      const isDifferentFromStore = variables.length > 0 && 
+        (variables.length !== storeVars.length || !variables.every((v, i) => storeVars[i] && v.key === storeVars[i].key && v.value === storeVars[i].value));
+
+      if (editingEnvironment.id !== loadedEnvIdRef.current || isDifferentFromStore) {
+        const isNewEnv = editingEnvironment.id !== loadedEnvIdRef.current;
+        if (isNewEnv) {
+          loadedEnvIdRef.current = editingEnvironment.id;
+        }
         
-        const normalizedVariables = (editingEnvironment.variables || []).map(v => ({
-          id: v.id || uuidv4(),
-          key: v.key || '',
-          value: v.value || '',
-          enabled: v.enabled !== false
-        }));
-        setVariables(normalizedVariables.length ? normalizedVariables : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
-        setEnvName(editingEnvironment.name || '');
-        setSaveStatus('');
+        // If it's a different environment OR if the store was updated externally (e.g. by a script)
+        // while we are NOT in the middle of a manual save/typing session
+        if (isNewEnv || (!isSaving && saveStatus !== 'Changed')) {
+          skipNextAutosave.current = true;
+          
+          const normalizedVariables = storeVars.map(v => ({
+            id: v.id || uuidv4(),
+            key: v.key || '',
+            value: v.value || '',
+            enabled: v.enabled !== false
+          }));
+          setVariables(normalizedVariables.length ? normalizedVariables : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
+          setEnvName(editingEnvironment.name || '');
+          setSaveStatus('');
+        }
       }
     } else {
       loadedEnvIdRef.current = null;
