@@ -1363,7 +1363,7 @@ export function RequestPanel() {
                     value={preRequestScript}
                     onChange={(e) => setPreRequestScript(e.target.value)}
                     placeholder="// Use pm.environment.set('key', 'value') to update variables\n// Use pm.request.headers.add({ key: 'X-Foo', value: 'Bar' }) to add headers"
-                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-y transition-colors leading-relaxed"
+                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-none transition-colors leading-relaxed"
                     spellCheck={false}
                   />
                 </div>
@@ -1380,7 +1380,7 @@ export function RequestPanel() {
                     value={postResponseScript}
                     onChange={(e) => setPostResponseScript(e.target.value)}
                     placeholder="// Use pm.test('Name', () => { ... }) for validations\n// Use pm.response.json() to access response data"
-                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-y transition-colors leading-relaxed"
+                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-none transition-colors leading-relaxed"
                     spellCheck={false}
                   />
                 </div>

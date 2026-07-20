@@ -90,36 +90,6 @@ export class WorkspaceController {
     }
   };
 
-  getPendingInvitations = async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      const invitations = await this.workspaceService.getPendingInvitations(id);
-      res.json(invitations);
-    } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch invitations', details: error.message });
-    }
-  };
-
-  resendInvitation = async (req: Request, res: Response) => {
-    try {
-      const { invitationId } = req.params;
-      const invitation = await this.workspaceService.resendInvitation(invitationId);
-      res.json(invitation);
-    } catch (error: any) {
-      res.status(500).json({ error: 'Failed to resend invitation', details: error.message });
-    }
-  };
-
-  cancelInvitation = async (req: Request, res: Response) => {
-    try {
-      const { invitationId } = req.params;
-      await this.workspaceService.cancelInvitation(invitationId);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: 'Failed to cancel invitation', details: error.message });
-    }
-  };
-
   getInvitation = async (req: Request, res: Response) => {
     try {
       const { token } = req.params;
