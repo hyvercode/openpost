@@ -50,11 +50,31 @@ export class WorkspaceService {
   }
 
   async inviteMember(workspaceId: string, email: string, role: string) {
+    if (!email) {
+      throw new Error('Email is required');
+    }
+
+    const emailLower = email.toLowerCase().trim();
+
+    // 1. Check if there is already a pending active invitation for this email in this workspace
+    const existingInvitations = await this.workspaceRepository.getInvitationsByWorkspace(workspaceId);
+    const hasPending = existingInvitations.some(i => i.email.toLowerCase().trim() === emailLower && i.expiresAt > new Date());
+    if (hasPending) {
+      throw new Error('An active invitation is already pending for this email');
+    }
+
+    // 2. Check if user is already a member of this workspace
+    const existingMembers = await this.workspaceRepository.getMembers(workspaceId);
+    const isAlreadyMember = existingMembers.some(m => m.user?.email?.toLowerCase().trim() === emailLower);
+    if (isAlreadyMember) {
+      throw new Error('This user is already a member of this workspace');
+    }
+
     const token = uuidv4();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
-    const invitation = await this.workspaceRepository.createInvitation(workspaceId, email, role, token, expiresAt);
+    const invitation = await this.workspaceRepository.createInvitation(workspaceId, emailLower, role, token, expiresAt);
     
     // Send email
     try {
@@ -62,7 +82,7 @@ export class WorkspaceService {
       if (workspace) {
         const appUrl = process.env.APP_URL || 'http://localhost:3000';
         const inviteLink = `${appUrl}/?invitation=${token}`;
-        await this.emailService.sendInvitationEmail(email, workspace.name, inviteLink);
+        await this.emailService.sendInvitationEmail(emailLower, workspace.name, inviteLink);
       }
     } catch (error) {
       console.error('Failed to send invitation email but record was created:', error);

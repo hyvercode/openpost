@@ -5,6 +5,7 @@ import { cn } from '../utils';
 import { apiService } from '../lib/api';
 import { MockSettings } from './MockSettings';
 import { generateCollectionMarkdown } from '../utils/markdownGenerator';
+import { generateCollectionPdf } from '../utils/pdfGenerator';
 import ReactMarkdown from 'react-markdown';
 
 // Helper for custom regex-based markdown parser
@@ -161,6 +162,14 @@ export function CollectionDocPanel() {
   const [isSaving, setIsSaving] = useState(false);
   const [selectedEndpoints, setSelectedEndpoints] = useState<Set<string>>(new Set());
 
+  // PDF Export States
+  const [exportFormat, setExportFormat] = useState<'markdown' | 'pdf'>('markdown');
+  const [pdfTitle, setPdfTitle] = useState('');
+  const [pdfIncludeIntro, setPdfIncludeIntro] = useState(true);
+  const [pdfAccentColor, setPdfAccentColor] = useState('#4F46E5');
+  const [pdfShowPageNumbers, setPdfShowPageNumbers] = useState(true);
+  const [pdfIncludeMock, setPdfIncludeMock] = useState(true);
+
   // Find the current active collection based on tab ID
   const collectionItem = collections.find(c => c.id === activeTabId);
 
@@ -173,6 +182,8 @@ export function CollectionDocPanel() {
   useEffect(() => {
     if (collectionItem) {
       setDocContent(collectionItem.description || '');
+      setPdfTitle(collectionItem.name || '');
+      setPdfAccentColor(collectionItem.color || '#4F46E5');
     }
   }, [collectionItem]);
 
@@ -562,92 +573,355 @@ You can write step-by-step startup instructions.
             )}
           </div>
         ) : activeSubTab === 'export' ? (
-          <div className="flex h-full animate-fade-in gap-6">
-            {/* Left side: Selection */}
-            <div className="w-64 flex flex-col border-r border-[var(--border-subtle)] pr-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Include in Docs</h3>
-                <button 
-                  onClick={() => {
-                    if (selectedEndpoints.size === requests.length) {
-                      setSelectedEndpoints(new Set());
-                    } else {
-                      setSelectedEndpoints(new Set(requests.map(r => r.id)));
-                    }
-                  }}
-                  className="text-[10px] text-[var(--primary)] hover:underline font-semibold"
+          <div className="flex flex-col h-full animate-fade-in gap-5 select-none">
+            {/* Format Selection Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--bg-hover)] p-3.5 rounded-xl border border-[var(--border-subtle)] shrink-0 shadow-inner">
+              <div className="flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-[var(--primary)]" />
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Export Format:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setExportFormat('markdown')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                    exportFormat === 'markdown'
+                      ? "bg-[var(--primary)] text-white border-transparent shadow-sm"
+                      : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
+                  )}
                 >
-                  {selectedEndpoints.size === requests.length ? 'Select None' : 'Select All'}
+                  <FileCode className="w-3.5 h-3.5" />
+                  Markdown (.md)
+                </button>
+                <button
+                  onClick={() => setExportFormat('pdf')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                    exportFormat === 'pdf'
+                      ? "bg-[var(--primary)] text-white border-transparent shadow-sm"
+                      : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
+                  )}
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  PDF Report (.pdf)
                 </button>
               </div>
-              
-              <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                {requests.map(req => (
-                  <label key={req.id} className="flex items-start gap-2 cursor-pointer group">
-                    <input 
-                      type="checkbox"
-                      checked={selectedEndpoints.has(req.id)}
-                      onChange={(e) => {
-                        const newSet = new Set(selectedEndpoints);
-                        if (e.target.checked) newSet.add(req.id);
-                        else newSet.delete(req.id);
-                        setSelectedEndpoints(newSet);
+            </div>
+
+            <div className="flex-1 flex min-h-0 gap-6">
+              {/* Left Column: Settings */}
+              <div className="w-80 flex flex-col border-r border-[var(--border-subtle)] pr-6 overflow-y-auto custom-scrollbar gap-5 shrink-0 select-text">
+                
+                {/* 1. Endpoint Selection */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Endpoints to Include</h3>
+                    <button 
+                      onClick={() => {
+                        if (selectedEndpoints.size === requests.length) {
+                          setSelectedEndpoints(new Set());
+                        } else {
+                          setSelectedEndpoints(new Set(requests.map(r => r.id)));
+                        }
                       }}
-                      className="mt-0.5 rounded border-[var(--border-strong)] bg-[var(--bg-input)] text-[var(--primary)] focus:ring-[var(--primary)]/20"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className={cn(
-                          "text-[9px] font-bold",
-                          req.method === 'GET' ? 'text-blue-400' :
-                          req.method === 'POST' ? 'text-emerald-400' :
-                          req.method === 'PUT' ? 'text-amber-400' :
-                          req.method === 'DELETE' ? 'text-red-400' :
-                          'text-purple-400'
-                        )}>{req.method}</span>
-                        <span className="text-xs text-[var(--text-primary)] truncate font-semibold group-hover:text-[var(--primary)] transition-colors">{req.name}</span>
+                      className="text-[10px] text-[var(--primary)] hover:underline font-semibold cursor-pointer"
+                    >
+                      {selectedEndpoints.size === requests.length ? 'Select None' : 'Select All'}
+                    </button>
+                  </div>
+                  
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg custom-scrollbar">
+                    {requests.map(req => (
+                      <label key={req.id} className="flex items-start gap-2 cursor-pointer group p-1 hover:bg-[var(--bg-hover)] rounded">
+                        <input 
+                          type="checkbox"
+                          checked={selectedEndpoints.has(req.id)}
+                          onChange={(e) => {
+                            const newSet = new Set(selectedEndpoints);
+                            if (e.target.checked) newSet.add(req.id);
+                            else newSet.delete(req.id);
+                            setSelectedEndpoints(newSet);
+                          }}
+                          className="mt-0.5 rounded border-[var(--border-strong)] bg-[var(--bg-input)] text-[var(--primary)] focus:ring-[var(--primary)]/20 cursor-pointer"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn(
+                              "text-[8px] font-extrabold px-1 py-0.2 rounded font-mono uppercase shrink-0 border",
+                              req.method === 'GET' ? 'bg-[var(--text-get)]/10 text-[var(--text-get)] border-[var(--text-get)]/20' :
+                              req.method === 'POST' ? 'bg-[var(--text-post)]/10 text-[var(--text-post)] border-[var(--text-post)]/20' :
+                              req.method === 'PUT' ? 'bg-[var(--text-put)]/10 text-[var(--text-put)] border-[var(--text-put)]/20' :
+                              req.method === 'DELETE' ? 'bg-[var(--text-delete)]/10 text-[var(--text-delete)] border-[var(--text-delete)]/20' :
+                              'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                            )}>{req.method}</span>
+                            <span className="text-xs text-[var(--text-primary)] truncate font-semibold group-hover:text-[var(--primary)] transition-colors">{req.name}</span>
+                          </div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. PDF specific options */}
+                {exportFormat === 'pdf' ? (
+                  <div className="space-y-4 border-t border-[var(--border-subtle)] pt-4 animate-fade-in">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">PDF Style & Branding</h3>
+                    
+                    {/* Document Title */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-[var(--text-secondary)]">Custom Title</label>
+                      <input
+                        type="text"
+                        value={pdfTitle}
+                        onChange={(e) => setPdfTitle(e.target.value)}
+                        placeholder="Collection Name"
+                        className="w-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)]"
+                      />
+                    </div>
+
+                    {/* Accent Color picker */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-semibold text-[var(--text-secondary)] block">Brand Theme Accent</label>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {[
+                          { name: 'Indigo', hex: '#4F46E5' },
+                          { name: 'Emerald', hex: '#10B981' },
+                          { name: 'Ocean', hex: '#3B82F6' },
+                          { name: 'Amber', hex: '#F59E0B' },
+                          { name: 'Crimson', hex: '#EF4444' },
+                          { name: 'Slate', hex: '#4B5563' },
+                        ].map(c => (
+                          <button
+                            key={c.hex}
+                            onClick={() => setPdfAccentColor(c.hex)}
+                            className={cn(
+                              "w-6 h-6 rounded-full border-2 transition-all relative shrink-0 cursor-pointer hover:scale-105",
+                              pdfAccentColor === c.hex ? "border-[var(--text-primary)] scale-110 shadow" : "border-transparent"
+                            )}
+                            style={{ backgroundColor: c.hex }}
+                            title={c.name}
+                          >
+                            {pdfAccentColor === c.hex && (
+                              <Check className="w-3 h-3 text-white absolute inset-0 m-auto font-extrabold" />
+                            )}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  </label>
-                ))}
-              </div>
-            </div>
 
-            {/* Right side: Markdown Preview */}
-            <div className="flex-1 flex flex-col min-w-0 h-full">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-sm font-bold text-[var(--text-primary)]">Shareable Markdown Docs</h3>
-                  <span className="text-[10px] bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Auto-Generated</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={copyToClipboard}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded transition-all"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    Copy
-                  </button>
-                  <button
-                    onClick={downloadMarkdown}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 rounded shadow-md transition-all"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Download .md
-                  </button>
-                </div>
+                    {/* Content Toggles */}
+                    <div className="space-y-2 border-t border-[var(--border-subtle)] pt-4">
+                      <label className="text-[11px] font-semibold text-[var(--text-secondary)] block mb-1">Elements to Include</label>
+                      
+                      <label className="flex items-center gap-2 cursor-pointer py-1 group">
+                        <input
+                          type="checkbox"
+                          checked={pdfIncludeIntro}
+                          onChange={(e) => setPdfIncludeIntro(e.target.checked)}
+                          className="rounded border-[var(--border-strong)] bg-[var(--bg-input)] text-[var(--primary)] focus:ring-[var(--primary)]/20 cursor-pointer"
+                        />
+                        <span className="text-xs text-[var(--text-primary)] group-hover:text-[var(--primary)] transition-colors">Include introduction guide</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer py-1 group">
+                        <input
+                          type="checkbox"
+                          checked={pdfIncludeMock}
+                          onChange={(e) => setPdfIncludeMock(e.target.checked)}
+                          className="rounded border-[var(--border-strong)] bg-[var(--bg-input)] text-[var(--primary)] focus:ring-[var(--primary)]/20 cursor-pointer"
+                        />
+                        <span className="text-xs text-[var(--text-primary)] group-hover:text-[var(--primary)] transition-colors">Include mock responses</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer py-1 group">
+                        <input
+                          type="checkbox"
+                          checked={pdfShowPageNumbers}
+                          onChange={(e) => setPdfShowPageNumbers(e.target.checked)}
+                          className="rounded border-[var(--border-strong)] bg-[var(--bg-input)] text-[var(--primary)] focus:ring-[var(--primary)]/20 cursor-pointer"
+                        />
+                        <span className="text-xs text-[var(--text-primary)] group-hover:text-[var(--primary)] transition-colors">Show page numbers & footers</span>
+                      </label>
+                    </div>
+
+                  </div>
+                ) : (
+                  <div className="space-y-3 border-t border-[var(--border-subtle)] pt-4 animate-fade-in text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] mb-1">Markdown Benefits</h3>
+                    <p>• Perfect for pasting directly into GitHub, GitLab, or GitBook wikis.</p>
+                    <p>• Preserves clean inline syntax, tables, and raw code snippets easily.</p>
+                    <p>• Completely responsive to dark/light rendering on target platforms.</p>
+                  </div>
+                )}
               </div>
 
-              <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl overflow-hidden flex flex-col shadow-inner">
-                <div className="flex-1 overflow-y-auto p-8 prose prose-invert prose-slate max-w-none markdown-body select-text custom-scrollbar">
-                <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
+              {/* Right Column: Preview / Generate */}
+              <div className="flex-1 flex flex-col min-w-0 h-full select-text">
+                {exportFormat === 'markdown' ? (
+                  <>
+                    <div className="flex items-center justify-between mb-4 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-sm font-bold text-[var(--text-primary)]">Shareable Markdown Docs</h3>
+                        <span className="text-[10px] bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Auto-Generated</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={copyToClipboard}
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded transition-all cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          Copy
+                        </button>
+                        <button
+                          onClick={downloadMarkdown}
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 rounded shadow-md transition-all cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download .md
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl overflow-hidden flex flex-col shadow-inner">
+                      <div className="flex-1 overflow-y-auto p-8 prose prose-invert prose-slate max-w-none markdown-body select-text custom-scrollbar">
+                        <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* PDF Preview Blueprint Outline */
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="flex items-center justify-between mb-4 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-sm font-bold text-[var(--text-primary)]">PDF Document Structure</h3>
+                        <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Print Ready</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (selectedEndpoints.size === 0) {
+                            addToast('Please select at least one endpoint to export', 'warning');
+                            return;
+                          }
+                          generateCollectionPdf(collectionItem, selectedEndpoints, {
+                            title: pdfTitle || collectionItem.name,
+                            includeIntro: pdfIncludeIntro,
+                            accentColor: pdfAccentColor,
+                            showPageNumbers: pdfShowPageNumbers,
+                            includeMockResponse: pdfIncludeMock
+                          });
+                          addToast('PDF documentation compiled and downloaded!', 'success', 2500);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-md transition-all cursor-pointer"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export PDF Document
+                      </button>
+                    </div>
+
+                    <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl overflow-y-auto p-6 space-y-5 custom-scrollbar shadow-inner select-none">
+                      {/* Interactive visual mockup of PDF cover */}
+                      <div className="border border-dashed border-[var(--border-strong)] rounded-lg p-5 relative overflow-hidden bg-[var(--bg-base)]">
+                        {/* Accent bar */}
+                        <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: pdfAccentColor }}></div>
+                        <span className="text-[9px] font-bold text-[var(--text-secondary)] absolute top-2 right-3 uppercase font-mono">Page 1 Outline Preview</span>
+                        
+                        <div className="space-y-3 mt-2 select-text">
+                          <h4 className="text-base font-extrabold text-[var(--text-primary)]">{pdfTitle || collectionItem.name}</h4>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-white px-1.5 py-0.2 rounded font-bold uppercase" style={{ backgroundColor: pdfAccentColor }}>API Reference</span>
+                            <span className="text-[10px] text-[var(--text-secondary)]">Generated Today</span>
+                          </div>
+                          <hr className="border-[var(--border-subtle)]" />
+                          
+                          {pdfIncludeIntro && collectionItem.description && (
+                            <div className="space-y-1">
+                              <span className="text-[10px] font-bold text-[var(--text-secondary)] block uppercase tracking-wider text-[8px]">Collection Overview</span>
+                              <p className="text-[11px] text-[var(--text-secondary)] line-clamp-3 italic leading-relaxed">
+                                {collectionItem.description.replace(/[#>*\-`\[\]()]/g, "")}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="space-y-1.5 pt-2">
+                            <span className="text-[10px] font-bold text-[var(--text-secondary)] block uppercase tracking-wider text-[8px]">Document Index ({requests.filter(r => selectedEndpoints.has(r.id)).length} Endpoints)</span>
+                            <div className="space-y-1 max-h-40 overflow-y-auto no-scrollbar">
+                              {requests.filter(r => selectedEndpoints.has(r.id)).map((req, i) => (
+                                <div key={req.id} className="flex items-center gap-2 text-[10px] text-[var(--text-secondary)] border-b border-[var(--border-subtle)]/30 pb-0.5">
+                                  <span className="w-3 text-right text-[8px]">{i+1}.</span>
+                                  <span className={cn(
+                                    "font-bold text-[8px] px-1 rounded",
+                                    req.method === 'GET' ? 'bg-blue-500/10 text-blue-400' :
+                                    req.method === 'POST' ? 'bg-emerald-500/10 text-emerald-400' :
+                                    req.method === 'PUT' ? 'bg-amber-500/10 text-amber-400' :
+                                    req.method === 'DELETE' ? 'bg-red-500/10 text-red-400' : 'bg-purple-500/10 text-purple-400'
+                                  )}>{req.method}</span>
+                                  <span className="font-semibold text-[var(--text-primary)] truncate">{req.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Remaining Endpoints details mockup cards */}
+                      <div className="space-y-3 pt-2">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider text-[8px] block">Endpoint Details Preview (Sample)</span>
+                        {requests.filter(r => selectedEndpoints.has(r.id)).slice(0, 3).map((req) => (
+                          <div key={req.id} className="border border-[var(--border-subtle)] rounded-lg p-4 bg-[var(--bg-base)]/50 space-y-3 select-text">
+                            <div className="flex items-center justify-between border-b border-[var(--border-subtle)]/50 pb-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className={cn(
+                                  "text-[9px] font-extrabold px-1.5 py-0.2 rounded font-mono border",
+                                  req.method === 'GET' ? 'bg-[var(--text-get)]/10 text-[var(--text-get)] border-[var(--text-get)]/20' :
+                                  req.method === 'POST' ? 'bg-[var(--text-post)]/10 text-[var(--text-post)] border-[var(--text-post)]/20' :
+                                  req.method === 'PUT' ? 'bg-[var(--text-put)]/10 text-[var(--text-put)] border-[var(--text-put)]/20' :
+                                  req.method === 'DELETE' ? 'bg-[var(--text-delete)]/10 text-[var(--text-delete)] border-[var(--text-delete)]/20' : 'bg-purple-500/10 text-purple-400'
+                                )}>{req.method}</span>
+                                <span className="text-xs font-bold text-[var(--text-primary)]">{req.name}</span>
+                              </div>
+                              <span className="text-[9px] text-[var(--text-secondary)] font-mono truncate max-w-xs">{req.url || '/'}</span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 text-[10px]">
+                              <div className="space-y-1">
+                                <span className="font-bold text-[var(--text-secondary)] uppercase text-[8px] tracking-wider">Request Parameters</span>
+                                <div className="text-[9px] text-[var(--text-secondary)] space-y-0.5">
+                                  <div>Headers: {req.headers.filter(h => h.enabled && h.key).length || 'None'}</div>
+                                  <div>Query Params: {req.params.filter(p => p.enabled && p.key).length || 'None'}</div>
+                                  <div>Body Payload: {req.body?.type !== 'none' ? req.body?.type : 'None'}</div>
+                                </div>
+                              </div>
+                              {pdfIncludeMock && req.mockResponse && (
+                                <div className="space-y-1">
+                                  <span className="font-bold text-[var(--text-secondary)] uppercase text-[8px] tracking-wider">Mock Response</span>
+                                  <div className="text-[9px] text-[var(--text-secondary)]">
+                                    Status: <span className="text-green-400 font-mono font-bold">{req.mockResponse.status || 200}</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {requests.filter(r => selectedEndpoints.has(r.id)).length > 3 && (
+                          <div className="text-center text-xs text-[var(--text-secondary)] py-2.5 bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)] border-dashed">
+                            And {requests.filter(r => selectedEndpoints.has(r.id)).length - 3} more endpoint document pages...
+                          </div>
+                        )}
+                        {requests.filter(r => selectedEndpoints.has(r.id)).length === 0 && (
+                          <div className="text-center text-xs text-[var(--text-secondary)] py-5 bg-[var(--bg-hover)] rounded border border-red-500/30 border-dashed">
+                            No endpoints selected. Please check at least one endpoint in the left checklist.
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                <p className="mt-4 text-[10px] text-[var(--text-secondary)] leading-relaxed text-center px-12 italic shrink-0">
+                  Exported documentation can be shared directly with your team. Markdown format is optimized for web indices, and PDF files are ready for enterprise distribution.
+                </p>
               </div>
-            </div>
-            
-              <p className="mt-4 text-[10px] text-[var(--text-secondary)] leading-relaxed text-center px-12 italic">
-                This markdown is auto-generated based on your collection name, requests, headers, and mock examples. 
-                You can copy this into GitHub, GitLab, or any documentation platform.
-              </p>
             </div>
           </div>
         ) : (
