@@ -45,6 +45,35 @@ export const apiService = {
     await api.delete(`/workspaces/${id}`);
   },
 
+  async getMembers(workspaceId: string): Promise<any[]> {
+    const res = await api.get(`/workspaces/${workspaceId}/members`);
+    return res.data;
+  },
+
+  async inviteMember(workspaceId: string, email: string, role: string = 'MEMBER'): Promise<any> {
+    const res = await api.post(`/workspaces/${workspaceId}/invite`, { email, role });
+    return res.data;
+  },
+
+  async updateMember(workspaceId: string, userId: string, data: { role?: string; status?: string }): Promise<any> {
+    const res = await api.patch(`/workspaces/${workspaceId}/members/${userId}`, data);
+    return res.data;
+  },
+
+  async removeMember(workspaceId: string, userId: string): Promise<void> {
+    await api.delete(`/workspaces/${workspaceId}/members/${userId}`);
+  },
+
+  async getInvitation(token: string): Promise<any> {
+    const res = await api.get(`/workspaces/invitations/${token}`);
+    return res.data;
+  },
+
+  async acceptInvitation(token: string, userId: string): Promise<any> {
+    const res = await api.post(`/workspaces/invitations/${token}/accept`, { userId });
+    return res.data;
+  },
+
   // Collections
   async getCollections(workspaceId: string): Promise<ApiCollection[]> {
     const res = await api.get(`/collections/${workspaceId}`);

@@ -11,6 +11,7 @@ import { CustomizeCollectionModal, getCollectionIcon } from './CustomizeCollecti
 import { exportToGateway, GatewayType } from '../utils/gatewayExports';
 import { exportToOpenAPI } from '../utils/openapiExport';
 import { TestRunnerSidebar } from './TestRunnerSidebar';
+import { WorkspaceMembersModal } from './WorkspaceMembersModal';
 
 export function Sidebar() {
   const { 
@@ -41,8 +42,9 @@ export function Sidebar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   
-  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'invite_member'|'deploy', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
+  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'deploy', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
   const [confirmModal, setConfirmModal] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -310,14 +312,6 @@ export function Sidebar() {
           setCurrentWorkspace({ ...currentWorkspace, name });
         }
         addToast('Workspace renamed', 'success', 2000);
-      } else if (modal.type === 'invite_member' && currentWorkspace) {
-        // Mock members update locally
-        const members = currentWorkspace.members || [];
-        if (!members.includes(name)) {
-          const updatedMembers = [...members, name];
-          setCurrentWorkspace({ ...currentWorkspace, members: updatedMembers });
-          addToast(`Invited ${name} to workspace`, 'success', 2000);
-        }
       } else if (modal.type === 'deploy' && modal.targetId) {
         const collectionDoc = collections.find(c => c.id === modal.targetId);
         if (collectionDoc) {
@@ -1755,47 +1749,23 @@ export function Sidebar() {
 
       <div className="p-3 border-t border-[var(--border-subtle)] flex flex-col gap-1 bg-[var(--bg-hover)]/30">
         <button 
-          onClick={() => {
-            setModal({
-              isOpen: true,
-              title: 'Invite Team Member (by Email/UID)',
-              type: 'invite_member',
-              initialValue: ''
-            });
-          }}
-          className="flex items-center justify-between text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] w-full py-1.5 px-2 rounded hover:bg-[var(--bg-hover)] transition-colors outline-none"
+          onClick={() => setIsMembersModalOpen(true)}
+          disabled={!currentWorkspace}
+          className="flex items-center justify-between text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] w-full py-1.5 px-2 rounded hover:bg-[var(--bg-hover)] transition-colors outline-none disabled:opacity-50"
         >
           <span className="flex items-center gap-2 font-medium">
             <Users className="w-4 h-4 text-[var(--primary)] shrink-0" />
-            Workspace Members
+            Manage Team Access
           </span>
-          <span className="text-[10px] bg-[var(--border-strong)] px-1.5 py-0.5 rounded-full font-bold">
-            {1 + (currentWorkspace?.members?.length || 0)}
-          </span>
+          <ChevronRight className="w-3.5 h-3.5 opacity-50" />
         </button>
-        {currentWorkspace?.members && currentWorkspace.members.length > 0 && (
-          <div className="px-2 py-1 max-h-24 overflow-y-auto flex flex-col gap-1 border-t border-[var(--border-subtle)] mt-1 pt-1.5">
-            {currentWorkspace.members.map((m, idx) => (
-              <div key={idx} className="text-[10px] text-[var(--text-secondary)] truncate flex items-center justify-between group/m">
-                <span className="truncate">• {m}</span>
-                {currentWorkspace.ownerId === user?.uid && (
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      const updated = (currentWorkspace.members || []).filter(x => x !== m);
-                      setCurrentWorkspace({ ...currentWorkspace, members: updated });
-                    }}
-                    className="text-red-500 hover:text-red-600 opacity-0 group-hover/m:opacity-100 transition-opacity ml-1"
-                    title="Remove Member"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
+
+      <WorkspaceMembersModal 
+        isOpen={isMembersModalOpen} 
+        onClose={() => setIsMembersModalOpen(false)} 
+        workspaceId={currentWorkspace?.id || ''} 
+      />
       
       <PromptModal 
         isOpen={modal.isOpen} 
