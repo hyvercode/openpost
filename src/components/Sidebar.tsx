@@ -10,6 +10,7 @@ import { ConfirmModal } from './ConfirmModal';
 import { CustomizeCollectionModal, getCollectionIcon } from './CustomizeCollectionModal';
 import { exportToGateway, GatewayType } from '../utils/gatewayExports';
 import { exportToOpenAPI } from '../utils/openapiExport';
+import { exportToPostman } from '../utils/postmanExport';
 import { TestRunnerSidebar } from './TestRunnerSidebar';
 import { WorkspaceMembersModal } from './WorkspaceMembersModal';
 
@@ -49,6 +50,7 @@ export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const [customizationModal, setCustomizationModal] = useState<{
     isOpen: boolean;
@@ -498,6 +500,20 @@ export function Sidebar() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const downloadFile = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleExportData = () => {
     if (!currentWorkspace) return;
     
@@ -510,17 +526,17 @@ export function Sidebar() {
     };
     
     const dataStr = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    downloadFile(dataStr, `openpost_export_${new Date().toISOString().split('T')[0]}.json`);
+    setShowExportMenu(false);
+  };
+
+  const handleExportPostman = () => {
+    if (!currentWorkspace) return;
     
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `apitester_export_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const exportData = exportToPostman(collections);
+    const dataStr = JSON.stringify(exportData, null, 2);
+    downloadFile(dataStr, `openpost_postman_collection_${new Date().toISOString().split('T')[0]}.json`);
+    setShowExportMenu(false);
   };
 
   const handleGatewayExport = (collection: ApiCollection, type: GatewayType) => {
@@ -977,13 +993,37 @@ export function Sidebar() {
             <span>OpenPost</span>
           </h1>
           <div className="flex items-center gap-1">
-            <button 
-              onClick={handleExportData}
-              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
-              title="Export Data (JSON)"
-            >
-              <Download className="w-4 h-4" />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
+                title="Export Data"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+              
+              {showExportMenu && (
+                <div className="absolute top-full mt-1 right-0 w-48 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg shadow-xl py-1 z-50">
+                  <div className="px-3 py-1.5 border-b border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                    Export Format
+                  </div>
+                  <button 
+                    onClick={handleExportData}
+                    className="w-full text-left px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
+                  >
+                    <Server className="w-3.5 h-3.5" />
+                    OpenPost Format
+                  </button>
+                  <button 
+                    onClick={handleExportPostman}
+                    className="w-full text-left px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Postman Collection (v2.1)
+                  </button>
+                </div>
+              )}
+            </div>
             <button 
               onClick={() => fileInputRef.current?.click()}
               className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"

@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore';
 import { cn } from '../utils';
 import axios from 'axios';
 import { JsonTree } from './JsonTree';
-import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp } from 'lucide-react';
+import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download } from 'lucide-react';
 import { generateCurl, generateFetch, generateAxios, generatePythonRequests, generateGo, generateJavaOkHttp, generatePhpCurl, generateRubyNetHttp, generateCsharpHttpClient, generateSwiftUrlSession } from '../utils/snippetGenerator';
 import { replaceEnvironmentVariables } from '../utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -303,6 +303,7 @@ export function ResponsePanel() {
   const [selectedLang, setSelectedLang] = useState<'json' | 'xml' | 'html' | 'text' | 'auto'>('auto');
   const [bodyCopied, setBodyCopied] = useState(false);
   const [detectedLang, setDetectedLang] = useState<'json' | 'xml' | 'html' | 'text'>('text');
+  const [downloadCopied, setDownloadCopied] = useState(false);
 
   useEffect(() => {
     if (response && !response.error) {
@@ -898,6 +899,39 @@ export function ResponsePanel() {
                       </select>
                     </div>
                   </div>
+
+                  {/* Save response body button */}
+                  <button
+                    onClick={() => {
+                      if (!response) return;
+                      const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
+                      const blob = new Blob([text], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      const ext = typeof response.data === 'object' ? 'json' : (detectedLang === 'html' ? 'html' : detectedLang === 'xml' ? 'xml' : 'txt');
+                      a.download = `response_${new Date().getTime()}.${ext}`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                      setDownloadCopied(true);
+                      setTimeout(() => setDownloadCopied(false), 2000);
+                    }}
+                    className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                  >
+                    {downloadCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-green-500" />
+                        <span className="text-green-500">Saved</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                        <span>Save</span>
+                      </>
+                    )}
+                  </button>
 
                   {/* Copy response body button */}
                   <button
