@@ -20,9 +20,16 @@ export class UserController {
   upsertUser = async (req: Request, res: Response) => {
     try {
       const { uid, email, displayName, photoURL } = req.body;
+      const authUserId = (req as any).user?.uid || (req as any).user?.userId;
+      
       if (!uid) {
         return res.status(400).json({ error: 'UID is required' });
       }
+      
+      if (authUserId !== uid) {
+        return res.status(403).json({ error: 'Forbidden to update another user profile' });
+      }
+
       const user = await this.userService.upsertUser(uid, { email, displayName, photoURL });
       res.json(user);
     } catch (error: any) {

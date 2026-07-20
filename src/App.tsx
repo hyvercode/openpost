@@ -593,8 +593,8 @@ export default function App() {
             <button 
               onClick={() => setActiveView('settings')}
               className={cn(
-                "flex items-center gap-2 p-1 rounded-full transition-all border-2",
-                activeView === 'settings' ? "border-[var(--primary)] shadow-sm" : "border-transparent hover:border-[var(--border-subtle)]"
+                "flex items-center gap-2 p-1 pr-2.5 rounded-full transition-all border-2",
+                activeView === 'settings' ? "border-[var(--primary)] shadow-sm bg-[var(--bg-hover)]" : "border-transparent hover:bg-[var(--bg-hover)] hover:border-[var(--border-subtle)]"
               )}
               title="Profile Settings"
             >
@@ -605,6 +605,9 @@ export default function App() {
                   <User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                 </div>
               )}
+              <span className="text-xs font-semibold text-[var(--text-primary)] max-w-[100px] truncate hidden sm:block">
+                {user.displayName || user.email?.split('@')[0]}
+              </span>
             </button>
             <button onClick={logout} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md text-[var(--text-primary)] transition-colors" title="Logout">
               <LogOut className="w-4 h-4" />

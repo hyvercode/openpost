@@ -45,7 +45,22 @@ export const SettingsView: React.FC = () => {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    addToast('Profile updates are currently disabled in this custom auth implementation.', 'info');
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      const updatedUser = await apiService.saveUser({
+        uid: user.uid,
+        email: user.email,
+        displayName,
+        photoURL
+      });
+      setUser(updatedUser);
+      addToast('Profile updated successfully.', 'success');
+    } catch (error: any) {
+      addToast(error.response?.data?.error || 'Failed to update profile.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
@@ -168,8 +183,9 @@ export const SettingsView: React.FC = () => {
                       )}
                     </div>
                     <div>
-                      <h3 className="font-medium text-[var(--text-primary)]">{user?.email}</h3>
-                      <p className="text-xs text-[var(--text-secondary)]">Your account email cannot be changed</p>
+                      <h3 className="font-medium text-[var(--text-primary)] text-lg">{user?.displayName || 'User'}</h3>
+                      <p className="text-sm font-medium text-[var(--text-secondary)]">{user?.email}</p>
+                      <p className="text-xs text-[var(--text-secondary)]/70 mt-1">Your account email cannot be changed</p>
                     </div>
                   </div>
 

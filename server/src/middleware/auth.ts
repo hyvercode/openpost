@@ -21,7 +21,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
 };
 
 export const requireWorkspaceAccess = async (req: Request, res: Response, next: NextFunction) => {
-  const userId = (req as any).user?.uid;
+  const userId = (req as any).user?.uid || (req as any).user?.userId;
   // Try to find workspaceId in various places
   const workspaceId = req.params.id || req.params.workspaceId || req.body.workspaceId || req.query.workspaceId;
 
