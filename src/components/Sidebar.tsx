@@ -47,6 +47,7 @@ export function Sidebar() {
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   const [customizationModal, setCustomizationModal] = useState<{
@@ -1118,57 +1119,55 @@ export function Sidebar() {
         />
       </div>
 
-      <div className="flex border-b border-[var(--border-subtle)]">
-        <button 
-          onClick={() => setActiveTab('collections')}
-          className={cn(
-            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
-            activeTab === 'collections' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+      <div className="px-4 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-panel)]/50">
+        <div className="relative">
+          <button
+            onClick={() => setIsNavDropdownOpen(!isNavDropdownOpen)}
+            className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-primary)] bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded hover:border-[var(--border-strong)] transition-all outline-none"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-1 h-3 bg-[var(--primary)] rounded-full"></span>
+              <span>{activeTab === 'collections' ? 'Collections' : 
+                     activeTab === 'environments' ? 'Environments' : 
+                     activeTab === 'deployments' ? 'Mock API Servers' : 
+                     activeTab === 'history' ? 'History' : 
+                     activeTab === 'tests' ? 'Tests & Runners' : activeTab}</span>
+            </div>
+            <ChevronDown className={cn("w-3.5 h-3.5 text-[var(--text-secondary)] transition-transform duration-200", isNavDropdownOpen && "rotate-180")} />
+          </button>
+
+          {isNavDropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsNavDropdownOpen(false)} />
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-2xl z-50 py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                {[
+                  { id: 'collections', label: 'Collections', icon: Folder },
+                  { id: 'environments', label: 'Environments', icon: Globe },
+                  { id: 'deployments', label: 'Mocks', icon: Rocket },
+                  { id: 'history', label: 'History', icon: History },
+                  { id: 'tests', label: 'Tests', icon: Play }
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id as any);
+                      setIsNavDropdownOpen(false);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-left transition-colors",
+                      activeTab === item.id 
+                        ? "bg-[var(--primary)] text-white" 
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                    )}
+                  >
+                    <item.icon className={cn("w-3.5 h-3.5", activeTab === item.id ? "text-white" : "text-[var(--text-secondary)]")} />
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
-          title="Collections"
-        >
-          Collections
-        </button>
-        <button 
-          onClick={() => setActiveTab('environments')}
-          className={cn(
-            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
-            activeTab === 'environments' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          )}
-          title="Environments"
-        >
-          Environments
-        </button>
-        <button 
-          onClick={() => setActiveTab('deployments')}
-          className={cn(
-            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
-            activeTab === 'deployments' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          )}
-          title="Mock Deployments"
-        >
-          Mocks
-        </button>
-        <button 
-          onClick={() => setActiveTab('history')}
-          className={cn(
-            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
-            activeTab === 'history' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          )}
-          title="Request History"
-        >
-          History
-        </button>
-        <button 
-          onClick={() => setActiveTab('tests')}
-          className={cn(
-            "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider truncate px-0.5",
-            activeTab === 'tests' ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          )}
-          title="Test Suites"
-        >
-          Tests
-        </button>
+        </div>
       </div>
 
       <div className="p-2 border-b border-[var(--border-subtle)]">
