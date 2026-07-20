@@ -55,6 +55,10 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail) return;
+    if (!workspaceId) {
+      addToast('No active workspace selected', 'error');
+      return;
+    }
 
     setIsInviting(true);
     try {
@@ -76,9 +80,10 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
       }
       setInviteEmail('');
       loadInvitations();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to invite:", e);
-      addToast('Failed to send invitation', 'error');
+      const errorMessage = e.response?.data?.error || e.message || 'Failed to send invitation';
+      addToast(errorMessage, 'error');
     } finally {
       setIsInviting(false);
     }
