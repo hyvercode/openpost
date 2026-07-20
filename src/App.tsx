@@ -453,19 +453,24 @@ export default function App() {
       "flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] font-sans overflow-hidden",
       theme === 'light' ? 'theme-light' : theme === 'dark' ? 'theme-dark' : 'theme-default'
     )}>
-      {!sidebarCollapsed && (
-        <>
-          <Sidebar />
-          <div 
-            className={cn(
-              "w-1 hover:w-1.5 cursor-col-resize select-none shrink-0 transition-all z-30 group relative hidden lg:block border-r border-[var(--border-subtle)]",
-              isResizingSidebar ? "bg-[var(--primary)]" : "bg-transparent hover:bg-[var(--primary)]"
-            )}
-            style={{ width: '4px' }}
-            onMouseDown={handleSidebarMouseDown}
-          />
-        </>
-      )}
+      <div 
+        className={cn(
+          "h-full shrink-0 overflow-hidden relative",
+          !isResizingSidebar && "transition-[width] duration-300 ease-in-out"
+        )}
+        style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
+      >
+        <Sidebar />
+      </div>
+      <div 
+        className={cn(
+          "w-1 hover:w-1.5 cursor-col-resize select-none shrink-0 transition-all z-30 group relative hidden lg:block border-r border-[var(--border-subtle)]",
+          isResizingSidebar ? "bg-[var(--primary)]" : "bg-transparent hover:bg-[var(--primary)]",
+          sidebarCollapsed && "pointer-events-none opacity-0 w-0"
+        )}
+        style={{ width: sidebarCollapsed ? '0px' : '4px' }}
+        onMouseDown={handleSidebarMouseDown}
+      />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-11 border-b border-[var(--border-subtle)] flex items-center justify-between px-4 shrink-0 bg-[var(--bg-panel)]">
           <div className="flex items-center gap-4">
@@ -590,18 +595,25 @@ export default function App() {
               {layoutMode === 'horizontal' && (
                 <>
                   <div 
-                    className="flex flex-col min-h-0 border-r border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative"
-                    style={responseCollapsed ? { flex: '1 1 0%', minWidth: '0' } : { width: `${requestPanelWidth}%`, minWidth: '20%' }}
+                    className={cn(
+                      "flex flex-col min-h-0 border-r border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative",
+                      !isResizingPanels && "transition-[width] duration-300 ease-in-out"
+                    )}
+                    style={{ 
+                      width: responseCollapsed ? '100%' : `${requestPanelWidth}%`, 
+                      minWidth: responseCollapsed ? '0px' : '20%' 
+                    }}
                   >
                     <RequestPanel />
                   </div>
                   
                   <div 
                     className={cn(
-                      "relative flex items-center justify-center cursor-col-resize select-none shrink-0 transition-colors z-30 group hidden lg:flex",
-                      isResizingPanels ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)] hover:bg-[var(--primary)]"
+                      "relative flex items-center justify-center cursor-col-resize select-none shrink-0 transition-all z-30 group hidden lg:flex",
+                      isResizingPanels ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)] hover:bg-[var(--primary)]",
+                      responseCollapsed && "pointer-events-none opacity-0 w-0"
                     )}
-                    style={{ width: '4px' }}
+                    style={{ width: responseCollapsed ? '0px' : '4px' }}
                     onMouseDown={handlePanelMouseDown}
                     onDoubleClick={() => setResponseCollapsed(!responseCollapsed)}
                   >
@@ -622,32 +634,43 @@ export default function App() {
                     </button>
                   </div>
 
-                  {!responseCollapsed && (
-                    <div 
-                      className="flex-1 flex flex-col min-h-0 shadow-[var(--shadow-panel)] z-10 relative"
-                      style={{ width: `${100 - requestPanelWidth}%`, minWidth: '20%' }}
-                    >
-                      <ResponsePanel />
-                    </div>
-                  )}
+                  <div 
+                    className={cn(
+                      "flex flex-col min-h-0 shadow-[var(--shadow-panel)] z-10 relative overflow-hidden",
+                      !isResizingPanels && "transition-[width] duration-300 ease-in-out"
+                    )}
+                    style={{ 
+                      width: responseCollapsed ? '0%' : `${100 - requestPanelWidth}%`, 
+                      minWidth: responseCollapsed ? '0px' : '20%' 
+                    }}
+                  >
+                    <ResponsePanel />
+                  </div>
                 </>
               )}
 
               {layoutMode === 'vertical' && (
                 <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full h-full">
                   <div 
-                    className="flex flex-col min-h-0 border-b border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative"
-                    style={responseCollapsed ? { flex: '1 1 0%', minHeight: '0' } : { height: `${requestPanelHeight}%`, minHeight: '15%' }}
+                    className={cn(
+                      "flex flex-col min-h-0 border-b border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative overflow-hidden",
+                      !isResizingPanelsVertical && "transition-[height] duration-300 ease-in-out"
+                    )}
+                    style={{ 
+                      height: responseCollapsed ? '100%' : `${requestPanelHeight}%`, 
+                      minHeight: responseCollapsed ? '0px' : '15%' 
+                    }}
                   >
                     <RequestPanel />
                   </div>
                   
                   <div 
                     className={cn(
-                      "relative flex items-center justify-center cursor-row-resize select-none shrink-0 transition-colors z-30 group flex",
-                      isResizingPanelsVertical ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)] hover:bg-[var(--primary)]"
+                      "relative flex items-center justify-center cursor-row-resize select-none shrink-0 transition-all z-30 group flex",
+                      isResizingPanelsVertical ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)] hover:bg-[var(--primary)]",
+                      responseCollapsed && "pointer-events-none opacity-0 h-0"
                     )}
-                    style={{ height: '4px' }}
+                    style={{ height: responseCollapsed ? '0px' : '4px' }}
                     onMouseDown={handleVerticalPanelMouseDown}
                     onDoubleClick={() => setResponseCollapsed(!responseCollapsed)}
                   >
@@ -668,14 +691,18 @@ export default function App() {
                     </button>
                   </div>
 
-                  {!responseCollapsed && (
-                    <div 
-                      className="flex-1 flex flex-col min-h-0 border-t border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative"
-                      style={{ height: `${100 - requestPanelHeight}%`, minHeight: '15%' }}
-                    >
-                      <ResponsePanel />
-                    </div>
-                  )}
+                  <div 
+                    className={cn(
+                      "flex flex-col min-h-0 border-t border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative overflow-hidden",
+                      !isResizingPanelsVertical && "transition-[height] duration-300 ease-in-out"
+                    )}
+                    style={{ 
+                      height: responseCollapsed ? '0%' : `${100 - requestPanelHeight}%`, 
+                      minHeight: responseCollapsed ? '0px' : '15%' 
+                    }}
+                  >
+                    <ResponsePanel />
+                  </div>
                 </div>
               )}
 
@@ -685,7 +712,8 @@ export default function App() {
                   <div
                     onClick={() => setActiveWindow('request')}
                     className={cn(
-                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg overflow-hidden transition-all duration-75",
+                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg overflow-hidden",
+                      (!dragState && !resizeState) ? "transition-all duration-300 ease-in-out" : "transition-none",
                       activeWindow === 'request' 
                         ? "border-[var(--primary)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] ring-1 ring-[var(--primary)]/20" 
                         : "border-[var(--border-strong)] shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
@@ -752,7 +780,8 @@ export default function App() {
                   <div
                     onClick={() => setActiveWindow('response')}
                     className={cn(
-                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg overflow-hidden transition-all duration-75",
+                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg overflow-hidden",
+                      (!dragState && !resizeState) ? "transition-all duration-300 ease-in-out" : "transition-none",
                       activeWindow === 'response' 
                         ? "border-[var(--primary)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] ring-1 ring-[var(--primary)]/20" 
                         : "border-[var(--border-strong)] shadow-[0_10px_30px_rgba(0,0,0,0.5)]"

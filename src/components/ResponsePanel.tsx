@@ -4,7 +4,7 @@ import { cn } from '../utils';
 import axios from 'axios';
 import { JsonTree } from './JsonTree';
 import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp } from 'lucide-react';
-import { generateCurl, generateFetch, generateAxios, generatePythonRequests, generateGo } from '../utils/snippetGenerator';
+import { generateCurl, generateFetch, generateAxios, generatePythonRequests, generateGo, generateJavaOkHttp, generatePhpCurl, generateRubyNetHttp, generateCsharpHttpClient, generateSwiftUrlSession } from '../utils/snippetGenerator';
 import { replaceEnvironmentVariables } from '../utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
@@ -347,6 +347,11 @@ export function ResponsePanel() {
       case 'axios': localCode = generateAxios(resolvedConfig); break;
       case 'python': localCode = generatePythonRequests(resolvedConfig); break;
       case 'go': localCode = generateGo(resolvedConfig); break;
+      case 'java': localCode = generateJavaOkHttp(resolvedConfig); break;
+      case 'php': localCode = generatePhpCurl(resolvedConfig); break;
+      case 'ruby': localCode = generateRubyNetHttp(resolvedConfig); break;
+      case 'csharp': localCode = generateCsharpHttpClient(resolvedConfig); break;
+      case 'swift': localCode = generateSwiftUrlSession(resolvedConfig); break;
     }
 
     if (localCode) {
