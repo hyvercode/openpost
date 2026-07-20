@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2 } from 'lucide-react';
+import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2, CheckSquare, Square, X, Check } from 'lucide-react';
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
@@ -37,13 +37,18 @@ export function Sidebar() {
     addToast,
     history,
     clearHistory,
-    removeHistoryItem
+    removeHistoryItem,
+    isBulkEditMode,
+    setIsBulkEditMode,
+    selectedRequestIds,
+    setSelectedRequestIds,
+    toggleRequestSelection
   } = useStore();
   const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments' | 'history' | 'tests'>('collections');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   
-  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'deploy', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
+  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'deploy'|'bulk_move', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
   const [confirmModal, setConfirmModal] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -734,6 +739,142 @@ export function Sidebar() {
     }
   };
 
+  const handleBulkDelete = () => {
+    if (selectedRequestIds.length === 0) return;
+    
+    setConfirmModal({
+      isOpen: true,
+      title: 'Bulk Delete Requests',
+      message: `Are you sure you want to delete ${selectedRequestIds.length} selected requests?`,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          // Group by collection to minimize API calls
+          const collectionRequestMap: Record<string, string[]> = {};
+          selectedRequestIds.forEach(id => {
+            const req = collections.flatMap(c => c.requests || []).find(r => r.id === id);
+            if (req) {
+              if (!collectionRequestMap[req.collectionId]) collectionRequestMap[req.collectionId] = [];
+              collectionRequestMap[req.collectionId].push(id);
+            }
+          });
+
+          const newCollections = [...collections];
+          for (const [colId, reqIds] of Object.entries(collectionRequestMap)) {
+            const colIndex = newCollections.findIndex(c => c.id === colId);
+            if (colIndex !== -1) {
+              const updatedRequests = (newCollections[colIndex].requests || []).filter(r => !reqIds.includes(r.id));
+              await apiService.updateCollection(colId, { requests: updatedRequests });
+              newCollections[colIndex] = { ...newCollections[colIndex], requests: updatedRequests };
+            }
+          }
+          
+          setCollections(newCollections);
+          setIsBulkEditMode(false);
+          addToast(`Deleted ${selectedRequestIds.length} requests`, 'success');
+        } catch (error) {
+          console.error("Bulk delete failed:", error);
+          addToast('Bulk delete failed', 'error');
+        }
+      }
+    });
+  };
+
+  const handleBulkDuplicate = async () => {
+    if (selectedRequestIds.length === 0) return;
+    
+    try {
+      const newCollections = [...collections];
+      let duplicatedCount = 0;
+
+      // Group by collection
+      const collectionRequestMap: Record<string, RequestItem[]> = {};
+      selectedRequestIds.forEach(id => {
+        const req = collections.flatMap(c => c.requests || []).find(r => r.id === id);
+        if (req) {
+          if (!collectionRequestMap[req.collectionId]) collectionRequestMap[req.collectionId] = [];
+          collectionRequestMap[req.collectionId].push(req);
+        }
+      });
+
+      for (const [colId, reqs] of Object.entries(collectionRequestMap)) {
+        const colIndex = newCollections.findIndex(c => c.id === colId);
+        if (colIndex !== -1) {
+          const newReqs = reqs.map(r => ({
+            ...r,
+            id: uuidv4(),
+            name: `${r.name} (Copy)`
+          }));
+          const updatedRequests = [...(newCollections[colIndex].requests || []), ...newReqs];
+          await apiService.updateCollection(colId, { requests: updatedRequests });
+          newCollections[colIndex] = { ...newCollections[colIndex], requests: updatedRequests };
+          duplicatedCount += newReqs.length;
+        }
+      }
+
+      setCollections(newCollections);
+      setIsBulkEditMode(false);
+      addToast(`Duplicated ${duplicatedCount} requests`, 'success');
+    } catch (error) {
+      console.error("Bulk duplicate failed:", error);
+      addToast('Bulk duplicate failed', 'error');
+    }
+  };
+
+  const handleBulkMove = (targetCollectionId: string, targetFolderId: string | null = null) => {
+    if (selectedRequestIds.length === 0) return;
+
+    setConfirmModal({
+      isOpen: true,
+      title: 'Bulk Move Requests',
+      message: `Move ${selectedRequestIds.length} requests to the selected location?`,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          const newCollections = [...collections];
+          
+          // 1. Get all requests to move
+          const requestsToMove: RequestItem[] = [];
+          const sourceCollectionIds = new Set<string>();
+
+          selectedRequestIds.forEach(id => {
+            const req = collections.flatMap(c => c.requests || []).find(r => r.id === id);
+            if (req) {
+              requestsToMove.push({ ...req, collectionId: targetCollectionId, folderId: targetFolderId });
+              sourceCollectionIds.add(req.collectionId);
+            }
+          });
+
+          // 2. Remove from sources
+          for (const srcColId of sourceCollectionIds) {
+            const colIdx = newCollections.findIndex(c => c.id === srcColId);
+            if (colIdx !== -1) {
+              const updated = (newCollections[colIdx].requests || []).filter(r => !selectedRequestIds.includes(r.id));
+              await apiService.updateCollection(srcColId, { requests: updated });
+              newCollections[colIdx] = { ...newCollections[colIdx], requests: updated };
+            }
+          }
+
+          // 3. Add to target (it might be one of the sources, which is fine since we updated newCollections)
+          const targetIdx = newCollections.findIndex(c => c.id === targetCollectionId);
+          if (targetIdx !== -1) {
+            const updated = [...(newCollections[targetIdx].requests || []), ...requestsToMove];
+            await apiService.updateCollection(targetCollectionId, { requests: updated });
+            newCollections[targetIdx] = { ...newCollections[targetIdx], requests: updated };
+          }
+
+          setCollections(newCollections);
+          setIsBulkEditMode(false);
+          setModal({ ...modal, isOpen: false });
+          addToast(`Moved ${requestsToMove.length} requests`, 'success');
+        } catch (error) {
+          console.error("Bulk move failed:", error);
+          addToast('Bulk move failed', 'error');
+        }
+      }
+    });
+  };
+
   const renderCollectionItems = (collectionId: string, requests: RequestItem[], folders: any[], parentId: string | null = null) => {
     const currentFolders = (folders || [])
       .filter(f => (f.parentId || null) === parentId)
@@ -902,18 +1043,32 @@ export function Sidebar() {
         {currentRequests.map(req => (
           <div 
             key={req.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, req.id, 'request', collectionId)}
+            draggable={!isBulkEditMode}
+            onDragStart={(e) => !isBulkEditMode && handleDragStart(e, req.id, 'request', collectionId)}
             onClick={() => { 
-              setActiveRequest(req); 
-              setActiveView('request');
-              openTab({ id: req.id, type: 'request', name: req.name, method: req.method });
+              if (isBulkEditMode) {
+                toggleRequestSelection(req.id);
+              } else {
+                setActiveRequest(req); 
+                setActiveView('request');
+                openTab({ id: req.id, type: 'request', name: req.name, method: req.method });
+              }
             }}
             className={cn(
               "flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer mt-1 group/req",
-              activeRequest?.id === req.id ? "bg-[var(--bg-hover)] text-[var(--text-primary)]" : "hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]"
+              activeRequest?.id === req.id && !isBulkEditMode ? "bg-[var(--bg-hover)] text-[var(--text-primary)]" : "hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]",
+              selectedRequestIds.includes(req.id) && isBulkEditMode ? "bg-indigo-500/10 ring-1 ring-indigo-500/30" : ""
             )}
           >
+            {isBulkEditMode ? (
+              <div className="shrink-0 flex items-center justify-center w-4 h-4">
+                {selectedRequestIds.includes(req.id) ? (
+                  <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
+                ) : (
+                  <Square className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
+                )}
+              </div>
+            ) : null}
             <span className={cn(
               "text-[10px] font-bold w-10 shrink-0",
               req.method === 'GET' ? "text-[var(--text-get)]" :
@@ -1254,12 +1409,25 @@ export function Sidebar() {
           <div>
             <div className="flex items-center justify-between px-2 py-2 group">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Collections</span>
-              <button 
-                onClick={() => setModal({ isOpen: true, title: 'New Collection', type: 'collection' })}
-                className="text-[var(--icon-color)] hover:text-[var(--text-primary)] opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => setIsBulkEditMode(!isBulkEditMode)}
+                  className={cn(
+                    "p-1 rounded transition-colors",
+                    isBulkEditMode ? "text-indigo-500 bg-indigo-500/10" : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
+                  )}
+                  title="Bulk Edit Mode"
+                >
+                  <CheckSquare className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => setModal({ isOpen: true, title: 'New Collection', type: 'collection' })}
+                  className="p-1 rounded text-[var(--icon-color)] hover:text-[var(--text-primary)] transition-colors"
+                  title="New Collection"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             {filteredCollections.map(collection => {
               const isExpanded = searchQuery ? true : expandedItems.has(collection.id);
@@ -1839,6 +2007,55 @@ export function Sidebar() {
         </button>
       </div>
 
+      {/* Bulk Edit Toolbar */}
+      {isBulkEditMode && selectedRequestIds.length > 0 && (
+        <div className="absolute bottom-4 left-4 right-4 bg-indigo-600 text-white rounded-lg shadow-2xl p-3 z-[60] flex items-center justify-between animate-in slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center gap-2">
+            <div className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
+              {selectedRequestIds.length}
+            </div>
+            <span className="text-xs font-semibold">Selected</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBulkDuplicate}
+              className="p-1.5 hover:bg-white/10 rounded transition-colors"
+              title="Duplicate Selected"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                setModal({ 
+                  isOpen: true, 
+                  title: 'Move Selected Requests', 
+                  type: 'bulk_move' 
+                });
+              }}
+              className="p-1.5 hover:bg-white/10 rounded transition-colors"
+              title="Move Selected"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="p-1.5 hover:bg-red-400 rounded transition-colors"
+              title="Delete Selected"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+            <div className="w-px h-4 bg-white/20 mx-1" />
+            <button
+              onClick={() => setIsBulkEditMode(false)}
+              className="p-1.5 hover:bg-white/10 rounded transition-colors"
+              title="Exit Bulk Mode"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <WorkspaceMembersModal 
         isOpen={isMembersModalOpen} 
         onClose={() => setIsMembersModalOpen(false)} 
@@ -1869,6 +2086,56 @@ export function Sidebar() {
         onSubmit={handleSaveCustomization}
         onCancel={() => setCustomizationModal(prev => ({ ...prev, isOpen: false }))}
       />
+
+      {/* Bulk Move Modal */}
+      {modal.isOpen && modal.type === 'bulk_move' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">Select Destination</h3>
+              <button onClick={() => setModal({ ...modal, isOpen: false })} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-4 max-h-96 overflow-y-auto">
+              <div className="space-y-4">
+                {collections.map(col => (
+                  <div key={col.id} className="space-y-1">
+                    <button
+                      onClick={() => handleBulkMove(col.id, null)}
+                      className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-hover)] rounded transition-colors flex items-center gap-2 text-[var(--text-primary)] font-medium"
+                    >
+                      {(() => {
+                        const Icon = getCollectionIcon(col.icon);
+                        return <Icon className="w-3.5 h-3.5" style={{ color: col.color || 'var(--primary)' }} />;
+                      })()}
+                      {col.name}
+                    </button>
+                    {(col.folders || []).map(folder => (
+                      <button
+                        key={folder.id}
+                        onClick={() => handleBulkMove(col.id, folder.id)}
+                        className="w-full text-left ml-4 px-3 py-1.5 text-[11px] hover:bg-[var(--bg-hover)] rounded transition-colors flex items-center gap-2 text-[var(--text-secondary)]"
+                      >
+                        <Folder className="w-3 h-3 opacity-50" />
+                        {folder.name}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="p-4 bg-[var(--bg-hover)]/50 border-t border-[var(--border-subtle)] flex justify-end">
+              <button
+                onClick={() => setModal({ ...modal, isOpen: false })}
+                className="px-4 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

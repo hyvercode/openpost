@@ -8,6 +8,7 @@ import { generateCurl, generateFetch, generateAxios, generatePythonRequests, gen
 import { replaceEnvironmentVariables } from '../utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
+import { PromptModal } from './PromptModal';
 
 function LatencyChart({ data }: { data: number[] }) {
   const chartData = data.map((ms, index) => ({
@@ -304,6 +305,8 @@ export function ResponsePanel() {
   const [bodyCopied, setBodyCopied] = useState(false);
   const [detectedLang, setDetectedLang] = useState<'json' | 'xml' | 'html' | 'text'>('text');
   const [downloadCopied, setDownloadCopied] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [saveInitialName, setSaveInitialName] = useState('');
 
   useEffect(() => {
     if (response && !response.error) {
@@ -388,6 +391,23 @@ export function ResponsePanel() {
     navigator.clipboard.writeText(generatedCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleSave = (fileName: string) => {
+    if (!response) return;
+    const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setIsSaveModalOpen(false);
+    setDownloadCopied(true);
+    setTimeout(() => setDownloadCopied(false), 2000);
   };
 
   const isHtml = typeof response?.data === 'string' && response.data.trim().startsWith('<');
@@ -904,19 +924,9 @@ export function ResponsePanel() {
                   <button
                     onClick={() => {
                       if (!response) return;
-                      const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
-                      const blob = new Blob([text], { type: 'text/plain' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
                       const ext = typeof response.data === 'object' ? 'json' : (detectedLang === 'html' ? 'html' : detectedLang === 'xml' ? 'xml' : 'txt');
-                      a.download = `response_${new Date().getTime()}.${ext}`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                      setDownloadCopied(true);
-                      setTimeout(() => setDownloadCopied(false), 2000);
+                      setSaveInitialName(`response_${new Date().getTime()}.${ext}`);
+                      setIsSaveModalOpen(true);
                     }}
                     className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-all active:scale-95 cursor-pointer"
                   >
@@ -1025,6 +1035,15 @@ export function ResponsePanel() {
           </motion.div>
         </AnimatePresence>
       </div>
+      <PromptModal 
+        isOpen={isSaveModalOpen}
+        title="Save Response Body"
+        placeholder="Enter filename (e.g. response.json)"
+        initialValue={saveInitialName}
+        submitText="Save"
+        onSubmit={handleSave}
+        onCancel={() => setIsSaveModalOpen(false)}
+      />
     </motion.div>
   );
 }
