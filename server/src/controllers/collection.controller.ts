@@ -4,6 +4,19 @@ import { CollectionService } from '../services/collection.service';
 export class CollectionController {
   private collectionService = new CollectionService();
 
+  getSharedCollection = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const collection = await this.collectionService.getCollectionById(id);
+      if (!collection) {
+        return res.status(404).json({ error: 'Collection not found' });
+      }
+      res.json(collection);
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch shared collection', details: error.message });
+    }
+  };
+
   getCollectionsByWorkspace = async (req: Request, res: Response) => {
     try {
       const { workspaceId } = req.params;

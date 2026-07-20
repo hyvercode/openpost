@@ -4,7 +4,17 @@ import { X } from 'lucide-react';
 import { cn } from '../utils';
 
 export function TabBar() {
-  const { openTabs, activeTabId, setActiveTabId, closeTab, setActiveView, setActiveRequest, setEditingEnvironment, collections, environments } = useStore();
+  const { openTabs, activeTabId, setActiveTabId, closeTab, activeView, setActiveView, setActiveRequest, setEditingEnvironment, collections, environments } = useStore();
+
+  const isTabActive = (tab: typeof openTabs[0]) => {
+    if (activeTabId !== tab.id) return false;
+    if (activeView === 'request' && tab.type === 'request') return true;
+    if (activeView === 'environment' && tab.type === 'environment') return true;
+    if (activeView === 'deployments' && tab.type === 'deployments') return true;
+    if (activeView === 'collection_doc' && tab.type === 'collection_doc') return true;
+    if (activeView === 'test_suite' && tab.type === 'test_suite') return true;
+    return false;
+  };
 
   const handleTabClick = (tab: { id: string; type: any }) => {
     setActiveTabId(tab.id);
@@ -53,7 +63,7 @@ export function TabBar() {
           onClick={() => handleTabClick(tab)}
           className={cn(
             "flex items-center gap-2 px-3 py-2 border-r border-[var(--border-subtle)] max-w-[200px] cursor-pointer group text-xs",
-            activeTabId === tab.id ? "bg-[var(--bg-panel)] text-[var(--text-primary)] border-t-2 border-t-[var(--primary)]" : "bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-panel)]"
+            isTabActive(tab) ? "bg-[var(--bg-panel)] text-[var(--text-primary)] border-t-2 border-t-[var(--primary)]" : "bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-panel)]"
           )}
         >
           {tab.type === 'request' && tab.method && (
@@ -70,7 +80,7 @@ export function TabBar() {
             onClick={(e) => handleClose(e, tab.id)}
             className={cn(
               "p-0.5 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity",
-              activeTabId === tab.id ? "opacity-100 hover:bg-[var(--border-strong)]" : "hover:bg-[var(--border-strong)]"
+              isTabActive(tab) ? "opacity-100 hover:bg-[var(--border-strong)]" : "hover:bg-[var(--border-strong)]"
             )}
           >
             <X className="w-3 h-3" />

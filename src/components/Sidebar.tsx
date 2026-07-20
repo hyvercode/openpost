@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server } from 'lucide-react';
+import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2 } from 'lucide-react';
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
@@ -763,6 +763,18 @@ export function Sidebar() {
                 </div>
                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-1">
                   <button 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      const shareUrl = `${window.location.origin}?share_type=folder&share_id=${folder.id}&collection_id=${collectionId}`;
+                      navigator.clipboard.writeText(shareUrl);
+                      addToast('Folder share link copied to clipboard!', 'success', 2500);
+                    }}
+                    className="text-[var(--text-secondary)] hover:text-emerald-500 p-0.5 rounded transition-colors"
+                    title="Share Folder Link"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button 
                     onClick={(e) => { e.stopPropagation(); setModal({ isOpen: true, title: 'Rename Folder', type: 'rename_folder', targetId: collectionId, targetFolderId: folder.id, initialValue: folder.name }); }}
                     className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 rounded"
                     title="Rename Folder"
@@ -910,7 +922,19 @@ export function Sidebar() {
               req.method === 'DELETE' ? "text-[var(--text-delete)]" : "text-[var(--text-secondary)]"
             )}>{req.method}</span>
             <span className="text-xs truncate flex-1">{req.name}</span>
-            <div className="flex items-center opacity-0 group-hover/req:opacity-100 transition-opacity">
+            <div className="flex items-center opacity-0 group-hover/req:opacity-100 transition-opacity gap-0.5">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const shareUrl = `${window.location.origin}?share_type=request&share_id=${req.id}&collection_id=${collectionId}`;
+                  navigator.clipboard.writeText(shareUrl);
+                  addToast('Request share link copied to clipboard!', 'success', 2500);
+                }}
+                className="p-0.5 rounded text-[var(--text-secondary)] hover:text-emerald-500 transition-colors"
+                title="Share Request Link"
+              >
+                <Share2 className="w-3 h-3" />
+              </button>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1317,6 +1341,19 @@ export function Sidebar() {
                             >
                               <Palette className="w-4 h-4 shrink-0" style={{ color: collection.color || undefined }} />
                               <span>Customize Appearance</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                const shareUrl = `${window.location.origin}?share_type=collection&share_id=${collection.id}`;
+                                navigator.clipboard.writeText(shareUrl);
+                                addToast('Collection share link copied to clipboard!', 'success', 2500);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <Share2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <span className="font-semibold text-emerald-500">Share Collection Link</span>
                             </button>
                             <button
                               onClick={(e) => {

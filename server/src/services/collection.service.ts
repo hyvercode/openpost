@@ -8,6 +8,10 @@ export class CollectionService {
     return this.collectionRepository.findByWorkspaceId(workspaceId);
   }
 
+  async getCollectionById(id: string) {
+    return this.collectionRepository.findById(id);
+  }
+
   async createCollection(data: Partial<CollectionData>) {
     if (!data.workspaceId || !data.name) {
       throw new Error('WorkspaceId and name are required');

@@ -30,6 +30,14 @@ export class CollectionRepository {
     return collections.map(this.parseCollection);
   }
 
+  async findById(id: string) {
+    const collection = await prisma.collection.findUnique({
+      where: { id }
+    });
+    if (!collection) return null;
+    return this.parseCollection(collection);
+  }
+
   async create(data: CollectionData) {
     const created = await prisma.collection.create({
       data: {
