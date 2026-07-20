@@ -99,6 +99,20 @@ export class WorkspaceRepository {
     });
   }
 
+  async getInvitationsByWorkspace(workspaceId: string) {
+    return prisma.invitation.findMany({
+      where: { workspaceId },
+      orderBy: { expiresAt: 'desc' }
+    });
+  }
+
+  async updateInvitationExpiry(id: string, expiresAt: Date, token: string) {
+    return prisma.invitation.update({
+      where: { id },
+      data: { expiresAt, token }
+    });
+  }
+
   async findMember(workspaceId: string, userId: string) {
     return prisma.workspaceMember.findUnique({
       where: {
