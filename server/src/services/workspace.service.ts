@@ -63,22 +63,6 @@ export class WorkspaceService {
     return this.workspaceRepository.removeMember(workspaceId, userId);
   }
 
-  async getPendingInvitations(workspaceId: string) {
-    return this.workspaceRepository.getInvitationsByWorkspace(workspaceId);
-  }
-
-  async resendInvitation(invitationId: string) {
-    const token = uuidv4();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
-    
-    return this.workspaceRepository.updateInvitationExpiry(invitationId, expiresAt, token);
-  }
-
-  async cancelInvitation(invitationId: string) {
-    return this.workspaceRepository.deleteInvitation(invitationId);
-  }
-
   async getInvitation(token: string) {
     const invitation = await this.workspaceRepository.findInvitationByToken(token);
     if (!invitation) {

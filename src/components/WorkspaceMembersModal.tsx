@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Shield, UserMinus, ToggleLeft, ToggleRight, Check, Loader2, RefreshCcw, Trash2 } from 'lucide-react';
+import { X, Mail, Shield, UserMinus, ToggleLeft, ToggleRight, Check, Loader2 } from 'lucide-react';
 import { apiService } from '../lib/api';
 import { useStore } from '../store/useStore';
 import { cn } from '../utils';
@@ -13,9 +13,7 @@ interface WorkspaceMembersModalProps {
 export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: WorkspaceMembersModalProps) {
   const { addToast, user } = useStore();
   const [members, setMembers] = useState<any[]>([]);
-  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [invitationsLoading, setInvitationsLoading] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('MEMBER');
   const [isInviting, setIsInviting] = useState(false);
@@ -23,7 +21,6 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
   useEffect(() => {
     if (isOpen && workspaceId) {
       loadMembers();
-      loadInvitations();
     }
   }, [isOpen, workspaceId]);
 
@@ -37,18 +34,6 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
       addToast('Failed to load members', 'error');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadInvitations = async () => {
-    setInvitationsLoading(true);
-    try {
-      const data = await apiService.getPendingInvitations(workspaceId);
-      setPendingInvitations(data);
-    } catch (e) {
-      console.error("Failed to load invitations:", e);
-    } finally {
-      setInvitationsLoading(false);
     }
   };
 
@@ -66,37 +51,11 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
       
       addToast(`Invitation link copied to clipboard! Share it with ${inviteEmail}`, 'success', 5000);
       setInviteEmail('');
-      loadInvitations();
     } catch (e) {
       console.error("Failed to invite:", e);
       addToast('Failed to send invitation', 'error');
     } finally {
       setIsInviting(false);
-    }
-  };
-
-  const handleResendInvitation = async (invitation: any) => {
-    try {
-      const updated = await apiService.resendInvitation(invitation.id);
-      const inviteLink = `${window.location.origin}${window.location.pathname}?invitation=${updated.token}`;
-      await navigator.clipboard.writeText(inviteLink);
-      addToast(`New invitation link copied for ${invitation.email}`, 'success', 5000);
-      loadInvitations();
-    } catch (e) {
-      console.error("Failed to resend:", e);
-      addToast('Failed to resend invitation', 'error');
-    }
-  };
-
-  const handleCancelInvitation = async (invitation: any) => {
-    if (!confirm(`Cancel invitation for ${invitation.email}?`)) return;
-    try {
-      await apiService.cancelInvitation(invitation.id);
-      setPendingInvitations(pendingInvitations.filter(i => i.id !== invitation.id));
-      addToast('Invitation cancelled', 'success');
-    } catch (e) {
-      console.error("Failed to cancel invitation:", e);
-      addToast('Failed to cancel invitation', 'error');
     }
   };
 
@@ -250,60 +209,6 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
               )}
             </div>
           </div>
-
-          {/* Pending Invitations */}
-          {(pendingInvitations.length > 0 || invitationsLoading) && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider">Pending Invitations</h3>
-              <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-secondary)]">
-                {invitationsLoading ? (
-                  <div className="p-8 flex justify-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-[var(--text-tertiary)]" />
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[var(--border-subtle)]">
-                    {pendingInvitations.map((invitation) => (
-                      <div key={invitation.id} className="p-4 flex items-center justify-between hover:bg-[var(--bg-primary)] transition-colors group">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[var(--text-secondary)] border border-dashed border-[var(--border-strong)] shrink-0">
-                            <Mail className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-[var(--text-primary)]">{invitation.email}</p>
-                            <p className="text-[10px] text-[var(--text-tertiary)]">
-                              Expires: {new Date(invitation.expiresAt).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <div className="text-[10px] font-medium text-[var(--text-secondary)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full uppercase tracking-tight">
-                            {invitation.role}
-                          </div>
-                          
-                          <button
-                            onClick={() => handleResendInvitation(invitation)}
-                            className="p-2 text-[var(--text-secondary)] hover:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 rounded-lg transition-all"
-                            title="Resend & Copy Link"
-                          >
-                            <RefreshCcw className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={() => handleCancelInvitation(invitation)}
-                            className="p-2 text-[var(--text-secondary)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
-                            title="Cancel Invitation"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
         
         <div className="p-4 bg-[var(--bg-secondary)] border-t border-[var(--border-subtle)] flex justify-end">
