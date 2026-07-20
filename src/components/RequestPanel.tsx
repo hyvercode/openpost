@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
-import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip } from 'lucide-react';
+import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap } from 'lucide-react';
 import axios from 'axios';
 import { KeyValue, RequestAuth } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -614,8 +614,15 @@ export function RequestPanel() {
       addToast(`Request successful (${res.status})`, 'success');
 
       // Save to Request History
+      const lastRun = {
+        timestamp: new Date().toLocaleTimeString(),
+        timeMs: res.data.timeMs || 0,
+        status: res.data.status || 200
+      };
+
       addHistoryItem({
         workspaceId: currentWorkspace?.id || 'default',
+        requestId: activeRequest?.id,
         name: activeRequest?.name || url || 'Untitled Request',
         method: method,
         url: url,
@@ -631,6 +638,20 @@ export function RequestPanel() {
         responseStatusText: res.data.statusText || 'OK',
         timeMs: res.data.timeMs
       });
+
+      // Update active request with last run info
+      if (activeRequest) {
+        const updatedRequest = { ...activeRequest, lastRun };
+        setActiveRequest(updatedRequest);
+        
+        // Also update in collections to persist across tab switches
+        const { collections, setCollections } = useStore.getState();
+        const collection = collections.find(c => c.id === activeRequest.collectionId);
+        if (collection) {
+          const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
+          setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
+        }
+      }
 
       // Process scripts (Post-response)
       if (postResponseScript) {
@@ -732,8 +753,15 @@ export function RequestPanel() {
       addToast(`Request failed: ${error.message}`, 'error');
 
       // Save to Request History
+      const lastRunError = {
+        timestamp: new Date().toLocaleTimeString(),
+        timeMs: 0,
+        status: error.response?.status || 0
+      };
+
       addHistoryItem({
         workspaceId: currentWorkspace?.id || 'default',
+        requestId: activeRequest?.id,
         name: activeRequest?.name || url || 'Untitled Request',
         method: method,
         url: url,
@@ -749,6 +777,19 @@ export function RequestPanel() {
         responseStatusText: error.response?.statusText || 'Error',
         timeMs: 0
       });
+
+      // Update active request with last run info even on error
+      if (activeRequest) {
+        const updatedRequest = { ...activeRequest, lastRun: lastRunError };
+        setActiveRequest(updatedRequest);
+        
+        const { collections, setCollections } = useStore.getState();
+        const collection = collections.find(c => c.id === activeRequest.collectionId);
+        if (collection) {
+          const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
+          setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
+        }
+      }
 
       addConsoleLog(
         'error', 
@@ -1190,6 +1231,26 @@ export function RequestPanel() {
             {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
             {saveStatus === 'Changed' && <span>Unsaved...</span>}
           </div>
+
+          {activeRequest?.lastRun && (
+            <div className="flex items-center gap-3 px-3 py-1 bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-md text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-tight shadow-sm">
+              <div className="flex items-center gap-1.5">
+                <Clock className="w-3 h-3 text-blue-400" />
+                <span>{activeRequest.lastRun.timestamp}</span>
+              </div>
+              <div className="w-px h-3 bg-[var(--border-subtle)]" />
+              <div className="flex items-center gap-1.5">
+                <Zap className="w-3 h-3 text-yellow-400" />
+                <span>{activeRequest.lastRun.timeMs}ms</span>
+              </div>
+              <div className="w-px h-3 bg-[var(--border-subtle)]" />
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                activeRequest.lastRun.status >= 200 && activeRequest.lastRun.status < 300 ? "bg-green-500" :
+                activeRequest.lastRun.status >= 400 ? "bg-red-500" : "bg-yellow-500"
+              )} />
+            </div>
+          )}
           
           <button 
             onClick={() => setIsCurlModalOpen(true)}

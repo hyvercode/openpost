@@ -80,6 +80,11 @@ export interface RequestItem {
   preRequestScript?: string;
   postResponseScript?: string;
   auth?: RequestAuth;
+  lastRun?: {
+    timestamp: string;
+    timeMs: number;
+    status: number;
+  };
 }
 
 export interface Toast {
@@ -192,6 +197,7 @@ export interface HistoryItem {
   };
   auth?: RequestAuth;
   timestamp: string;
+  requestId?: string;
   responseStatus?: number;
   responseStatusText?: string;
   timeMs?: number;
