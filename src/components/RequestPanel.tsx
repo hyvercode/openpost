@@ -5,7 +5,7 @@ import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Sh
 import axios from 'axios';
 import { KeyValue, RequestAuth } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { apiService } from '../lib/api';
+import { apiService, api } from '../lib/api';
 import { CurlImportModal } from './CurlImportModal';
 import { AutocompleteInput, AutocompleteTextarea } from './AutocompleteInput';
 import { JsonEditor } from './JsonEditor';
@@ -602,7 +602,7 @@ export function RequestPanel() {
         finalHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
       }
 
-      const res = await axios.post('/api/proxy', {
+      const res = await api.post('/proxy', {
         method: method === 'GQL' ? 'POST' : method,
         url: finalUrl,
         headers: finalHeaders,

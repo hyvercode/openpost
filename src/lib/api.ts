@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Workspace, ApiCollection, Environment, Deployment } from '../types';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: '/api',
 });
 
