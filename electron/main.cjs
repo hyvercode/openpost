@@ -16,9 +16,16 @@ function createWindow() {
   // In development, we can load the Vite dev server URL
   const startUrl = process.env.ELECTRON_START_URL || `file://${path.join(__dirname, '../dist/index.html')}`;
   
-  mainWindow.loadURL(startUrl);
+  console.log(`Loading URL: ${startUrl}`);
+  mainWindow.loadURL(startUrl).catch(err => {
+    console.error('Failed to load URL:', err);
+  });
 
-  if (process.env.ELECTRON_START_URL) {
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error(`Failed to load: ${errorCode} - ${errorDescription}`);
+  });
+
+  if (process.env.ELECTRON_START_URL || true) { // Default to open devtools if blank screen issues
     mainWindow.webContents.openDevTools();
   }
 }
