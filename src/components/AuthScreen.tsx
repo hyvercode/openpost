@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  MonitorSmartphone, 
+  Server, 
   Mail, 
   Lock, 
   Eye, 
@@ -20,6 +20,7 @@ export function AuthScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -57,6 +58,9 @@ export function AuthScreen() {
         await axios.post('/api/auth/forgot-password', { email });
         setSuccess("If an account exists with that email, you will receive a reset link shortly.");
       } else {
+        if (authMode === 'register' && password !== confirmPassword) {
+          throw new Error("Passwords do not match");
+        }
         const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
         const res = await axios.post(endpoint, { email, password });
         
@@ -104,7 +108,7 @@ export function AuthScreen() {
         <div className="bg-[#3D0C2A] border border-white/5 rounded-2xl p-8 md:p-10 shadow-2xl relative overflow-hidden ring-1 ring-white/10">
           <div className="flex flex-col items-center text-center mb-8">
             <div className="w-12 h-12 bg-[#E95420] rounded-xl flex items-center justify-center shadow-lg shadow-[#E95420]/20 mb-6">
-              <MonitorSmartphone className="w-6 h-6 text-white" />
+              <Server className="w-6 h-6 text-white" />
             </div>
             <h1 className="text-2xl font-bold tracking-tight mb-2">
               {renderTitle()}
@@ -171,7 +175,7 @@ export function AuthScreen() {
               </div>
             )}
 
-            {authMode === 'reset-password' && (
+            {(authMode === 'reset-password' || authMode === 'register') && (
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-white/40 ml-1">Confirm Password</label>
                 <div className="relative group">
@@ -179,13 +183,20 @@ export function AuthScreen() {
                     <Lock className="w-4 h-4" />
                   </div>
                   <input 
-                    type={showPassword ? 'text' : 'password'}
+                    type={showConfirmPassword ? 'text' : 'password'}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
                     className="w-full bg-[#1F0015] border border-white/5 rounded-xl py-3 pl-10 pr-12 text-sm font-medium placeholder:text-white/10 focus:outline-none focus:border-[#E95420]/50 focus:bg-[#2C001E] transition-all"
                   />
+                  <button 
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-white/20 hover:text-white transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
             )}
