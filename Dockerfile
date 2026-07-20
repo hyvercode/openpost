@@ -1,16 +1,11 @@
-# Build Stage
-FROM node:20-slim AS builder
-
-# Install OpenSSL for Prisma
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-
+FROM node:22-slim AS base
 WORKDIR /app
+RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
+# 1. Copy package files first
 COPY package*.json ./
-COPY prisma ./prisma/
 
-# Install all dependencies
+# 2. Install ALL dependencies (including @prisma/client)
 RUN npm install
 
 # Generate Prisma Client
@@ -49,22 +44,42 @@ COPY scripts ./scripts/
 # Copy node_modules from deps (includes production Prisma client)
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy built assets and server bundle from builder
+# 5. Copy the rest of your application code
+COPY . .
+
+FROM base AS builder
+WORKDIR /app
+COPY . .
+
+RUN npm run build
+
+RUN npm prune --production
+
+FROM node:22-slim AS runner
+WORKDIR /app
+
+# Install system dependencies needed for Prisma
+RUN apt-get update && apt-get install -y openssl ca-certificates sqlite3 && rm -rf /var/lib/apt/lists/*
+
+# Copy package configuration and generated Prisma client
+COPY --from=builder /app/package*.json ./
+# KITA AMBIL NODE_MODULES DARI BUILDER (Yang sudah di-prune/dibersihkan dari dev deps)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+
+# Copy built server and static frontend assets
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/agent ./agent
 
-# Copy startup script
-COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+# Create storage directory for SQLite database and uploads
+RUN mkdir -p /app/data /app/uploads && chmod -R 777 /app/data /app/uploads
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV DB_PROVIDER=postgresql
 ENV PORT=3000
 
-# Expose the application port
 EXPOSE 3000
-
-# Use the entrypoint script to handle migrations
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["node", "dist/server.cjs"]

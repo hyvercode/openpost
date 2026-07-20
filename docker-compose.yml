@@ -1,5 +1,7 @@
 services:
   app:
+    container_name: openpost-api
+    hostname: openpost-api
     build: .
     ports:
       - "7000:3000"
