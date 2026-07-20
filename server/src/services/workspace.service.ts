@@ -1,10 +1,12 @@
 import { WorkspaceRepository } from '../repositories/workspace.repository';
 import { UserRepository } from '../repositories/user.repository';
+import { EmailService } from './email.service';
 import { v4 as uuidv4 } from 'uuid';
 
 export class WorkspaceService {
   private workspaceRepository = new WorkspaceRepository();
   private userRepository = new UserRepository();
+  private emailService = new EmailService();
 
   async getWorkspaces(userId?: string) {
     return this.workspaceRepository.findMany(userId);
@@ -52,7 +54,21 @@ export class WorkspaceService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiry
 
-    return this.workspaceRepository.createInvitation(workspaceId, email, role, token, expiresAt);
+    const invitation = await this.workspaceRepository.createInvitation(workspaceId, email, role, token, expiresAt);
+    
+    // Send email
+    try {
+      const workspace = await this.workspaceRepository.findById(workspaceId);
+      if (workspace) {
+        const appUrl = process.env.APP_URL || 'http://localhost:3000';
+        const inviteLink = `${appUrl}/?invitation=${token}`;
+        await this.emailService.sendInvitationEmail(email, workspace.name, inviteLink);
+      }
+    } catch (error) {
+      console.error('Failed to send invitation email but record was created:', error);
+    }
+
+    return invitation;
   }
 
   async updateMember(workspaceId: string, userId: string, data: { role?: string; status?: string }) {
@@ -72,7 +88,21 @@ export class WorkspaceService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
     
-    return this.workspaceRepository.updateInvitationExpiry(invitationId, expiresAt, token);
+    const invitation = await this.workspaceRepository.updateInvitationExpiry(invitationId, expiresAt, token);
+
+    // Send email
+    try {
+      const workspace = await this.workspaceRepository.findById(invitation.workspaceId);
+      if (workspace) {
+        const appUrl = process.env.APP_URL || 'http://localhost:3000';
+        const inviteLink = `${appUrl}/?invitation=${token}`;
+        await this.emailService.sendInvitationEmail(invitation.email, workspace.name, inviteLink);
+      }
+    } catch (error) {
+      console.error('Failed to resend invitation email:', error);
+    }
+
+    return invitation;
   }
 
   async cancelInvitation(invitationId: string) {

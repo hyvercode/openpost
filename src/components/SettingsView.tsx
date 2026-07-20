@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
+import { apiService } from '../lib/api';
 import { User, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop } from 'lucide-react';
 import { cn } from '../utils';
 
@@ -56,12 +57,11 @@ export const SettingsView: React.FC = () => {
 
     setIsSaving(true);
     try {
-      const updatedMembers = [...(currentWorkspace.members || []), inviteEmail];
-      setCurrentWorkspace({ ...currentWorkspace, members: updatedMembers });
-      addToast(`Invited ${inviteEmail} to workspace`, 'success');
+      await apiService.inviteMember(currentWorkspace.id, inviteEmail, 'MEMBER');
+      addToast(`Invitation email sent to ${inviteEmail}!`, 'success');
       setInviteEmail('');
     } catch (error: any) {
-      addToast(error.message, 'error');
+      addToast(error.response?.data?.error || 'Failed to send invitation', 'error');
     } finally {
       setIsSaving(false);
     }

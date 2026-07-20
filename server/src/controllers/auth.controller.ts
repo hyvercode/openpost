@@ -43,4 +43,30 @@ export class AuthController {
       res.status(401).json({ error: error.message });
     }
   };
+
+  forgotPassword = async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+      const data = await this.authService.forgotPassword(email);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  resetPassword = async (req: Request, res: Response) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ error: 'Token and password are required' });
+      }
+      const data = await this.authService.resetPassword(token, password);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
 }

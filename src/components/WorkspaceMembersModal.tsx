@@ -64,7 +64,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
       // Copy to clipboard automatically for convenience
       await navigator.clipboard.writeText(inviteLink);
       
-      addToast(`Invitation link copied to clipboard! Share it with ${inviteEmail}`, 'success', 5000);
+      addToast(`Invitation email sent to ${inviteEmail}! Link also copied to clipboard.`, 'success', 5000);
       setInviteEmail('');
       loadInvitations();
     } catch (e) {
@@ -80,7 +80,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
       const updated = await apiService.resendInvitation(invitation.id);
       const inviteLink = `${window.location.origin}${window.location.pathname}?invitation=${updated.token}`;
       await navigator.clipboard.writeText(inviteLink);
-      addToast(`New invitation link copied for ${invitation.email}`, 'success', 5000);
+      addToast(`Invitation email resent to ${invitation.email}! Link also copied to clipboard.`, 'success', 5000);
       loadInvitations();
     } catch (e) {
       console.error("Failed to resend:", e);
