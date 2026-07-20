@@ -99,6 +99,11 @@ export const apiService = {
     return res.data;
   },
 
+  async getSharedCollection(id: string): Promise<ApiCollection> {
+    const res = await api.get(`/collections/shared/${id}`);
+    return res.data;
+  },
+
   async createCollection(collection: Partial<ApiCollection> & { workspaceId: string; name: string }): Promise<ApiCollection> {
     const res = await api.post('/collections', collection);
     return res.data;

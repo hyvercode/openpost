@@ -4,6 +4,7 @@ import { CollectionController } from '../controllers/collection.controller';
 const router = Router();
 const collectionController = new CollectionController();
 
+router.get('/shared/:id', collectionController.getSharedCollection);
 router.get('/:workspaceId', collectionController.getCollectionsByWorkspace);
 router.post('/', collectionController.createCollection);
 router.put('/:id', collectionController.updateCollection);
