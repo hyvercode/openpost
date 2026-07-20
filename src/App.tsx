@@ -20,7 +20,7 @@ import { BottomDrawer } from './components/BottomDrawer';
 import { LoadingScreen } from './components/LoadingScreen';
 import { AuthScreen } from './components/AuthScreen';
 import { Toaster } from './components/Toaster';
-import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User } from 'lucide-react';
+import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server } from 'lucide-react';
 import { Workspace, Theme } from './types';
 import { cn } from './utils';
 
@@ -893,7 +893,7 @@ export default function App() {
             <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-sm bg-[var(--bg-base)]">
               <div className="text-center">
                 <div className="w-16 h-16 bg-[var(--primary)]/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-[var(--primary)] font-bold text-2xl">P</span>
+                  <Server className="w-8 h-8 text-[var(--primary)]" />
                 </div>
                 <p>Select a request or environment from the sidebar to start working.</p>
               </div>

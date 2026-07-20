@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History } from 'lucide-react';
+import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server } from 'lucide-react';
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
@@ -971,7 +971,9 @@ export function Sidebar() {
       <div className="p-4 border-b border-[var(--border-subtle)] flex flex-col gap-2 relative">
         <div className="flex items-center justify-between">
           <h1 className="text-sm tracking-tight font-bold text-[var(--text-primary)] flex items-center gap-2 select-none">
-            <div className="w-6 h-6 bg-[var(--primary)] rounded flex items-center justify-center font-bold text-xs text-white">O</div>
+            <div className="w-6 h-6 bg-[var(--primary)] rounded flex items-center justify-center font-bold text-xs text-white">
+              <Server className="w-3.5 h-3.5" />
+            </div>
             <span>OpenPost</span>
           </h1>
           <div className="flex items-center gap-1">

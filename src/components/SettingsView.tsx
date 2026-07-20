@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../lib/api';
-import { User, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop } from 'lucide-react';
+import { User, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../utils';
 
 export const SettingsView: React.FC = () => {
@@ -24,6 +24,8 @@ export const SettingsView: React.FC = () => {
   // Security State
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Team State
   const [inviteEmail, setInviteEmail] = useState('');
@@ -48,7 +50,21 @@ export const SettingsView: React.FC = () => {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    addToast('Password updates are currently disabled in this custom auth implementation.', 'info');
+    if (newPassword !== confirmPassword) {
+      addToast('Passwords do not match.', 'error');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await apiService.changePassword(newPassword);
+      addToast('Password updated successfully.', 'success');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      addToast(error.response?.data?.error || 'Failed to update password.', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleInviteMember = async (e: React.FormEvent) => {
@@ -324,26 +340,44 @@ export const SettingsView: React.FC = () => {
                   
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">New Password</label>
-                    <input 
-                      type="password" 
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
-                      placeholder="••••••••"
-                      minLength={6}
-                    />
+                    <div className="relative">
+                      <input 
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)] pr-10"
+                        placeholder="••••••••"
+                        minLength={6}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Confirm New Password</label>
-                    <input 
-                      type="password" 
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
-                      placeholder="••••••••"
-                      minLength={6}
-                    />
+                    <div className="relative">
+                      <input 
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)] pr-10"
+                        placeholder="••••••••"
+                        minLength={6}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="pt-4">

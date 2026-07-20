@@ -80,6 +80,22 @@ export class AuthService {
     return { success: true };
   }
 
+  async changePassword(userId: string, newPassword: string) {
+    const user = await prisma.user.findUnique({ where: { uid: userId } });
+    if (!user) throw new Error('User not found');
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    await prisma.user.update({
+      where: { uid: userId },
+      data: {
+        password: hashedPassword,
+      },
+    });
+    
+    return { success: true };
+  }
+
   async resetPassword(token: string, newPassword: string) {
     const user = await prisma.user.findUnique({
       where: { resetToken: token },
