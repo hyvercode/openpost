@@ -69,4 +69,23 @@ export class AuthController {
       res.status(400).json({ error: error.message });
     }
   };
+
+  changePassword = async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
+      const { password } = req.body;
+      if (!password) {
+        return res.status(400).json({ error: 'New password is required' });
+      }
+      
+      const data = await this.authService.changePassword(userId, password);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
 }

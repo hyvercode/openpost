@@ -25,6 +25,11 @@ export const apiService = {
     return res.data;
   },
 
+  async changePassword(password: string) {
+    const res = await api.post('/auth/change-password', { password });
+    return res.data;
+  },
+
   // Workspaces
   async getWorkspaces(userId: string): Promise<Workspace[]> {
     const res = await api.get('/workspaces', { params: { userId } });
