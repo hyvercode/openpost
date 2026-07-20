@@ -11,6 +11,7 @@ export function ShareImportModal() {
     collections, 
     setCollections, 
     currentWorkspace, 
+    setCurrentWorkspace,
     addToast 
   } = useStore();
 
@@ -31,6 +32,24 @@ export function ShareImportModal() {
   const [targetWorkspaceId, setTargetWorkspaceId] = useState<string>('');
   const [targetCollectionId, setTargetCollectionId] = useState<string>('');
   const [targetFolderId, setTargetFolderId] = useState<string>('root'); // 'root' or specific folderId
+
+  // Automatically select target workspace when workspaces are loaded
+  useEffect(() => {
+    if (!targetWorkspaceId && workspaces.length > 0) {
+      if (currentWorkspace) {
+        setTargetWorkspaceId(currentWorkspace.id);
+      } else {
+        setTargetWorkspaceId(workspaces[0].id);
+      }
+    }
+  }, [workspaces, currentWorkspace, targetWorkspaceId]);
+
+  // Automatically select target collection when collections are loaded
+  useEffect(() => {
+    if (!targetCollectionId && collections.length > 0) {
+      setTargetCollectionId(collections[0].id);
+    }
+  }, [collections, targetCollectionId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -159,6 +178,12 @@ export function ShareImportModal() {
         // If imported to currently active workspace, add to local store state
         if (currentWorkspace && currentWorkspace.id === targetWorkspaceId) {
           setCollections([...collections, created]);
+        } else {
+          // Switch to the target workspace so the user sees the imported collection
+          const targetWS = workspaces.find(w => w.id === targetWorkspaceId);
+          if (targetWS) {
+            setCurrentWorkspace(targetWS);
+          }
         }
 
         addToast(`Successfully imported collection "${created.name}"!`, 'success');
