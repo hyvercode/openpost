@@ -8,16 +8,18 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model User {
-  uid         String            @id @default(uuid())
-  email       String?           @unique
-  password    String?
-  displayName String?
-  photoURL    String?
-  workspaces  WorkspaceMember[]
+  uid                String            @id @default(uuid())
+  email              String?           @unique
+  password           String?
+  displayName        String?
+  photoURL           String?
+  resetToken         String?           @unique
+  resetTokenExpires  DateTime?
+  workspaces         WorkspaceMember[]
 }
 
 model Workspace {

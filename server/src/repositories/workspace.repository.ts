@@ -19,6 +19,12 @@ export class WorkspaceRepository {
     return prisma.workspace.findMany();
   }
 
+  async findById(id: string) {
+    return prisma.workspace.findUnique({
+      where: { id }
+    });
+  }
+
   async create(id: string, name: string, ownerId: string) {
     return prisma.workspace.create({
       data: {
