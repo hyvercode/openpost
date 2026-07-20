@@ -58,6 +58,7 @@ export default function App() {
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isResizingPanels, setIsResizingPanels] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
+  const processingInvitationsRef = useRef<Set<string>>(new Set());
 
   const [requestPanelHeight, setRequestPanelHeight] = useState(() => {
     return Number(localStorage.getItem('requestPanelHeight') || 50);
@@ -335,6 +336,11 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const invitationToken = params.get('invitation');
     if (invitationToken && user) {
+      if (processingInvitationsRef.current.has(invitationToken)) {
+        return;
+      }
+      processingInvitationsRef.current.add(invitationToken);
+
       const acceptInvitation = async () => {
         try {
           await apiService.acceptInvitation(invitationToken, user.uid);
