@@ -50,7 +50,8 @@ export default function App() {
     responseCollapsed,
     setResponseCollapsed,
     layoutMode,
-    setLayoutMode
+    setLayoutMode,
+    addToast
   } = useStore();
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -328,6 +329,30 @@ export default function App() {
 
     fetchUser();
   }, [setUser]);
+
+  // Invitation handling
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invitationToken = params.get('invitation');
+    if (invitationToken && user) {
+      const acceptInvitation = async () => {
+        try {
+          await apiService.acceptInvitation(invitationToken, user.uid);
+          // Remove param from URL
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+          // Reload workspaces to show the new one
+          const list = await apiService.getWorkspaces(user.uid);
+          setWorkspaces(list);
+          addToast('Invitation accepted! You joined the workspace.', 'success');
+        } catch (e: any) {
+          console.error("Failed to accept invitation:", e);
+          addToast(e.response?.data?.error || 'Failed to accept invitation', 'error');
+        }
+      };
+      acceptInvitation();
+    }
+  }, [user, setWorkspaces, addToast]);
 
   useEffect(() => {
     if (!user) return;

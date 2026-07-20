@@ -8,7 +8,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model User {
@@ -28,15 +28,28 @@ model Workspace {
   collections  Collection[]
   environments Environment[]
   deployments  Deployment[]
+  invitations  Invitation[]
 }
 
 model WorkspaceMember {
   workspaceId String
   userId      String
+  role        String    @default("MEMBER")
+  status      String    @default("ACTIVE")
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user        User      @relation(fields: [userId], references: [uid], onDelete: Cascade)
 
   @@id([workspaceId, userId])
+}
+
+model Invitation {
+  id          String   @id @default(uuid())
+  email       String
+  workspaceId String
+  role        String   @default("MEMBER")
+  token       String   @unique
+  expiresAt   DateTime
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 
 model Collection {
