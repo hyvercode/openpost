@@ -108,8 +108,9 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
     }
   };
 
-  // Keyboard shortcut for tab key
+  // Keyboard shortcut for tab and format
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Tab key
     if (e.key === 'Tab') {
       e.preventDefault();
       const start = e.currentTarget.selectionStart;
@@ -125,36 +126,69 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
         }
       }, 0);
     }
+
+    // Ctrl/Cmd + S for Beautify
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      handleFormat(2);
+    }
   };
 
   // JSON Formatting
-  const handleFormat = (spaces: number = 2) => {
+  const handleFormat = (spaces: number = 2, silent: boolean = false) => {
     try {
       if (!value.trim()) {
-        addToast('Editor is empty', 'warning', 1500);
+        if (!silent) addToast('Editor is empty', 'warning', 1500);
         return;
       }
       
       // Try parsing with replaced variables first to validate
       const replaced = replaceEnvironmentVariables(value, envVars);
-      JSON.parse(replaced);
+      try {
+        JSON.parse(replaced);
+      } catch (err: any) {
+        if (!silent) addToast(`Invalid JSON: ${err.message}`, 'error', 3000);
+        return;
+      }
       
       // If valid after replacement, we can try to format the original string
-      // But JSON.parse(value) might fail if it has {{var}} outside quotes.
-      // So we have to be careful. If it's standard JSON, we format normally.
-      // If it has variables, we try a best-effort approach or just replace, format, and put variables back? No.
-      
-      // For now, let's just try to parse the original if possible
       try {
         const parsed = JSON.parse(value);
-        onChange(JSON.stringify(parsed, null, spaces));
-        addToast(`Beautified JSON (${spaces} spaces)`, 'success', 1500);
+        const formatted = JSON.stringify(parsed, null, spaces);
+        if (formatted !== value) {
+          onChange(formatted);
+          if (!silent) addToast(`Beautified JSON (${spaces} spaces)`, 'success', 1500);
+        }
       } catch (err) {
         // If parsing original fails, we can't easily format without breaking variables
-        addToast('Cannot format: Variables outside quotes make JSON invalid for parser. Put variables in quotes or define them to format.', 'warning', 4000);
+        if (!silent) addToast('Cannot format: Variables outside quotes make JSON invalid for parser.', 'warning', 3000);
       }
     } catch (err: any) {
-      addToast(`Format failed: ${err.message}`, 'error', 3000);
+      if (!silent) addToast(`Format failed: ${err.message}`, 'error', 3000);
+    }
+  };
+
+  // Auto-format on paste
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const pastedText = e.clipboardData.getData('text');
+    if (!pastedText) return;
+
+    try {
+      // Try to parse and format the pasted text
+      const parsed = JSON.parse(pastedText);
+      const formatted = JSON.stringify(parsed, null, 2);
+      
+      // If it's valid JSON and different from raw paste, prevent default and insert formatted
+      if (formatted !== pastedText) {
+        e.preventDefault();
+        const start = textareaRef.current?.selectionStart || 0;
+        const end = textareaRef.current?.selectionEnd || 0;
+        const newValue = value.substring(0, start) + formatted + value.substring(end);
+        onChange(newValue);
+        addToast('Auto-formatted pasted JSON', 'success', 1000);
+      }
+    } catch (err) {
+      // Not valid JSON or has variables, let it paste normally
     }
   };
 
@@ -243,18 +277,36 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
     return highlighted;
   }, [value, envVars]);
 
-  // Real-time syntax check
-  const jsonError = useMemo(() => {
+  // Real-time syntax check and error line detection
+  const errorInfo = useMemo(() => {
     if (!value.trim()) return null;
     try {
-      // Replace variables before validation
       const replaced = replaceEnvironmentVariables(value, envVars);
       JSON.parse(replaced);
       return null;
     } catch (e: any) {
-      return e.message;
+      const message = e.message;
+      let line = null;
+      
+      // Try to extract line number from message (e.g. "at line 2 column 5")
+      const lineMatch = message.match(/line (\d+)/i);
+      if (lineMatch) {
+        line = parseInt(lineMatch[1], 10);
+      } else {
+        // Alternative: V8 (Chrome) often gives "Unexpected token ... in JSON at position 123"
+        const posMatch = message.match(/position (\d+)/i);
+        if (posMatch) {
+          const pos = parseInt(posMatch[1], 10);
+          line = value.substring(0, pos).split('\n').length;
+        }
+      }
+      
+      return { message, line };
     }
   }, [value, envVars]);
+
+  const jsonError = errorInfo?.message || null;
+  const errorLine = errorInfo?.line || null;
 
   // Dynamic lines array for the sidebar gutter
   const lines = useMemo(() => {
@@ -323,12 +375,12 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
           {/* Format Spaces Dropdown/Actions */}
           <button
             type="button"
-            title="Auto-format with 2 spaces"
+            title="Auto-format with 2 spaces (Ctrl+S)"
             onClick={() => handleFormat(2)}
             className="p-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded transition-colors flex items-center gap-1"
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span>Format</span>
+            <span>Beautify</span>
           </button>
 
           <button
@@ -371,7 +423,15 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
           style={{ width: '3rem' }}
         >
           {lines.map((num) => (
-            <div key={num} className="h-5">{num}</div>
+            <div 
+              key={num} 
+              className={cn(
+                "h-5 transition-colors duration-200",
+                errorLine === num ? "bg-red-500/20 text-red-400 font-bold" : ""
+              )}
+            >
+              {num}
+            </div>
           ))}
         </div>
 
@@ -397,6 +457,7 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
             onChange={(e) => onChange(e.target.value)}
             onScroll={handleScroll}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             onBlur={onBlur}
             placeholder={placeholder}
             className="absolute inset-0 w-full h-full p-3 bg-transparent text-transparent caret-[var(--text-primary)] font-mono text-sm leading-5 whitespace-pre resize-none border-0 outline-none focus:ring-0 select-text overflow-auto"
