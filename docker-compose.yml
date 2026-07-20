@@ -26,7 +26,19 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - openpost_data:/app/uploads
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
 
 volumes:
-  postgres_data:
+  openpost_data:
+    external: true
+
+networks:
+  default:
+    name: localhost
+    external: true
