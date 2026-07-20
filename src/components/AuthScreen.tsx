@@ -151,7 +151,7 @@ export function AuthScreen() {
         </div>
 
         <p className="mt-10 text-center text-[10px] text-white/20 uppercase tracking-[0.2em] font-bold">
-          © 2026 OpenPost • API Tester Pro
+          © 2026 OpenPost • API Powered by hyvercode
         </p>
       </motion.div>
     </div>

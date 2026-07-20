@@ -361,6 +361,34 @@ export function RequestPanel() {
             return v ? v.value : undefined;
           }
         },
+        globals: {
+          set: (key: string, value: string) => {
+            try {
+              const globals = JSON.parse(localStorage.getItem('pm_globals') || '{}');
+              globals[key] = value;
+              localStorage.setItem('pm_globals', JSON.stringify(globals));
+              addConsoleLog('info', `[Globals] Set ${key} = ${value}`);
+            } catch (e) {
+              console.error("Failed to set global", e);
+            }
+          },
+          get: (key: string) => {
+            try {
+              const globals = JSON.parse(localStorage.getItem('pm_globals') || '{}');
+              return globals[key];
+            } catch (e) {
+              return undefined;
+            }
+          }
+        },
+        variables: {
+          set: (key: string, value: string) => pm.environment.set(key, value),
+          get: (key: string) => {
+            const envVal = pm.environment.get(key);
+            if (envVal !== undefined) return envVal;
+            return pm.globals.get(key);
+          }
+        },
         test: (name: string, fn: () => void) => {
           try {
             fn();
@@ -370,8 +398,38 @@ export function RequestPanel() {
           }
         },
         response: {
-          json: () => context.response?.data
+          json: () => context.response?.data,
+          code: context.response?.status,
+          status: context.response?.status,
+          statusText: context.response?.statusText,
+          time: context.response?.timeMs,
+          responseTime: context.response?.timeMs,
+          responseSize: context.response?.size,
+          headers: context.response?.headers
         },
+        expect: (val: any) => ({
+          to: {
+            equal: (other: any) => {
+              if (val !== other) throw new Error(`Assertion failed: Expected ${val} to equal ${other}`);
+            },
+            eql: (other: any) => {
+              if (JSON.stringify(val) !== JSON.stringify(other)) throw new Error(`Assertion failed: Expected ${JSON.stringify(val)} to equal ${JSON.stringify(other)}`);
+            },
+            be: {
+              oneOf: (arr: any[]) => {
+                if (!arr.includes(val)) throw new Error(`Assertion failed: Expected ${val} to be one of ${JSON.stringify(arr)}`);
+              },
+              a: (type: string) => {
+                if (typeof val !== type) throw new Error(`Assertion failed: Expected ${val} to be a ${type}`);
+              }
+            },
+            not: {
+              equal: (other: any) => {
+                if (val === other) throw new Error(`Assertion failed: Expected ${val} to not equal ${other}`);
+              }
+            }
+          }
+        }),
         request: {
           url: url,
           method,
@@ -1363,7 +1421,7 @@ export function RequestPanel() {
                     value={preRequestScript}
                     onChange={(e) => setPreRequestScript(e.target.value)}
                     placeholder="// Use pm.environment.set('key', 'value') to update variables\n// Use pm.request.headers.add({ key: 'X-Foo', value: 'Bar' }) to add headers"
-                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-none transition-colors leading-relaxed"
+                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-y transition-colors leading-relaxed"
                     spellCheck={false}
                   />
                 </div>
@@ -1380,7 +1438,7 @@ export function RequestPanel() {
                     value={postResponseScript}
                     onChange={(e) => setPostResponseScript(e.target.value)}
                     placeholder="// Use pm.test('Name', () => { ... }) for validations\n// Use pm.response.json() to access response data"
-                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-none transition-colors leading-relaxed"
+                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-y transition-colors leading-relaxed"
                     spellCheck={false}
                   />
                 </div>

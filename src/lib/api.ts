@@ -64,6 +64,20 @@ export const apiService = {
     await api.delete(`/workspaces/${workspaceId}/members/${userId}`);
   },
 
+  async getPendingInvitations(workspaceId: string): Promise<any[]> {
+    const res = await api.get(`/workspaces/${workspaceId}/invitations`);
+    return res.data;
+  },
+
+  async resendInvitation(invitationId: string): Promise<any> {
+    const res = await api.post(`/workspaces/invitations/${invitationId}/resend`);
+    return res.data;
+  },
+
+  async cancelInvitation(invitationId: string): Promise<void> {
+    await api.delete(`/workspaces/invitations/${invitationId}`);
+  },
+
   async getInvitation(token: string): Promise<any> {
     const res = await api.get(`/workspaces/invitations/${token}`);
     return res.data;
