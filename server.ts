@@ -17,6 +17,8 @@ import deploymentRoutes from './server/src/routes/deployment.routes';
 import userRoutes from './server/src/routes/user.routes';
 import authRoutes from './server/src/routes/auth.routes';
 import { prisma } from './server/src/db';
+import { requireAuth } from './server/src/middleware/auth';
+import { rateLimiter } from './server/src/middleware/rateLimiter';
 
 async function startServer() {
   const app = express();
@@ -79,8 +81,8 @@ Body: ${JSON.stringify(requestConfig.body || {})}
     res.json({ status: "ok" });
   });
 
-  // The proxy endpoint
-  app.all("/api/proxy", async (req, res) => {
+  // The proxy endpoint - Rate limited to 60 req/min per user
+  app.all("/api/proxy", requireAuth, rateLimiter(60), async (req, res) => {
     const startTime = performance.now();
     let dnsTime = 0;
     let connectTime = 0;

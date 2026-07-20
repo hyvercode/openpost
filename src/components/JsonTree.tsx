@@ -47,7 +47,7 @@ export const JsonTree: React.FC<JsonTreeProps> = ({ data, name, isLast = true, i
   return (
     <div className="font-mono text-xs leading-5">
       <div 
-        className="flex items-center cursor-pointer hover:bg-[var(--bg-hover)] rounded -ml-4 pl-4 py-0.5 select-none"
+        className="flex items-center cursor-pointer hover:bg-[var(--bg-hover)] rounded -ml-4 pl-4 py-0.5 select-none json-tree-node"
         onClick={() => !isEmpty && setExpanded(!expanded)}
       >
         <span className="w-4 h-4 inline-flex items-center justify-center shrink-0 -ml-4">

@@ -137,3 +137,11 @@
   @apply my-10 border-t border-[var(--border-strong)] opacity-30;
 }
 
+.json-tree-container {
+  @apply pl-4 py-2;
+}
+
+.json-tree-container .json-tree-node {
+  @apply transition-colors duration-150;
+}
+

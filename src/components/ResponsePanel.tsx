@@ -955,6 +955,29 @@ export function ResponsePanel() {
 
                     const highlightedHtml = getHighlightedContent(formattedContent, currentLang, isLightTheme);
 
+                    if (currentLang === 'json') {
+                      let jsonData = response.data;
+                      if (typeof jsonData === 'string') {
+                        try {
+                          jsonData = JSON.parse(jsonData);
+                        } catch (_) {
+                          // If parsing fails, fall back to highlighted HTML
+                          return (
+                            <pre 
+                              className="text-[var(--text-code)] leading-relaxed whitespace-pre"
+                              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                            />
+                          );
+                        }
+                      }
+                      
+                      return (
+                        <div className="json-tree-container">
+                          <JsonTree data={jsonData} initiallyExpanded={true} />
+                        </div>
+                      );
+                    }
+
                     return (
                       <pre 
                         className="text-[var(--text-code)] leading-relaxed whitespace-pre"
