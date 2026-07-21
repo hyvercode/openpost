@@ -76,6 +76,60 @@ Body: ${JSON.stringify(requestConfig.body || {})}
     }
   });
 
+  app.post("/api/collections/generate-docs", async (req, res) => {
+    try {
+      const { collectionName, folders, requests } = req.body;
+      if (!collectionName) {
+        return res.status(400).json({ error: "collectionName is required" });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "Gemini API key is not configured" });
+      }
+
+      const ai = new GoogleGenAI({ 
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      const folderList = (folders || []).map((f: any) => f.name).join(", ");
+      const requestList = (requests || []).map((r: any) => `- ${r.method} ${r.url || '/'} (${r.name})`).join("\n");
+
+      const prompt = `You are a world-class technical writer and API documentation expert.
+Generate a comprehensive, professional, and visually stunning API User Guide and Developer Documentation for the API Collection: "${collectionName}".
+
+The collection is structured as follows:
+${folderList ? `- Key Categories/Folders: ${folderList}` : ""}
+- Endpoints & Routes:
+${requestList || "No endpoints defined yet."}
+
+Please output a beautifully-structured Markdown document containing the following sections:
+1. # ${collectionName} API Documentation (include a brief high-level overview of the API's purpose)
+2. ## Getting Started (step-by-step instructions on base URLs, environments, and first steps)
+3. ## Authentication (explain how to authenticate, where to place bearer tokens/API keys, e.g., Bearer token or custom headers)
+4. ## Category Breakdown (a structured section mapping out the folders: ${folderList || "General Endpoints"} and describing what kinds of operations reside in each)
+5. ## Endpoint Details & Methods (provide a neat Markdown table detailing methods, paths, and descriptions based on the routes provided)
+6. ## Response Codes & Error Handling (explain standard HTTP status codes like 200, 201, 400, 401, 403, 404, 500 in this context)
+
+Write with clarity, high-contrast structural formatting, tables, list items, and clear headings. Do NOT include any meta-introductions (like "Here is your documentation"). Start directly with the markdown.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.6-flash",
+        contents: prompt
+      });
+
+      const markdown = response.text || "";
+      res.json({ markdown });
+    } catch (error: any) {
+      console.error("Documentation generation error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate documentation" });
+    }
+  });
+
   // Basic healthcheck
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
