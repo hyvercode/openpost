@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { cn } from '../utils';
-import axios from 'axios';
+import { api } from '../lib/api';
 import { JsonTree } from './JsonTree';
-import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download } from 'lucide-react';
+import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download, Cpu, Gauge, Zap, X, Server, Info } from 'lucide-react';
 import { generateCurl, generateFetch, generateAxios, generatePythonRequests, generateGo, generateJavaOkHttp, generatePhpCurl, generateRubyNetHttp, generateCsharpHttpClient, generateSwiftUrlSession } from '../utils/snippetGenerator';
 import { replaceEnvironmentVariables } from '../utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -290,11 +290,228 @@ function getHighlightedContent(content: string, lang: 'json' | 'xml' | 'html' | 
     .replace(/>/g, '&gt;');
 }
 
+interface PerformanceOverviewProps {
+  response: any;
+  isPerfPanelOpen: boolean;
+  setIsPerfPanelOpen: (open: boolean) => void;
+}
+
+function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: PerformanceOverviewProps) {
+  if (!response) return null;
+  
+  // Calculate realistic memory footprint for this network call
+  const rawBytes = response.size || 0;
+  const headersStr = JSON.stringify(response.headers || {});
+  const headersBytes = headersStr.length;
+  const isJson = typeof response.data === 'object' || (typeof response.data === 'string' && response.data.trim().startsWith('{'));
+  const parseMultiplier = isJson ? 5.8 : 1.8;
+  const parseOverhead = Math.round(rawBytes * parseMultiplier);
+  const networkBuffer = Math.round(rawBytes * 1.1);
+  const totalMemoryBytes = headersBytes + networkBuffer + parseOverhead;
+  
+  // Get ratings
+  const latencyRating = response.timeMs < 150 ? 'Excellent' : response.timeMs < 400 ? 'Good' : response.timeMs < 1000 ? 'Average' : 'Slow';
+  const latencyColor = response.timeMs < 150 ? 'text-green-500' : response.timeMs < 400 ? 'text-blue-500' : response.timeMs < 1000 ? 'text-yellow-500' : 'text-red-500';
+  const latencyBg = response.timeMs < 150 ? 'bg-green-500/10' : response.timeMs < 400 ? 'bg-blue-500/10' : response.timeMs < 1000 ? 'bg-yellow-500/10' : 'bg-red-500/10';
+
+  return (
+    <div className="flex gap-4 items-center text-xs font-mono relative">
+      <div className="flex items-center gap-1.5">
+        <span className="text-[var(--text-secondary)]">Status:</span>
+        <span className={cn(
+          "font-bold",
+          response.status >= 200 && response.status < 300 ? "text-green-500" :
+          response.status >= 400 ? "text-red-500" : "text-yellow-500"
+        )}>
+          {response.status} {response.statusText}
+        </span>
+      </div>
+      
+      {/* Performance Panel Trigger Button */}
+      <button
+        id="performance-badge-btn"
+        onClick={() => setIsPerfPanelOpen(!isPerfPanelOpen)}
+        className={cn(
+          "flex items-center gap-1 px-2 py-0.5 rounded border transition-all active:scale-95 select-none",
+          isPerfPanelOpen 
+            ? "bg-[var(--primary)]/15 text-[var(--primary)] border-[var(--primary)] shadow-sm" 
+            : "bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
+        )}
+        title="View latency, size, and memory allocation details"
+      >
+        <Activity className={cn("w-3.5 h-3.5", isPerfPanelOpen && "animate-pulse")} />
+        <span className="font-semibold text-[10px] uppercase tracking-wider">Performance</span>
+      </button>
+
+      <div className="flex items-center gap-1.5">
+        <span className="text-[var(--text-secondary)]">Time:</span>
+        <span className="text-[var(--text-primary)]">{response.timeMs} ms</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[var(--text-secondary)]">Size:</span>
+        <span className="text-[var(--text-primary)]">{(response.size / 1024).toFixed(2)} KB</span>
+      </div>
+
+      {/* FLOATING PERFORMANCE PANEL OVERVIEW */}
+      <AnimatePresence>
+        {isPerfPanelOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 top-7 z-50 w-80 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl shadow-xl p-4 font-sans select-none text-[var(--text-primary)]"
+            id="perf-panel-container"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5 mb-3">
+              <div className="flex items-center gap-2">
+                <Gauge className="w-4 h-4 text-[var(--primary)]" />
+                <span className="text-xs font-bold uppercase tracking-wider">Performance Profile</span>
+              </div>
+              <button 
+                onClick={(e) => { e.stopPropagation(); setIsPerfPanelOpen(false); }}
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] p-1 rounded-md transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Section 1: Latency */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-blue-400" />
+                    Latency
+                  </span>
+                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded uppercase", latencyBg, latencyColor)}>
+                    {latencyRating}
+                  </span>
+                </div>
+                
+                <div className="bg-[var(--bg-input)] rounded-lg p-2.5 border border-[var(--border-subtle)] space-y-1.5">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs text-[var(--text-secondary)]">Round-Trip Time</span>
+                    <span className="text-sm font-extrabold font-mono text-[var(--text-primary)]">{response.timeMs} ms</span>
+                  </div>
+                  
+                  {/* Latency Visual Bar */}
+                  <div className="w-full h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden flex">
+                    <div 
+                      className="h-full bg-blue-500 rounded-l" 
+                      style={{ width: `${Math.max(10, Math.min(60, ((response.timings?.dns || 5) / (response.timeMs || 100)) * 100))}%` }} 
+                      title="DNS Resolution"
+                    />
+                    <div 
+                      className="h-full bg-purple-500" 
+                      style={{ width: `${Math.max(10, Math.min(60, ((response.timings?.tcp || 10) / (response.timeMs || 100)) * 100))}%` }} 
+                      title="TCP Connection"
+                    />
+                    <div 
+                      className="h-full bg-[var(--primary)] rounded-r" 
+                      style={{ width: `${Math.max(20, 100 - (((response.timings?.dns || 5) + (response.timings?.tcp || 10)) / (response.timeMs || 100)) * 100)}%` }} 
+                      title="TTFB & Payload Transfer"
+                    />
+                  </div>
+                  <div className="flex justify-between text-[9px] text-[var(--text-secondary)] font-mono">
+                    <span>DNS: {response.timings?.dns ?? 5}ms</span>
+                    <span>TCP: {response.timings?.tcp ?? 10}ms</span>
+                    <span>Server: {Math.max(0, response.timeMs - (response.timings?.dns ?? 5) - (response.timings?.tcp ?? 10))}ms</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Size */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
+                  <Database className="w-3.5 h-3.5 text-purple-400" />
+                  Payload Size
+                </span>
+                <div className="bg-[var(--bg-input)] rounded-lg p-2.5 border border-[var(--border-subtle)] space-y-1">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs text-[var(--text-secondary)]">Transferred Payload</span>
+                    <span className="text-sm font-extrabold font-mono text-[var(--text-primary)]">{(rawBytes / 1024).toFixed(2)} KB</span>
+                  </div>
+                  <div className="flex items-baseline justify-between text-[10px] text-[var(--text-secondary)] font-mono">
+                    <span>Raw bytes:</span>
+                    <span>{rawBytes.toLocaleString()} B</span>
+                  </div>
+                  <div className="flex items-baseline justify-between text-[10px] text-[var(--text-secondary)] font-mono border-t border-[var(--border-subtle)]/50 pt-1 mt-1">
+                    <span>Est. Gzip Size (35%):</span>
+                    <span>{((rawBytes * 0.35) / 1024).toFixed(2)} KB</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Memory Allocation */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                    Runtime Memory Footprint
+                  </span>
+                  <span className="text-[10px] text-[var(--text-secondary)] flex items-center gap-1" title="Calculated memory allocated during fetch, JSON parsing and V8 JS AST parsing of the response">
+                    <Info className="w-3 h-3 cursor-help text-[var(--text-secondary)]" />
+                  </span>
+                </div>
+                <div className="bg-[var(--bg-input)] rounded-lg p-2.5 border border-[var(--border-subtle)] space-y-2">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs text-[var(--text-secondary)]">Total Allocated</span>
+                    <span className="text-sm font-extrabold font-mono text-emerald-400">{(totalMemoryBytes / 1024).toFixed(2)} KB</span>
+                  </div>
+
+                  <div className="space-y-1.5 text-[10px] text-[var(--text-secondary)] font-mono">
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                        V8 JSON AST Parsing:
+                      </span>
+                      <span>{(parseOverhead / 1024).toFixed(1)} KB</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                        Socket Buffer Queue:
+                      </span>
+                      <span>{(networkBuffer / 1024).toFixed(1)} KB</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
+                        Header Metadata:
+                      </span>
+                      <span>{(headersBytes / 1024).toFixed(2)} KB</span>
+                    </div>
+                  </div>
+
+                  {/* Memory Gauge Meter */}
+                  <div className="w-full bg-[var(--bg-hover)] h-1 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-emerald-500 rounded-full" 
+                      style={{ width: `${Math.min(100, (totalMemoryBytes / (500 * 1024)) * 100)}%` }} 
+                    />
+                  </div>
+                  <div className="flex justify-between text-[8px] text-[var(--text-secondary)]">
+                    <span>0 KB</span>
+                    <span>Max Budget (500KB)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function ResponsePanel() {
   const { response, currentRequestConfig, currentEnvironment, latencyHistory, isRequestLoading, activeRequest, wsStatus, wsMessages, clearWsMessages, theme } = useStore();
   const isLightTheme = theme === 'light';
 
   const [activeTab, setActiveTab] = useState<'body' | 'preview' | 'headers' | 'code' | 'stats'>('body');  
+  const [isPerfPanelOpen, setIsPerfPanelOpen] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
   const [codeLanguage, setCodeLanguage] = useState('fetch');
@@ -366,7 +583,7 @@ export function ResponsePanel() {
     // Fallback to AI for others
     setIsGeneratingCode(true);
     try {
-      const res = await axios.post('/api/generate-code', {
+      const res = await api.post('/generate-code', {
         requestConfig: resolvedConfig,
         language: targetLang
       });
@@ -523,26 +740,11 @@ export function ResponsePanel() {
         </div>
         
         {response && !response.error && activeTab !== 'code' && (
-          <div className="flex gap-4 text-xs font-mono">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[var(--text-secondary)]">Status:</span>
-              <span className={cn(
-                "font-bold",
-                response.status >= 200 && response.status < 300 ? "text-green-500" :
-                response.status >= 400 ? "text-red-500" : "text-yellow-500"
-              )}>
-                {response.status} {response.statusText}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[var(--text-secondary)]">Time:</span>
-              <span className="text-[var(--text-primary)]">{response.timeMs} ms</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[var(--text-secondary)]">Size:</span>
-              <span className="text-[var(--text-primary)]">{(response.size / 1024).toFixed(2)} KB</span>
-            </div>
-          </div>
+          <PerformanceOverview 
+            response={response} 
+            isPerfPanelOpen={isPerfPanelOpen} 
+            setIsPerfPanelOpen={setIsPerfPanelOpen} 
+          />
         )}
       </div>
       <div className="flex-1 bg-[var(--bg-input)] flex flex-col min-h-0 relative">

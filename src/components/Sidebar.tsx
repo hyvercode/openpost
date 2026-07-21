@@ -42,7 +42,8 @@ export function Sidebar() {
     setIsBulkEditMode,
     selectedRequestIds,
     setSelectedRequestIds,
-    toggleRequestSelection
+    toggleRequestSelection,
+    isWorkspaceLoading
   } = useStore();
   const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments' | 'history' | 'tests'>('collections');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +57,8 @@ export function Sidebar() {
   const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [draggedOverId, setDraggedOverId] = useState<string | null>(null);
+  const [draggedOverType, setDraggedOverType] = useState<'collection' | 'folder' | 'request' | null>(null);
 
   const [customizationModal, setCustomizationModal] = useState<{
     isOpen: boolean;
@@ -70,6 +73,84 @@ export function Sidebar() {
     color: '',
     icon: ''
   });
+
+  const renderCollectionsSkeleton = () => (
+    <div className="space-y-4 p-2 animate-pulse select-none">
+      <div className="space-y-3">
+        {[1, 2, 3].map((idx) => (
+          <div key={idx} className="space-y-2">
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded bg-[var(--bg-hover)]/30">
+              <div className="w-3.5 h-3.5 bg-[var(--border-strong)] rounded shrink-0 opacity-40" />
+              <div className="w-4 h-4 bg-[var(--border-strong)] rounded-full shrink-0 opacity-40" />
+              <div className={`h-3 bg-[var(--border-strong)] rounded opacity-50 ${idx === 1 ? 'w-24' : idx === 2 ? 'w-32' : 'w-20'}`} />
+            </div>
+            {idx < 3 && (
+              <div className="ml-4 pl-3 border-l border-[var(--border-subtle)] space-y-2">
+                {[1, 2].map((subIdx) => (
+                  <div key={subIdx} className="flex items-center gap-2 px-2 py-1 bg-[var(--bg-hover)]/10 rounded">
+                    <div className="w-6 h-3.5 bg-[var(--border-strong)]/40 rounded text-[9px] shrink-0 opacity-40" />
+                    <div className={`h-2.5 bg-[var(--border-strong)]/50 rounded opacity-50 ${subIdx === 1 ? 'w-16' : 'w-24'}`} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderEnvironmentsSkeleton = () => (
+    <div className="space-y-3 p-2 animate-pulse select-none">
+      <div className="space-y-2">
+        {[1, 2, 3].map((idx) => (
+          <div key={idx} className="flex items-center gap-2 px-2 py-2 rounded bg-[var(--bg-hover)]/20">
+            <div className="w-4 h-4 bg-[var(--border-strong)] rounded-full shrink-0 opacity-40" />
+            <div className={`h-3 bg-[var(--border-strong)] rounded opacity-50 ${idx === 1 ? 'w-28' : idx === 2 ? 'w-20' : 'w-36'}`} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderDeploymentsSkeleton = () => (
+    <div className="space-y-3 p-2 animate-pulse select-none">
+      <div className="space-y-3">
+        {[1, 2].map((idx) => (
+          <div key={idx} className="p-3 border border-[var(--border-subtle)] rounded-lg bg-[var(--bg-hover)]/10 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-3.5 h-3.5 bg-[var(--border-strong)] rounded shrink-0 opacity-40" />
+                <div className={`h-3 bg-[var(--border-strong)] rounded opacity-50 ${idx === 1 ? 'w-28' : idx === 2 ? 'w-20' : 'w-24'}`} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <div className="h-3 w-8 bg-[var(--border-strong)]/40 rounded opacity-50" />
+              <div className="h-2 w-16 bg-[var(--border-strong)]/30 rounded opacity-50" />
+            </div>
+            <div className="h-6 w-full bg-[var(--bg-hover)]/30 rounded opacity-40 mt-1" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderHistorySkeleton = () => (
+    <div className="space-y-3 p-2 animate-pulse select-none">
+      <div className="space-y-2">
+        {[1, 2, 3, 4].map((idx) => (
+          <div key={idx} className="p-2 border border-[var(--border-subtle)] rounded bg-[var(--bg-hover)]/10 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-8 bg-[var(--border-strong)]/40 rounded opacity-50" />
+              <div className="h-4 w-8 bg-[var(--border-strong)]/30 rounded opacity-50" />
+              <div className={`h-3 bg-[var(--border-strong)] rounded opacity-50 ${idx % 2 === 0 ? 'w-24' : 'w-16'}`} />
+            </div>
+            <div className="h-2.5 w-full bg-[var(--border-strong)]/20 rounded opacity-40" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   const { filteredCollections, filteredEnvironments } = useMemo(() => {
     let sortedCollections = [...collections].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
@@ -601,17 +682,35 @@ export function Sidebar() {
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = async (e: React.DragEvent, targetId: string, targetType: 'collection' | 'folder', collectionId: string) => {
+  const handleDragEnter = (e: React.DragEvent, id: string, type: 'collection' | 'folder' | 'request') => {
+    e.preventDefault();
+    setDraggedOverId(id);
+    setDraggedOverType(type);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDragEnd = () => {
+    setDraggedOverId(null);
+    setDraggedOverType(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetId: string, targetType: 'collection' | 'folder' | 'request', collectionId: string) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    setDraggedOverId(null);
+    setDraggedOverType(null);
+
     try {
       const dataStr = e.dataTransfer.getData('application/json');
       if (!dataStr) return;
       
       const source = JSON.parse(dataStr);
       
-      // REORDERING LOGIC
-      // If same type and same parent (or root for collections), perform reordering
+      // REORDERING LOGIC: same type
       if (source.type === targetType && source.id !== targetId) {
         if (source.type === 'collection') {
           // Reorder collections
@@ -669,6 +768,45 @@ export function Sidebar() {
               }
             }
           }
+        } else if (source.type === 'request') {
+          // Reorder requests by placing the dragged request right before the target request
+          const sourceCollection = collections.find(c => c.id === source.collectionId);
+          const targetCollection = collections.find(c => c.id === collectionId);
+          const sourceRequest = sourceCollection?.requests?.find(r => r.id === source.id);
+          const targetRequest = targetCollection?.requests?.find(r => r.id === targetId);
+
+          if (sourceCollection && targetCollection && sourceRequest && targetRequest) {
+            if (source.collectionId === collectionId) {
+              // Same collection reordering
+              const updatedRequests = sourceCollection.requests.filter(r => r.id !== source.id);
+              const targetIndex = updatedRequests.findIndex(r => r.id === targetId);
+              if (targetIndex !== -1) {
+                const movedRequest = { ...sourceRequest, folderId: targetRequest.folderId };
+                updatedRequests.splice(targetIndex, 0, movedRequest);
+                
+                setCollections(collections.map(c => c.id === collectionId ? { ...c, requests: updatedRequests } : c));
+                await apiService.updateCollection(collectionId, { requests: updatedRequests });
+              }
+            } else {
+              // Cross collection request reordering
+              const sourceRequestsUpdated = sourceCollection.requests.filter(r => r.id !== source.id);
+              const targetRequestsUpdated = [...targetCollection.requests];
+              const targetIndex = targetRequestsUpdated.findIndex(r => r.id === targetId);
+              if (targetIndex !== -1) {
+                const movedRequest = { ...sourceRequest, collectionId: collectionId, folderId: targetRequest.folderId };
+                targetRequestsUpdated.splice(targetIndex, 0, movedRequest);
+                
+                setCollections(collections.map(c => {
+                  if (c.id === source.collectionId) return { ...c, requests: sourceRequestsUpdated };
+                  if (c.id === collectionId) return { ...c, requests: targetRequestsUpdated };
+                  return c;
+                }));
+                await apiService.updateCollection(source.collectionId, { requests: sourceRequestsUpdated });
+                await apiService.updateCollection(collectionId, { requests: targetRequestsUpdated });
+              }
+            }
+            return;
+          }
         } else if (source.type === 'environment' && activeTab === 'environments') {
           // Reorder environments
           const sourceIndex = environments.findIndex(e => e.id === source.id);
@@ -694,37 +832,62 @@ export function Sidebar() {
           }
         }
       }
- 
-      // NESTING LOGIC
-      if (source.type === 'environment') return; // Environments don't nest
- 
-      const collectionDoc = collections.find(c => c.id === collectionId);
-      if (!collectionDoc) return;
- 
-      if (source.type === 'request') {
-        const reqIndex = collectionDoc.requests.findIndex(r => r.id === source.id);
-        if (reqIndex === -1) return;
-        
-        const updatedRequests = [...collectionDoc.requests];
-        updatedRequests[reqIndex] = {
-           ...updatedRequests[reqIndex],
-           folderId: targetType === 'collection' ? null : targetId
-        };
-        
-        setCollections(collections.map(c => c.id === collectionId ? { ...c, requests: updatedRequests } : c));
-        await apiService.updateCollection(collectionId, { requests: updatedRequests });
-      } else if (source.type === 'folder') {
+
+      // 2. Dragging a Request to a Collection Header or a Folder
+      if (source.type === 'request' && (targetType === 'collection' || targetType === 'folder')) {
+        const sourceCollection = collections.find(c => c.id === source.collectionId);
+        const targetCollection = collections.find(c => c.id === collectionId);
+        const sourceRequest = sourceCollection?.requests?.find(r => r.id === source.id);
+
+        if (sourceCollection && targetCollection && sourceRequest) {
+          const targetFolderId = targetType === 'collection' ? null : targetId;
+          
+          if (source.collectionId === collectionId) {
+            // Same collection movement
+            const updatedRequests = [...sourceCollection.requests];
+            const reqIndex = updatedRequests.findIndex(r => r.id === source.id);
+            if (reqIndex !== -1) {
+              updatedRequests[reqIndex] = {
+                ...updatedRequests[reqIndex],
+                folderId: targetFolderId
+              };
+              setCollections(collections.map(c => c.id === collectionId ? { ...c, requests: updatedRequests } : c));
+              await apiService.updateCollection(collectionId, { requests: updatedRequests });
+            }
+          } else {
+            // Cross collection movement
+            const sourceRequestsUpdated = sourceCollection.requests.filter(r => r.id !== source.id);
+            const movedRequest = { ...sourceRequest, collectionId: collectionId, folderId: targetFolderId };
+            const targetRequestsUpdated = [...targetCollection.requests, movedRequest];
+
+            setCollections(collections.map(c => {
+              if (c.id === source.collectionId) return { ...c, requests: sourceRequestsUpdated };
+              if (c.id === collectionId) return { ...c, requests: targetRequestsUpdated };
+              return c;
+            }));
+            await apiService.updateCollection(source.collectionId, { requests: sourceRequestsUpdated });
+            await apiService.updateCollection(collectionId, { requests: targetRequestsUpdated });
+          }
+          return;
+        }
+      }
+
+      // 3. Nesting folders
+      if (source.type === 'folder' && (targetType === 'collection' || targetType === 'folder')) {
+        const collectionDoc = collections.find(c => c.id === collectionId);
+        if (!collectionDoc) return;
+
         const folderIndex = collectionDoc.folders.findIndex(f => f.id === source.id);
         if (folderIndex === -1) return;
         
         if (targetType === 'folder') {
-           let current = collectionDoc.folders.find(f => f.id === targetId);
-           while (current) {
-              if (current.id === source.id) return;
-              current = collectionDoc.folders.find(f => f.id === current?.parentId);
-           }
+            let current = collectionDoc.folders.find(f => f.id === targetId);
+            while (current) {
+               if (current.id === source.id) return;
+               current = collectionDoc.folders.find(f => f.id === current?.parentId);
+            }
         }
- 
+
         const updatedFolders = [...collectionDoc.folders];
         updatedFolders[folderIndex] = {
            ...updatedFolders[folderIndex],
@@ -891,9 +1054,15 @@ export function Sidebar() {
                 draggable
                 onDragStart={(e) => handleDragStart(e, folder.id, 'folder', collectionId)}
                 onDragOver={handleDragOver}
+                onDragEnter={(e) => handleDragEnter(e, folder.id, 'folder')}
+                onDragLeave={handleDragLeave}
+                onDragEnd={handleDragEnd}
                 onDrop={(e) => handleDrop(e, folder.id, 'folder', collectionId)}
                 onClick={(e) => toggleExpand(folder.id, e)}
-                className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group justify-between"
+                className={cn(
+                  "flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group justify-between transition-all duration-150",
+                  draggedOverId === folder.id && draggedOverType === 'folder' && "bg-[var(--bg-hover)] border-l-2 border-[var(--primary)] pl-1.5"
+                )}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
@@ -1045,6 +1214,11 @@ export function Sidebar() {
             key={req.id}
             draggable={!isBulkEditMode}
             onDragStart={(e) => !isBulkEditMode && handleDragStart(e, req.id, 'request', collectionId)}
+            onDragOver={handleDragOver}
+            onDragEnter={(e) => !isBulkEditMode && handleDragEnter(e, req.id, 'request')}
+            onDragLeave={handleDragLeave}
+            onDragEnd={handleDragEnd}
+            onDrop={(e) => !isBulkEditMode && handleDrop(e, req.id, 'request', collectionId)}
             onClick={() => { 
               if (isBulkEditMode) {
                 toggleRequestSelection(req.id);
@@ -1055,9 +1229,10 @@ export function Sidebar() {
               }
             }}
             className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer mt-1 group/req",
+              "flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer mt-1 group/req transition-all duration-150",
               activeRequest?.id === req.id && !isBulkEditMode ? "bg-[var(--bg-hover)] text-[var(--text-primary)]" : "hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]",
-              selectedRequestIds.includes(req.id) && isBulkEditMode ? "bg-indigo-500/10 ring-1 ring-indigo-500/30" : ""
+              selectedRequestIds.includes(req.id) && isBulkEditMode ? "bg-indigo-500/10 ring-1 ring-indigo-500/30" : "",
+              draggedOverId === req.id && draggedOverType === 'request' && "bg-[var(--bg-hover)] border-l-2 border-[var(--primary)] pl-1.5"
             )}
           >
             {isBulkEditMode ? (
@@ -1429,7 +1604,11 @@ export function Sidebar() {
                 </button>
               </div>
             </div>
-            {filteredCollections.map(collection => {
+            {isWorkspaceLoading ? (
+              renderCollectionsSkeleton()
+            ) : (
+              <>
+                {filteredCollections.map(collection => {
               const isExpanded = searchQuery ? true : expandedItems.has(collection.id);
               return (
                 <div key={collection.id} className="mb-2">
@@ -1437,9 +1616,15 @@ export function Sidebar() {
                     draggable
                     onDragStart={(e) => handleDragStart(e, collection.id, 'collection', collection.id)}
                     onDragOver={handleDragOver}
+                    onDragEnter={(e) => handleDragEnter(e, collection.id, 'collection')}
+                    onDragLeave={handleDragLeave}
+                    onDragEnd={handleDragEnd}
                     onDrop={(e) => handleDrop(e, collection.id, 'collection', collection.id)}
                     onClick={(e) => toggleExpand(collection.id, e)}
-                    className="flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group justify-between"
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group justify-between transition-all duration-150",
+                      draggedOverId === collection.id && draggedOverType === 'collection' && "bg-[var(--bg-hover)] border-l-2 border-[var(--primary)] pl-1.5"
+                    )}
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
@@ -1702,6 +1887,8 @@ export function Sidebar() {
                 {searchQuery ? "No results found." : "No collections. Click the Upload icon above to import data."}
               </div>
             )}
+              </>
+            )}
           </div>
         ) : activeTab === 'environments' ? (
           <div>
@@ -1724,7 +1911,11 @@ export function Sidebar() {
                 </button>
               </div>
             </div>
-            {filteredEnvironments.map(env => (
+            {isWorkspaceLoading ? (
+              renderEnvironmentsSkeleton()
+            ) : (
+              <>
+                {filteredEnvironments.map(env => (
               <div 
                 key={env.id} 
                 draggable
@@ -1806,13 +1997,19 @@ export function Sidebar() {
                 {searchQuery ? "No results found." : "No environments found."}
               </div>
             )}
+              </>
+            )}
           </div>
         ) : activeTab === 'deployments' ? (
           <div>
             <div className="flex items-center justify-between px-2 py-2 group">
               <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Mock API Servers</span>
             </div>
-            {deployments.map(deploy => {
+            {isWorkspaceLoading ? (
+              renderDeploymentsSkeleton()
+            ) : (
+              <>
+                {deployments.map(deploy => {
               const mockUrl = `${window.location.origin}/mock/${deploy.id}`;
               return (
                 <div 
@@ -1878,6 +2075,8 @@ export function Sidebar() {
                 No mock servers deployed. Deploy a collection to start!
               </div>
             )}
+              </>
+            )}
           </div>
         ) : activeTab === 'history' ? (
           <div className="flex flex-col gap-2">
@@ -1905,8 +2104,11 @@ export function Sidebar() {
               )}
             </div>
             
-            <div className="flex flex-col gap-2 max-h-[calc(100vh-250px)] overflow-y-auto pr-1">
-              {filteredHistory.map((item) => {
+            {isWorkspaceLoading ? (
+              renderHistorySkeleton()
+            ) : (
+              <div className="flex flex-col gap-2 max-h-[calc(100vh-250px)] overflow-y-auto pr-1">
+                {filteredHistory.map((item) => {
                 const isSuccess = item.responseStatus && item.responseStatus < 400;
                 const statusColor = item.responseStatus === 0 
                   ? 'text-gray-400 border-gray-500/30 bg-gray-500/10'
@@ -1986,7 +2188,8 @@ export function Sidebar() {
                   </span>
                 </div>
               )}
-            </div>
+              </div>
+            )}
           </div>
         ) : activeTab === 'tests' ? (
           <TestRunnerSidebar searchQuery={searchQuery} />

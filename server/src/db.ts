@@ -10,11 +10,8 @@ let prismaOptions: any = {};
 
 if (databaseUrl.startsWith('file:')) {
   const dbPath = databaseUrl.replace('file:', '');
-  const adapter = new PrismaBetterSqlite3({ url: dbPath });
-  prismaOptions.adapter = adapter;
-} else if (databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://')) {
-  const pool = new Pool({ connectionString: databaseUrl });
-  const adapter = new PrismaPg(pool);
+  const db = new Database(dbPath);
+  const adapter = new PrismaBetterSqlite3(db);
   prismaOptions.adapter = adapter;
 } else {
   prismaOptions.datasources = {

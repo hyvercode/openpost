@@ -5,7 +5,7 @@ import { TestSuite, TestCase, TestAssertion, RequestItem } from '../types';
 import { cn } from '../utils';
 
 export function TestRunnerSidebar({ searchQuery }: { searchQuery: string }) {
-  const { testSuites, setTestSuites, addTestSuite, deleteTestSuite, updateTestSuite, currentWorkspace, collections, openTab } = useStore();
+  const { testSuites, setTestSuites, addTestSuite, deleteTestSuite, updateTestSuite, currentWorkspace, collections, openTab, isWorkspaceLoading } = useStore();
 
   const handleCreateSuite = () => {
     addTestSuite({
@@ -19,6 +19,24 @@ export function TestRunnerSidebar({ searchQuery }: { searchQuery: string }) {
     ts.workspaceId === (currentWorkspace?.id || 'default') &&
     ts.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (isWorkspaceLoading) {
+    return (
+      <div className="flex flex-col gap-2 animate-pulse select-none">
+        <div className="flex items-center justify-between px-2 py-1.5 group">
+          <div className="h-3 w-20 bg-[var(--border-strong)] rounded opacity-50" />
+        </div>
+        <div className="flex flex-col gap-2 px-1">
+          {[1, 2].map((idx) => (
+            <div key={idx} className="flex flex-col gap-2 p-2 rounded bg-[var(--bg-hover)]/10">
+              <div className="h-3.5 bg-[var(--border-strong)] rounded opacity-50 w-28" />
+              <div className="h-2.5 bg-[var(--border-strong)]/40 rounded opacity-40 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-2">

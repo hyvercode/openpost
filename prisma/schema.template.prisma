@@ -1,18 +1,16 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "@@PROVIDER@@"
 }
 
 model User {
-  uid                String            @id @default(uuid())
+  uid                @@ID@@
   email              String?           @unique
   password           String?
   displayName        String?
@@ -23,7 +21,7 @@ model User {
 }
 
 model Workspace {
-  id           String            @id @default(uuid())
+  id           @@ID@@
   name         String
   ownerId      String
   members      WorkspaceMember[]
@@ -34,20 +32,21 @@ model Workspace {
 }
 
 model WorkspaceMember {
-  workspaceId String
-  userId      String
+  id          @@ID@@
+  workspaceId @@FOREIGN_KEY@@
+  userId      @@FOREIGN_KEY@@
   role        String    @default("MEMBER")
   status      String    @default("ACTIVE")
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user        User      @relation(fields: [userId], references: [uid], onDelete: Cascade)
 
-  @@id([workspaceId, userId])
+  @@unique([workspaceId, userId])
 }
 
 model Invitation {
-  id          String   @id @default(uuid())
+  id          @@ID@@
   email       String
-  workspaceId String
+  workspaceId @@FOREIGN_KEY@@
   role        String   @default("MEMBER")
   token       String   @unique
   expiresAt   DateTime
@@ -55,8 +54,8 @@ model Invitation {
 }
 
 model Collection {
-  id          String   @id @default(uuid())
-  workspaceId String
+  id          @@ID@@
+  workspaceId @@FOREIGN_KEY@@
   name        String
   description String?
   color       String?
@@ -70,8 +69,8 @@ model Collection {
 }
 
 model Environment {
-  id          String    @id @default(uuid())
-  workspaceId String
+  id          @@ID@@
+  workspaceId @@FOREIGN_KEY@@
   name        String
   variables   String    @default("[]")
   position    Int       @default(0)
@@ -80,8 +79,8 @@ model Environment {
 }
 
 model Deployment {
-  id             String    @id @default(uuid())
-  workspaceId    String
+  id             @@ID@@
+  workspaceId    @@FOREIGN_KEY@@
   collectionId   String
   collectionName String
   version        String

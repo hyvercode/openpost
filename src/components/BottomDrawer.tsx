@@ -21,7 +21,7 @@ import {
   Maximize2,
   Minimize2
 } from 'lucide-react';
-import axios from 'axios';
+import { api } from '../lib/api';
 
 export function BottomDrawer() {
   const {
@@ -155,7 +155,7 @@ export function BottomDrawer() {
         const startTime = Date.now();
         try {
           const formattedUrl = host.startsWith('http') ? host : `https://${host}`;
-          await axios.post('/api/proxy', { method: 'GET', url: formattedUrl });
+          await api.post('/proxy', { method: 'GET', url: formattedUrl });
           const latency = Date.now() - startTime;
           addTerminalHistory(`Reply from ${host}: status=200 time=${latency}ms bytes=1432`);
         } catch (err: any) {
@@ -176,7 +176,7 @@ export function BottomDrawer() {
         addTerminalHistory(`Executing direct curl: [${method}] ${url}...`);
         try {
           const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
-          const res = await axios.post('/api/proxy', { method, url: formattedUrl });
+          const res = await api.post('/proxy', { method, url: formattedUrl });
           addTerminalHistory(`HTTP/1.1 ${res.data.status} OK`);
           addTerminalHistory(`Content-Length: ${res.data.size}`);
           addTerminalHistory('Body:');

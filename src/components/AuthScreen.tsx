@@ -10,7 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import axios from 'axios';
+import { api } from '../lib/api';
 
 export function AuthScreen() {
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password'>('login');
@@ -49,20 +49,20 @@ export function AuthScreen() {
         }
         const params = new URLSearchParams(window.location.search);
         const token = params.get('resetToken');
-        await axios.post('/api/auth/reset-password', { token, password });
+        await api.post('/auth/reset-password', { token, password });
         addToast("Password reset successfully. You can now login.", "success");
         setAuthMode('login');
         // Clean URL
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (authMode === 'forgot-password') {
-        await axios.post('/api/auth/forgot-password', { email });
+        await api.post('/auth/forgot-password', { email });
         setSuccess("If an account exists with that email, you will receive a reset link shortly.");
       } else {
         if (authMode === 'register' && password !== confirmPassword) {
           throw new Error("Passwords do not match");
         }
         const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-        const res = await axios.post(endpoint, { email, password });
+        const res = await api.post(endpoint.replace('/api/', '/'), { email, password });
         
         const { user, token } = res.data;
         localStorage.setItem('auth_token', token);
