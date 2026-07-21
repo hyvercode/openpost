@@ -3,7 +3,8 @@ import { useStore } from '../store/useStore';
 import { cn } from '../utils';
 import { api } from '../lib/api';
 import { JsonTree } from './JsonTree';
-import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download, Cpu, Gauge, Zap, X, Server, Info } from 'lucide-react';
+import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download, Cpu, Gauge, Zap, X, Server, Info, GitCompare, RefreshCw, Trash2 } from 'lucide-react';
+import { diffLines } from 'diff';
 import { generateCurl, generateFetch, generateAxios, generatePythonRequests, generateGo, generateJavaOkHttp, generatePhpCurl, generateRubyNetHttp, generateCsharpHttpClient, generateSwiftUrlSession } from '../utils/snippetGenerator';
 import { replaceEnvironmentVariables } from '../utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
@@ -507,7 +508,22 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
 }
 
 export function ResponsePanel() {
-  const { response, currentRequestConfig, currentEnvironment, latencyHistory, isRequestLoading, activeRequest, wsStatus, wsMessages, clearWsMessages, theme } = useStore();
+  const { 
+    response, 
+    currentRequestConfig, 
+    currentEnvironment, 
+    latencyHistory, 
+    isRequestLoading, 
+    activeRequest, 
+    wsStatus, 
+    wsMessages, 
+    clearWsMessages, 
+    theme,
+    setActiveRequest,
+    collections,
+    setCollections,
+    addToast
+  } = useStore();
   const isLightTheme = theme === 'light';
 
   const [activeTab, setActiveTab] = useState<'body' | 'preview' | 'headers' | 'code' | 'stats'>('body');  
@@ -517,13 +533,78 @@ export function ResponsePanel() {
   const [codeLanguage, setCodeLanguage] = useState('fetch');
   const [copied, setCopied] = useState(false);
 
-  const [viewMode, setViewMode] = useState<'pretty' | 'raw'>('pretty');
+  const [viewMode, setViewMode] = useState<'pretty' | 'raw' | 'diff'>('pretty');
+  const [diffStyle, setDiffStyle] = useState<'split' | 'unified'>('split');
+  const [isSavingBaseline, setIsSavingBaseline] = useState(false);
   const [selectedLang, setSelectedLang] = useState<'json' | 'xml' | 'html' | 'text' | 'auto'>('auto');
   const [bodyCopied, setBodyCopied] = useState(false);
   const [detectedLang, setDetectedLang] = useState<'json' | 'xml' | 'html' | 'text'>('text');
   const [downloadCopied, setDownloadCopied] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveInitialName, setSaveInitialName] = useState('');
+
+  const handleSaveBaseline = async () => {
+    if (!response || !activeRequest) return;
+    setIsSavingBaseline(true);
+    try {
+      const collection = collections.find(c => c.id === activeRequest.collectionId);
+      if (!collection) {
+        addToast('No parent collection found for this request', 'error');
+        return;
+      }
+
+      const savedResponse = {
+        status: response.status,
+        headers: response.headers,
+        body: typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : String(response.data),
+        timestamp: new Date().toISOString(),
+      };
+
+      const updatedRequest = {
+        ...activeRequest,
+        savedResponse,
+      };
+
+      const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
+      
+      const { apiService } = await import('../lib/api');
+      await apiService.updateCollection(collection.id, { requests: updatedRequests });
+      
+      setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
+      setActiveRequest(updatedRequest);
+      addToast('Saved current response as baseline', 'success');
+    } catch (err) {
+      console.error(err);
+      addToast('Failed to save baseline', 'error');
+    } finally {
+      setIsSavingBaseline(false);
+    }
+  };
+
+  const handleClearBaseline = async () => {
+    if (!activeRequest) return;
+    try {
+      const collection = collections.find(c => c.id === activeRequest.collectionId);
+      if (!collection) return;
+
+      const updatedRequest = {
+        ...activeRequest,
+      };
+      delete updatedRequest.savedResponse;
+
+      const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
+      
+      const { apiService } = await import('../lib/api');
+      await apiService.updateCollection(collection.id, { requests: updatedRequests });
+      
+      setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
+      setActiveRequest(updatedRequest);
+      addToast('Cleared saved response baseline', 'success');
+    } catch (err) {
+      console.error(err);
+      addToast('Failed to clear baseline', 'error');
+    }
+  };
 
   useEffect(() => {
     if (response && !response.error) {
@@ -1103,74 +1184,95 @@ export function ResponsePanel() {
                       >
                         Raw
                       </button>
+                      <button
+                        onClick={() => setViewMode('diff')}
+                        className={cn(
+                          "px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer flex items-center gap-1",
+                          viewMode === 'diff'
+                            ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm font-semibold"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        )}
+                      >
+                        <GitCompare className="w-3.5 h-3.5" />
+                        <span>Diff</span>
+                      </button>
                     </div>
 
                     {/* Language selector */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Type:</span>
-                      <select
-                        className="bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[11px] text-[var(--text-primary)] rounded px-2 py-1 outline-none focus:border-[var(--border-focus)] font-medium cursor-pointer"
-                        value={selectedLang}
-                        onChange={(e) => setSelectedLang(e.target.value as any)}
-                      >
-                        <option value="auto">Auto ({detectedLang.toUpperCase()})</option>
-                        <option value="json">JSON</option>
-                        <option value="xml">XML</option>
-                        <option value="html">HTML</option>
-                        <option value="text">Text</option>
-                      </select>
-                    </div>
+                    {viewMode !== 'diff' && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Type:</span>
+                        <select
+                          className="bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[11px] text-[var(--text-primary)] rounded px-2 py-1 outline-none focus:border-[var(--border-focus)] font-medium cursor-pointer"
+                          value={selectedLang}
+                          onChange={(e) => setSelectedLang(e.target.value as any)}
+                        >
+                          <option value="auto">Auto ({detectedLang.toUpperCase()})</option>
+                          <option value="json">JSON</option>
+                          <option value="xml">XML</option>
+                          <option value="html">HTML</option>
+                          <option value="text">Text</option>
+                        </select>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Save response body button */}
-                  <button
-                    onClick={() => {
-                      if (!response) return;
-                      const ext = typeof response.data === 'object' ? 'json' : (detectedLang === 'html' ? 'html' : detectedLang === 'xml' ? 'xml' : 'txt');
-                      setSaveInitialName(`response_${new Date().getTime()}.${ext}`);
-                      setIsSaveModalOpen(true);
-                    }}
-                    className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-all active:scale-95 cursor-pointer"
-                  >
-                    {downloadCopied ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-green-500" />
-                        <span className="text-green-500">Saved</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                        <span>Save</span>
-                      </>
-                    )}
-                  </button>
+                  {viewMode !== 'diff' && (
+                    <div className="flex items-center gap-2">
+                      {/* Save response body button */}
+                      <button
+                        onClick={() => {
+                          if (!response) return;
+                          const ext = typeof response.data === 'object' ? 'json' : (detectedLang === 'html' ? 'html' : detectedLang === 'xml' ? 'xml' : 'txt');
+                          setSaveInitialName(`response_${new Date().getTime()}.${ext}`);
+                          setIsSaveModalOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                      >
+                        {downloadCopied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-green-500" />
+                            <span className="text-green-500">Saved</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                            <span>Save</span>
+                          </>
+                        )}
+                      </button>
 
-                  {/* Copy response body button */}
-                  <button
-                    onClick={() => {
-                      const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
-                      navigator.clipboard.writeText(text);
-                      setBodyCopied(true);
-                      setTimeout(() => setBodyCopied(false), 2000);
-                    }}
-                    className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-all active:scale-95 cursor-pointer"
-                  >
-                    {bodyCopied ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-green-500" />
-                        <span className="text-green-500">Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                        <span>Copy</span>
-                      </>
-                    )}
-                  </button>
+                      {/* Copy response body button */}
+                      <button
+                        onClick={() => {
+                          const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
+                          navigator.clipboard.writeText(text);
+                          setBodyCopied(true);
+                          setTimeout(() => setBodyCopied(false), 2000);
+                        }}
+                        className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                      >
+                        {bodyCopied ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-green-500" />
+                            <span className="text-green-500">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Response Code/Text viewer */}
-                <div className="flex-1 overflow-auto p-4 font-mono text-sm bg-[var(--bg-base)]">
+                <div className={cn(
+                  "flex-1 font-mono text-sm bg-[var(--bg-base)]",
+                  viewMode === 'diff' ? "overflow-hidden" : "overflow-auto p-4"
+                )}>
                   {(() => {
                     const rawContent = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
                     
@@ -1179,6 +1281,284 @@ export function ResponsePanel() {
                         <pre className="text-[var(--text-code)] leading-relaxed whitespace-pre-wrap break-all">
                           {rawContent}
                         </pre>
+                      );
+                    }
+
+                    if (viewMode === 'diff') {
+                      if (!activeRequest?.savedResponse) {
+                        return (
+                          <div className="h-full flex flex-col items-center justify-center p-8 text-center max-w-sm mx-auto">
+                            <div className="w-12 h-12 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full flex items-center justify-center mb-3">
+                              <GitCompare className="w-6 h-6" />
+                            </div>
+                            <h4 className="text-xs font-bold text-[var(--text-primary)] mb-1">No Response Baseline Saved</h4>
+                            <p className="text-[10px] text-[var(--text-secondary)] mb-4 leading-relaxed">
+                              Save this response as a baseline to easily compare future responses, track payload changes, and detect schema drift.
+                            </p>
+                            <button
+                              onClick={handleSaveBaseline}
+                              disabled={isSavingBaseline}
+                              className="flex items-center gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white px-3 py-1.5 rounded text-[11px] font-bold shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                            >
+                              {isSavingBaseline ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Saving Baseline...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Database className="w-3.5 h-3.5" />
+                                  <span>Save Response as Baseline</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        );
+                      }
+
+                      const savedResponse = activeRequest.savedResponse;
+                      const baselineBody = savedResponse.body;
+                      const currentBody = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : String(response.data);
+                      const isStatusChanged = savedResponse.status !== response.status;
+
+                      return (
+                        <div className="flex flex-col h-full min-h-0">
+                          {/* Diff Control & Summary Bar */}
+                          <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs select-none">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <div className="flex items-center gap-1.5 text-[var(--text-primary)] font-bold">
+                                <GitCompare className="w-3.5 h-3.5 text-[var(--primary)]" />
+                                <span>Comparing with Baseline</span>
+                              </div>
+                              <span className="text-[9px] text-[var(--text-secondary)] font-mono">
+                                Saved {new Date(savedResponse.timestamp).toLocaleString()}
+                              </span>
+
+                              {/* Status comparison if different */}
+                              {isStatusChanged && (
+                                <div className="flex items-center gap-1 bg-amber-500/10 text-amber-500 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-500/20">
+                                  <span>Status:</span>
+                                  <span className="line-through opacity-70">{savedResponse.status}</span>
+                                  <span>&rarr;</span>
+                                  <span>{response.status}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              {/* Unified/Split switch */}
+                              <div className="flex items-center bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded p-0.5">
+                                <button
+                                  onClick={() => setDiffStyle('split')}
+                                  className={cn(
+                                    "px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer",
+                                    diffStyle === 'split'
+                                      ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm"
+                                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                  )}
+                                >
+                                  Split
+                                </button>
+                                <button
+                                  onClick={() => setDiffStyle('unified')}
+                                  className={cn(
+                                    "px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer",
+                                    diffStyle === 'unified'
+                                      ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm"
+                                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                  )}
+                                >
+                                  Unified
+                                </button>
+                              </div>
+
+                              {/* Update baseline button */}
+                              <button
+                                onClick={handleSaveBaseline}
+                                disabled={isSavingBaseline}
+                                title="Update baseline to current response"
+                                className="flex items-center gap-1 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2 py-1 rounded text-[10px] font-medium transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                              >
+                                <RefreshCw className={cn("w-3 h-3", isSavingBaseline && "animate-spin")} />
+                                <span>Update</span>
+                              </button>
+
+                              {/* Clear baseline button */}
+                              <button
+                                onClick={handleClearBaseline}
+                                title="Clear baseline saved response"
+                                className="flex items-center gap-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-2 py-1 rounded text-[10px] font-medium transition-all active:scale-95 cursor-pointer"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Clear</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Diff Comparison Canvas */}
+                          <div className="flex-1 overflow-auto bg-[var(--bg-base)]">
+                            {diffStyle === 'split' ? (
+                              /* SIDE BY SIDE SPLIT DIFF */
+                              <div className="min-w-max">
+                                <div className="grid grid-cols-2 text-[9px] font-bold border-b border-[var(--border-subtle)] text-[var(--text-secondary)] bg-[var(--bg-hover)]/30">
+                                  <div className="p-1 pl-12 border-r border-[var(--border-subtle)] select-none uppercase tracking-wider">Baseline Response</div>
+                                  <div className="p-1 pl-12 select-none uppercase tracking-wider">Current Response</div>
+                                </div>
+                                
+                                <table className="w-full table-fixed border-collapse font-mono text-[11px]">
+                                  <tbody>
+                                    {(() => {
+                                      const changes = diffLines(baselineBody, currentBody);
+                                      const rows: any[] = [];
+                                      let leftLine = 1;
+                                      let rightLine = 1;
+
+                                      for (let i = 0; i < changes.length; i++) {
+                                        const change = changes[i];
+                                        const lines = change.value.split(/\r?\n/);
+                                        if (lines[lines.length - 1] === '') {
+                                          lines.pop();
+                                        }
+
+                                        if (change.removed) {
+                                          const nextChange = changes[i + 1];
+                                          if (nextChange && nextChange.added) {
+                                            const nextLines = nextChange.value.split(/\r?\n/);
+                                            if (nextLines[nextLines.length - 1] === '') {
+                                              nextLines.pop();
+                                            }
+
+                                            const maxCount = Math.max(lines.length, nextLines.length);
+                                            for (let j = 0; j < maxCount; j++) {
+                                              rows.push({
+                                                left: j < lines.length ? { num: leftLine++, text: lines[j], type: 'removed' } : { type: 'empty' },
+                                                right: j < nextLines.length ? { num: rightLine++, text: nextLines[j], type: 'added' } : { type: 'empty' }
+                                              });
+                                            }
+                                            i++; // Skip the next 'added' chunk as we processed it
+                                          } else {
+                                            for (const line of lines) {
+                                              rows.push({
+                                                left: { num: leftLine++, text: line, type: 'removed' },
+                                                right: { type: 'empty' }
+                                              });
+                                            }
+                                          }
+                                        } else if (change.added) {
+                                          for (const line of lines) {
+                                            rows.push({
+                                              left: { type: 'empty' },
+                                              right: { num: rightLine++, text: line, type: 'added' }
+                                            });
+                                          }
+                                        } else {
+                                          for (const line of lines) {
+                                            rows.push({
+                                              left: { num: leftLine++, text: line, type: 'normal' },
+                                              right: { num: rightLine++, text: line, type: 'normal' }
+                                            });
+                                          }
+                                        }
+                                      }
+
+                                      return rows.map((row, idx) => (
+                                        <tr key={idx} className="hover:bg-[var(--bg-hover)]/25 leading-normal">
+                                          {/* Left Column (Baseline) */}
+                                          <td className={cn(
+                                            "w-12 text-right pr-2 text-[9px] select-none font-mono border-r border-[var(--border-subtle)]/60 font-bold",
+                                            row.left.type === 'removed' ? "bg-red-500/15 text-red-500 dark:bg-red-950/30" :
+                                            row.left.type === 'empty' ? "bg-[var(--bg-hover)]/10 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
+                                          )}>
+                                            {row.left.num ?? ''}
+                                          </td>
+                                          <td className={cn(
+                                            "font-mono text-[11px] px-3 whitespace-pre border-r border-[var(--border-subtle)]",
+                                            row.left.type === 'removed' ? "bg-red-500/10 text-red-700 dark:bg-red-950/20 dark:text-red-300 font-semibold" :
+                                            row.left.type === 'empty' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-primary)]"
+                                          )}>
+                                            {row.left.type === 'removed' ? '-' : row.left.type === 'empty' ? '' : ' '} {row.left.text ?? ''}
+                                          </td>
+
+                                          {/* Right Column (Current) */}
+                                          <td className={cn(
+                                            "w-12 text-right pr-2 text-[9px] select-none font-mono border-r border-[var(--border-subtle)]/60 font-bold",
+                                            row.right.type === 'added' ? "bg-green-500/15 text-green-500 dark:bg-green-950/30" :
+                                            row.right.type === 'empty' ? "bg-[var(--bg-hover)]/10 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
+                                          )}>
+                                            {row.right.num ?? ''}
+                                          </td>
+                                          <td className={cn(
+                                            "font-mono text-[11px] px-3 whitespace-pre",
+                                            row.right.type === 'added' ? "bg-green-500/10 text-green-700 dark:bg-green-950/20 dark:text-green-300 font-semibold" :
+                                            row.right.type === 'empty' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-primary)]"
+                                          )}>
+                                            {row.right.type === 'added' ? '+' : row.right.type === 'empty' ? '' : ' '} {row.right.text ?? ''}
+                                          </td>
+                                        </tr>
+                                      ));
+                                    })()}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              /* UNIFIED DIFF VIEW */
+                              <div className="w-full">
+                                <table className="w-full border-collapse font-mono text-[11px]">
+                                  <tbody>
+                                    {(() => {
+                                      const changes = diffLines(baselineBody, currentBody);
+                                      const unifiedRows: any[] = [];
+                                      let leftLine = 1;
+                                      let rightLine = 1;
+
+                                      for (const change of changes) {
+                                        const lines = change.value.split(/\r?\n/);
+                                        if (lines[lines.length - 1] === '') {
+                                          lines.pop();
+                                        }
+                                        for (const line of lines) {
+                                          if (change.removed) {
+                                            unifiedRows.push({ leftNum: leftLine++, type: 'removed', text: line });
+                                          } else if (change.added) {
+                                            unifiedRows.push({ rightNum: rightLine++, type: 'added', text: line });
+                                          } else {
+                                            unifiedRows.push({ leftNum: leftLine++, rightNum: rightLine++, type: 'normal', text: line });
+                                          }
+                                        }
+                                      }
+
+                                      return unifiedRows.map((row, idx) => (
+                                        <tr key={idx} className="hover:bg-[var(--bg-hover)]/25 leading-normal">
+                                          <td className={cn(
+                                            "w-10 text-right pr-2 text-[9px] select-none font-mono font-bold",
+                                            row.type === 'removed' ? "bg-red-500/15 text-red-500 dark:bg-red-950/30" :
+                                            row.type === 'added' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
+                                          )}>
+                                            {row.leftNum ?? ''}
+                                          </td>
+                                          <td className={cn(
+                                            "w-10 text-right pr-2 text-[9px] select-none font-mono border-r border-[var(--border-subtle)]/60 font-bold",
+                                            row.type === 'added' ? "bg-green-500/15 text-green-500 dark:bg-green-950/30" :
+                                            row.type === 'removed' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
+                                          )}>
+                                            {row.rightNum ?? ''}
+                                          </td>
+                                          <td className={cn(
+                                            "font-mono text-[11px] px-3 whitespace-pre",
+                                            row.type === 'removed' ? "bg-red-500/10 text-red-700 dark:bg-red-950/20 dark:text-red-300 font-semibold" :
+                                            row.type === 'added' ? "bg-green-500/10 text-green-700 dark:bg-green-950/20 dark:text-green-300 font-semibold" : "text-[var(--text-primary)]"
+                                          )}>
+                                            {row.type === 'removed' ? '-' : row.type === 'added' ? '+' : ' '} {row.text}
+                                          </td>
+                                        </tr>
+                                      ));
+                                    })()}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       );
                     }
 

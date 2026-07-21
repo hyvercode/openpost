@@ -77,6 +77,12 @@ export interface RequestItem {
     headers: KeyValue[];
     body: string;
   };
+  savedResponse?: {
+    status: number;
+    headers: any;
+    body: string;
+    timestamp: string;
+  };
   preRequestScript?: string;
   postResponseScript?: string;
   auth?: RequestAuth;
