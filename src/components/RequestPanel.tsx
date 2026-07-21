@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
 import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap } from 'lucide-react';
@@ -59,6 +59,19 @@ export function RequestPanel() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [introspectionSchema, setIntrospectionSchema] = useState<any>(null);
   const [isDetectingGql, setIsDetectingGql] = useState(false);
+  const [requestMode, setRequestMode] = useState<'proxy' | 'direct'>('proxy');
+
+  const isLocalUrl = useMemo(() => {
+    return /localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/i.test(url || '');
+  }, [url]);
+
+  useEffect(() => {
+    if (isLocalUrl && requestMode === 'proxy') {
+      setRequestMode('direct');
+    } else if (!isLocalUrl && requestMode === 'direct') {
+      setRequestMode('proxy');
+    }
+  }, [isLocalUrl]);
 
   const activeRequestIdRef = useRef<string | null>(null);
   const skipNextAutosave = useRef(false);
@@ -602,22 +615,29 @@ export function RequestPanel() {
         finalHeaders['Content-Type'] = 'application/x-www-form-urlencoded';
       }
 
-      const res = await api.post('/proxy', {
+      // Build standard request payload expected by executeRequest
+      const reqPayload = {
         method: method === 'GQL' ? 'POST' : method,
         url: finalUrl,
-        headers: finalHeaders,
-        body: parsedBody,
-        proxyConfig,
-      });
+        headers: Object.entries(finalHeaders).map(([key, value]) => ({ key, value: String(value), enabled: true })),
+        body: parsedBody ? { content: typeof parsedBody === 'string' ? parsedBody : JSON.stringify(parsedBody) } : undefined,
+      };
 
-      setResponse(res.data);
-      addToast(`Request successful (${res.status})`, 'success');
+      const resData = await apiService.executeRequest(reqPayload, proxyConfig, requestMode === 'direct');
+      const res = { data: resData };
+
+      setResponse(resData);
+      if (resData.status > 0) {
+        addToast(`Request successful (${resData.status})`, 'success');
+      } else {
+        addToast(`Request failed: ${resData.statusText}`, 'error');
+      }
 
       // Save to Request History
       const lastRun = {
         timestamp: new Date().toLocaleTimeString(),
-        timeMs: res.data.timeMs || 0,
-        status: res.data.status || 200
+        timeMs: resData.timeMs || 0,
+        status: resData.status || 200
       };
 
       addHistoryItem({
@@ -634,9 +654,9 @@ export function RequestPanel() {
           formData: bodyFormData
         },
         auth: authConfig,
-        responseStatus: res.data.status || 200,
-        responseStatusText: res.data.statusText || 'OK',
-        timeMs: res.data.timeMs
+        responseStatus: resData.status || 200,
+        responseStatusText: resData.statusText || 'OK',
+        timeMs: resData.timeMs
       });
 
       // Update active request with last run info
@@ -1251,6 +1271,18 @@ export function RequestPanel() {
               )} />
             </div>
           )}
+
+          <div className="flex items-center gap-1.5 bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-2.5 py-1 text-xs h-9">
+            <span className="text-[var(--text-secondary)] font-semibold uppercase text-[9px] tracking-wider">Request Mode</span>
+            <select
+              value={requestMode}
+              onChange={(e) => setRequestMode(e.target.value as 'proxy' | 'direct')}
+              className="bg-transparent font-bold text-[var(--text-primary)] focus:outline-none cursor-pointer text-xs pr-1 border-none focus:ring-0 focus:border-none"
+            >
+              <option value="proxy" className="bg-[var(--bg-panel)] text-[var(--text-primary)]">☁️ Cloud Proxy</option>
+              <option value="direct" className="bg-[var(--bg-panel)] text-[var(--text-primary)]">💻 Direct Browser</option>
+            </select>
+          </div>
           
           <button 
             onClick={() => setIsCurlModalOpen(true)}
@@ -1265,6 +1297,25 @@ export function RequestPanel() {
           <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium px-1">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <span>{urlErrorMsg}</span>
+          </div>
+        )}
+
+        {isLocalUrl && (
+          <div className="mt-2 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center justify-between text-xs animate-in fade-in">
+            <div className="flex flex-col gap-0.5 text-[var(--text-primary)] pr-4">
+              <div className="flex items-center gap-2 font-bold text-amber-500">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Local Address Detected ({url})</span>
+              </div>
+              <p className="text-[var(--text-secondary)] text-[11px] leading-relaxed">
+                Cloud servers cannot route to your private localhost. We automatically switched your execution mode to <strong>Direct Browser Call</strong> so your browser can request your local server directly.
+              </p>
+            </div>
+            <div className="shrink-0">
+              <span className="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-500 border border-amber-500/30">
+                Direct Mode Active
+              </span>
+            </div>
           </div>
         )}
 
