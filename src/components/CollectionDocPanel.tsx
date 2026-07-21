@@ -170,6 +170,7 @@ export function CollectionDocPanel() {
   const [pdfShowPageNumbers, setPdfShowPageNumbers] = useState(true);
   const [pdfIncludeMock, setPdfIncludeMock] = useState(true);
   const [docVersion, setDocVersion] = useState('1.0.0');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Find the current active collection based on tab ID
   const collectionItem = collections.find(c => c.id === activeTabId);
@@ -818,25 +819,44 @@ You can write step-by-step startup instructions.
                         <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Print Ready</span>
                       </div>
                       <button
-                        onClick={() => {
+                        onClick={async () => {
                           if (selectedEndpoints.size === 0) {
                             addToast('Please select at least one endpoint to export', 'warning');
                             return;
                           }
-                          generateCollectionPdf(collectionItem, selectedEndpoints, {
-                            title: pdfTitle || collectionItem.name,
-                            includeIntro: pdfIncludeIntro,
-                            accentColor: pdfAccentColor,
-                            showPageNumbers: pdfShowPageNumbers,
-                            includeMockResponse: pdfIncludeMock,
-                            docVersion: docVersion
-                          });
-                          addToast('PDF documentation compiled and downloaded!', 'success', 2500);
+                          setIsGeneratingPdf(true);
+                          
+                          // Allow UI to update before synchronous PDF generation
+                          await new Promise(resolve => setTimeout(resolve, 50));
+                          
+                          try {
+                            generateCollectionPdf(collectionItem, selectedEndpoints, {
+                              title: pdfTitle || collectionItem.name,
+                              includeIntro: pdfIncludeIntro,
+                              accentColor: pdfAccentColor,
+                              showPageNumbers: pdfShowPageNumbers,
+                              includeMockResponse: pdfIncludeMock,
+                              docVersion: docVersion
+                            });
+                            addToast('PDF documentation compiled and downloaded!', 'success', 2500);
+                          } finally {
+                            setIsGeneratingPdf(false);
+                          }
                         }}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-md transition-all cursor-pointer"
+                        disabled={isGeneratingPdf}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-75 disabled:cursor-wait text-white rounded-lg shadow-md transition-all cursor-pointer"
                       >
-                        <Download className="w-4 h-4" />
-                        Export PDF Document
+                        {isGeneratingPdf ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4" />
+                            Export PDF Document
+                          </>
+                        )}
                       </button>
                     </div>
 
