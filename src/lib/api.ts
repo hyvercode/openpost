@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Workspace, ApiCollection, Environment, Deployment } from '../types';
 
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: ((import.meta as any).env?.VITE_API_URL || '') + '/api',
 });
 
 api.interceptors.request.use((config) => {

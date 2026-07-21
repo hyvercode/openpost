@@ -1,7 +1,12 @@
 import { ApiCollection } from "../types";
 
-export function generateCollectionMarkdown(collection: ApiCollection, selectedRequestIds?: Set<string>): string {
+export function generateCollectionMarkdown(collection: ApiCollection, selectedRequestIds?: Set<string>, docVersion?: string): string {
   let md = `# ${collection.name}\n\n`;
+  
+  if (docVersion) {
+    md += `**Version:** \`${docVersion}\`  \n`;
+    md += `**Date:** ${new Date().toLocaleDateString()}  \n\n`;
+  }
   
   if (collection.description) {
     md += `${collection.description}\n\n`;

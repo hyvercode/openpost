@@ -7,6 +7,7 @@ export interface PdfExportOptions {
   accentColor?: string;
   showPageNumbers?: boolean;
   includeMockResponse?: boolean;
+  docVersion?: string;
 }
 
 export function generateCollectionPdf(
@@ -20,6 +21,7 @@ export function generateCollectionPdf(
     accentColor = collection.color || "#4F46E5",
     showPageNumbers = true,
     includeMockResponse = true,
+    docVersion = "",
   } = options;
 
   // Create jsPDF instance
@@ -232,6 +234,19 @@ export function generateCollectionPdf(
   doc.setTextColor(255, 255, 255);
   doc.text("API REFERENCE", marginX + 2.5, y + 3.5);
 
+  let metadataX = marginX + 32;
+  if (docVersion) {
+    const vText = `VERSION ${docVersion}`;
+    const vWidth = doc.getTextWidth(vText) + 4;
+    doc.setFillColor(243, 244, 246);
+    doc.roundedRect(marginX + 29, y, vWidth, 5, 1, 1, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(107, 114, 128);
+    doc.text(vText, marginX + 31, y + 3.5);
+    metadataX = marginX + 29 + vWidth + 4;
+  }
+
   // Metadata block (Date & Specs)
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
@@ -241,7 +256,7 @@ export function generateCollectionPdf(
     month: "long",
     day: "numeric",
   });
-  doc.text(`Generated: ${dateStr}`, marginX + 32, y + 3.5);
+  doc.text(`Generated: ${dateStr}`, metadataX, y + 3.5);
   y += 10;
 
   // Divider Line
@@ -397,7 +412,8 @@ export function generateCollectionPdf(
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
       doc.setTextColor(156, 163, 175); // gray-400
-      doc.text(collection.name, marginX, 15);
+      const headerTitle = docVersion ? `${collection.name} (${docVersion})` : collection.name;
+      doc.text(headerTitle, marginX, 15);
       doc.text("OpenPost API Hub", pageWidth - marginX - doc.getTextWidth("OpenPost API Hub"), 15);
       
       doc.setDrawColor(243, 244, 246);

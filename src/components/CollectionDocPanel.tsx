@@ -169,6 +169,7 @@ export function CollectionDocPanel() {
   const [pdfAccentColor, setPdfAccentColor] = useState('#4F46E5');
   const [pdfShowPageNumbers, setPdfShowPageNumbers] = useState(true);
   const [pdfIncludeMock, setPdfIncludeMock] = useState(true);
+  const [docVersion, setDocVersion] = useState('1.0.0');
 
   // Find the current active collection based on tab ID
   const collectionItem = collections.find(c => c.id === activeTabId);
@@ -235,8 +236,8 @@ export function CollectionDocPanel() {
   const totalEndpoints = requests.length;
 
   const generatedMarkdown = useMemo(() => 
-    collectionItem ? generateCollectionMarkdown(collectionItem, selectedEndpoints) : '', 
-    [collectionItem, selectedEndpoints]
+    collectionItem ? generateCollectionMarkdown(collectionItem, selectedEndpoints, docVersion) : '', 
+    [collectionItem, selectedEndpoints, docVersion]
   );
 
   const copyToClipboard = () => {
@@ -662,6 +663,26 @@ You can write step-by-step startup instructions.
                   </div>
                 </div>
 
+                {/* 1.5 General Documentation Options */}
+                <div className="space-y-3 border-t border-[var(--border-subtle)] pt-4">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Documentation Info</h3>
+                  
+                  {/* Document Version */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-semibold text-[var(--text-secondary)]">Document Version</label>
+                    <input
+                      type="text"
+                      value={docVersion}
+                      onChange={(e) => setDocVersion(e.target.value)}
+                      placeholder="e.g. 1.0.0"
+                      className="w-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] font-mono"
+                    />
+                    <p className="text-[9px] text-[var(--text-secondary)]">
+                      The version is appended to headings and exported as a custom badge.
+                    </p>
+                  </div>
+                </div>
+
                 {/* 2. PDF specific options */}
                 {exportFormat === 'pdf' ? (
                   <div className="space-y-4 border-t border-[var(--border-subtle)] pt-4 animate-fade-in">
@@ -807,7 +828,8 @@ You can write step-by-step startup instructions.
                             includeIntro: pdfIncludeIntro,
                             accentColor: pdfAccentColor,
                             showPageNumbers: pdfShowPageNumbers,
-                            includeMockResponse: pdfIncludeMock
+                            includeMockResponse: pdfIncludeMock,
+                            docVersion: docVersion
                           });
                           addToast('PDF documentation compiled and downloaded!', 'success', 2500);
                         }}
@@ -829,6 +851,9 @@ You can write step-by-step startup instructions.
                           <h4 className="text-base font-extrabold text-[var(--text-primary)]">{pdfTitle || collectionItem.name}</h4>
                           <div className="flex items-center gap-2">
                             <span className="text-[9px] text-white px-1.5 py-0.2 rounded font-bold uppercase" style={{ backgroundColor: pdfAccentColor }}>API Reference</span>
+                            {docVersion && (
+                              <span className="text-[9px] bg-slate-500/10 text-slate-400 px-1.5 py-0.2 rounded font-bold uppercase font-mono border border-slate-500/20">Version {docVersion}</span>
+                            )}
                             <span className="text-[10px] text-[var(--text-secondary)]">Generated Today</span>
                           </div>
                           <hr className="border-[var(--border-subtle)]" />
