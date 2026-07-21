@@ -158,7 +158,104 @@ export const apiService = {
     await api.delete(`/deployments/${id}`);
   },
 
-  async executeRequest(req: any, proxyConfig?: any) {
+  async executeRequest(req: any, proxyConfig?: any, forceDirect = false) {
+    const url = req.url || '';
+    const isLocal = forceDirect || /localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/i.test(url);
+    
+    if (isLocal) {
+      const startTime = performance.now();
+      const method = (req.method || 'GET').toUpperCase();
+      const headers = req.headers ? req.headers.reduce((acc: any, h: any) => {
+        if (h.enabled && h.key) acc[h.key] = h.value;
+        return acc;
+      }, {}) : {};
+      
+      let bodyData = undefined;
+      if (req.body) {
+        if (typeof req.body === 'object') {
+          if (req.body.content !== undefined) {
+            try {
+              bodyData = JSON.parse(req.body.content);
+            } catch {
+              bodyData = req.body.content;
+            }
+          } else {
+            bodyData = req.body;
+          }
+        } else {
+          bodyData = req.body;
+        }
+      }
+
+      try {
+        const response = await axios({
+          method,
+          url,
+          headers,
+          data: bodyData,
+          validateStatus: () => true,
+        });
+        const endTime = performance.now();
+        const totalTime = endTime - startTime;
+        const responseData = response.data;
+        const size = typeof responseData === 'string' ? responseData.length : JSON.stringify(responseData || '').length;
+
+        return {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          data: responseData,
+          timeMs: Math.round(totalTime),
+          size,
+          timings: {
+            dns: 0,
+            connect: 0,
+            ssl: 0,
+            send: 0,
+            wait: Math.round(totalTime),
+            receive: 0,
+          }
+        };
+      } catch (err: any) {
+        const endTime = performance.now();
+        return {
+          status: 0,
+          statusText: 'CORS Block or Connection Refused',
+          headers: {},
+          data: {
+            error: err.message || 'Connection Failed',
+            message: `Could not connect to ${url} directly from the browser.`,
+            troubleshooting: [
+              "Verify your local server is running on the specified port.",
+              "Ensure CORS is enabled in your server configuration (headers: Access-Control-Allow-Origin: *).",
+              "Install a CORS-unblocking browser extension to bypass restrictions in the preview environment.",
+              "If the server is not accessible publicly, run 'ngrok http 3000' and use the secure public URL instead."
+            ]
+          },
+          timeMs: Math.round(endTime - startTime),
+          size: 0,
+          timings: { dns: 0, connect: 0, ssl: 0, send: 0, wait: 0, receive: 0 }
+        };
+      }
+    }
+
+    let proxyBody = undefined;
+    if (req.body) {
+      if (typeof req.body === 'object') {
+        if (req.body.content !== undefined) {
+          try {
+            proxyBody = JSON.parse(req.body.content);
+          } catch {
+            proxyBody = req.body.content;
+          }
+        } else {
+          proxyBody = req.body;
+        }
+      } else {
+        proxyBody = req.body;
+      }
+    }
+
     const res = await api.post('/proxy', {
       method: req.method,
       url: req.url,
@@ -166,7 +263,7 @@ export const apiService = {
         if (h.enabled && h.key) acc[h.key] = h.value;
         return acc;
       }, {}),
-      body: req.body?.content ? JSON.parse(req.body.content) : undefined,
+      body: proxyBody,
       proxyConfig,
     });
     return res.data;
