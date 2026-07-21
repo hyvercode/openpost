@@ -325,7 +325,7 @@ export const useStore = create<AppState>((set) => ({
       id: Math.random().toString(36).substring(2, 9),
       timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + new Date().toLocaleDateString(),
     };
-    const updatedHistory = [newItem, ...state.history].slice(0, 100);
+    const updatedHistory = [newItem, ...state.history].slice(0, 50);
     localStorage.setItem('request_history', JSON.stringify(updatedHistory));
     return { history: updatedHistory };
   }),
