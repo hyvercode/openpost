@@ -6,11 +6,12 @@ interface PromptModalProps {
   placeholder?: string;
   initialValue?: string;
   submitText?: string;
+  isSubmitting?: boolean;
   onSubmit: (value: string) => void;
   onCancel: () => void;
 }
 
-export function PromptModal({ isOpen, title, placeholder, initialValue, submitText = 'Create', onSubmit, onCancel }: PromptModalProps) {
+export function PromptModal({ isOpen, title, placeholder, initialValue, submitText = 'Create', isSubmitting = false, onSubmit, onCancel }: PromptModalProps) {
   const [value, setValue] = useState(initialValue || '');
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -32,24 +33,27 @@ export function PromptModal({ isOpen, title, placeholder, initialValue, submitTe
           value={value} 
           onChange={e => setValue(e.target.value)} 
           onKeyDown={e => { 
-            if (e.key === 'Enter' && value.trim()) onSubmit(value.trim()); 
-            if (e.key === 'Escape') onCancel(); 
+            if (e.key === 'Enter' && value.trim() && !isSubmitting) onSubmit(value.trim()); 
+            if (e.key === 'Escape' && !isSubmitting) onCancel(); 
           }} 
           placeholder={placeholder || 'Enter name...'}
           className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[#555] transition-colors mb-5" 
+          disabled={isSubmitting}
         />
         <div className="flex justify-end gap-3">
           <button 
             onClick={onCancel} 
-            className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            disabled={isSubmitting}
+            className="px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
           >
             Cancel
           </button>
           <button 
-            onClick={() => { if (value.trim()) onSubmit(value.trim()); }} 
-            disabled={!value.trim()}
-            className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[#e65a2d] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors"
+            onClick={() => { if (value.trim() && !isSubmitting) onSubmit(value.trim()); }} 
+            disabled={!value.trim() || isSubmitting}
+            className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[#e65a2d] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors flex items-center gap-2"
           >
+            {isSubmitting && <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
             {submitText}
           </button>
         </div>

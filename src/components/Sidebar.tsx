@@ -50,6 +50,7 @@ export function Sidebar() {
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   
   const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'deploy'|'bulk_move', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
+  const [isModalSubmitting, setIsModalSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
@@ -299,8 +300,7 @@ export function Sidebar() {
   const handleCreate = async (name: string) => {
     if (!currentWorkspace) return;
     
-    // Close modal immediately for snappy UI
-    setModal(prev => ({ ...prev, isOpen: false }));
+    setIsModalSubmitting(true);
     
     try {
       if (modal.type === 'collection') {
@@ -402,6 +402,8 @@ export function Sidebar() {
         }
         addToast('Workspace renamed', 'success', 2000);
       } else if (modal.type === 'deploy' && modal.targetId) {
+        // Simulate a small delay for progress loading visual
+        await new Promise(r => setTimeout(r, 800));
         const collectionDoc = collections.find(c => c.id === modal.targetId);
         if (collectionDoc) {
           const newDeployment = await apiService.createDeployment({
@@ -419,6 +421,9 @@ export function Sidebar() {
     } catch (e) {
       console.error("Failed to submit form:", e);
       addToast('Operation failed', 'error');
+    } finally {
+      setIsModalSubmitting(false);
+      setModal(prev => ({ ...prev, isOpen: false }));
     }
   };
 
@@ -2270,6 +2275,7 @@ export function Sidebar() {
         title={modal.title} 
         initialValue={modal.initialValue}
         submitText={modal.type.startsWith('rename_') ? 'Save' : 'Create'}
+        isSubmitting={isModalSubmitting}
         onSubmit={handleCreate} 
         onCancel={() => setModal({ ...modal, isOpen: false })} 
       />
