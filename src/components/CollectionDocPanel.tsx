@@ -931,8 +931,8 @@ You can write step-by-step startup instructions.
                               <div className="space-y-1">
                                 <span className="font-bold text-[var(--text-secondary)] uppercase text-[8px] tracking-wider">Request Parameters</span>
                                 <div className="text-[9px] text-[var(--text-secondary)] space-y-0.5">
-                                  <div>Headers: {req.headers.filter(h => h.enabled && h.key).length || 'None'}</div>
-                                  <div>Query Params: {req.params.filter(p => p.enabled && p.key).length || 'None'}</div>
+                                  <div>Headers: {(req.headers || []).filter(h => h.enabled && h.key).length || 'None'}</div>
+                                  <div>Query Params: {(req.params || []).filter(p => p.enabled && p.key).length || 'None'}</div>
                                   <div>Body Payload: {req.body?.type !== 'none' ? req.body?.type : 'None'}</div>
                                 </div>
                               </div>

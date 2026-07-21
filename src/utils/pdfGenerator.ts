@@ -284,7 +284,7 @@ export function generateCollectionPdf(
   }
 
   // Filter requests to those selected
-  const requestsToInclude = collection.requests.filter((req) =>
+  const requestsToInclude = (collection.requests || []).filter((req) =>
     selectedRequestIds.has(req.id)
   );
 
@@ -376,14 +376,14 @@ export function generateCollectionPdf(
     y += 4;
 
     // Draw Headers if present
-    const enabledHeaders = req.headers.filter((h) => h.enabled && h.key);
+    const enabledHeaders = (req.headers || []).filter((h) => h.enabled && h.key);
     if (enabledHeaders.length > 0) {
       drawSectionTitle("Request Headers");
       drawParamsTable(enabledHeaders);
     }
 
     // Draw Query Parameters if present
-    const enabledParams = req.params.filter((p) => p.enabled && p.key);
+    const enabledParams = (req.params || []).filter((p) => p.enabled && p.key);
     if (enabledParams.length > 0) {
       drawSectionTitle("Query Parameters");
       drawParamsTable(enabledParams);

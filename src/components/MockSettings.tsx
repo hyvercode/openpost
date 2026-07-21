@@ -14,16 +14,19 @@ export function MockSettings({ collection }: MockSettingsProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [keyCopied, setKeyCopied] = useState(false);
-  const [config, setConfig] = useState<MockConfig>(collection.mockConfig || {
-    enabled: false,
-    rateLimit: {
-      enabled: true,
-      requestsPerMinute: 60
-    },
-    apiKey: {
-      enabled: false,
-      key: ''
-    }
+  const [config, setConfig] = useState<MockConfig>(() => {
+    const base = collection.mockConfig;
+    return {
+      enabled: typeof base?.enabled === 'boolean' ? base.enabled : false,
+      rateLimit: {
+        enabled: base?.rateLimit ? typeof base.rateLimit.enabled === 'boolean' ? base.rateLimit.enabled : true : true,
+        requestsPerMinute: base?.rateLimit ? typeof base.rateLimit.requestsPerMinute === 'number' ? base.rateLimit.requestsPerMinute : 60 : 60
+      },
+      apiKey: {
+        enabled: base?.apiKey ? typeof base.apiKey.enabled === 'boolean' ? base.apiKey.enabled : false : false,
+        key: base?.apiKey ? base.apiKey.key || '' : ''
+      }
+    };
   });
 
   const publicUrl = `${window.location.origin}/mock/collection/${collection.id}`;
