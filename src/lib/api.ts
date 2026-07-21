@@ -118,6 +118,11 @@ export const apiService = {
     await api.delete(`/collections/${id}`);
   },
 
+  async generateDocumentation(collectionName: string, folders: any[], requests: any[]): Promise<{ markdown: string }> {
+    const res = await api.post('/collections/generate-docs', { collectionName, folders, requests });
+    return res.data;
+  },
+
   // Environments
   async getEnvironments(workspaceId: string): Promise<Environment[]> {
     const res = await api.get(`/environments/${workspaceId}`);

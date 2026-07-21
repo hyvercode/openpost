@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2 } from 'lucide-react';
+import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2, Sparkles, Printer, Trash2 } from 'lucide-react';
 import { cn } from '../utils';
 import { apiService } from '../lib/api';
 import { MockSettings } from './MockSettings';
+import { ConfirmModal } from './ConfirmModal';
 import { generateCollectionMarkdown } from '../utils/markdownGenerator';
 import { generateCollectionPdf } from '../utils/pdfGenerator';
 import ReactMarkdown from 'react-markdown';
@@ -199,6 +200,104 @@ export function CollectionDocPanel() {
     );
   }
 
+  const [isGeneratingAiDoc, setIsGeneratingAiDoc] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
+  const handleRegenerateDocs = async () => {
+    setIsGeneratingAiDoc(true);
+    try {
+      const response = await apiService.generateDocumentation(
+        collectionItem.name,
+        collectionItem.folders || [],
+        collectionItem.requests || []
+      );
+      
+      const newMarkdown = response.markdown;
+      setDocContent(newMarkdown);
+      
+      if (!isEditing) {
+        await apiService.updateCollection(collectionItem.id, {
+          description: newMarkdown
+        });
+        
+        const { collections, setCollections } = useStore.getState();
+        setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, description: newMarkdown } : c));
+        
+        addToast('AI documentation generated and saved successfully!', 'success', 3000);
+      } else {
+        addToast('AI documentation generated! Review and save changes when ready.', 'success', 4000);
+      }
+    } catch (error: any) {
+      console.error("AI Generation failed:", error);
+      addToast('Failed to generate documentation using AI', 'error');
+    } finally {
+      setIsGeneratingAiDoc(false);
+    }
+  };
+
+  const triggerRegenerateConfirm = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Regenerate Documentation with AI?',
+      message: 'This will use Gemini AI to automatically analyze all requests and folders in this collection, and generate a beautifully-structured Markdown user guide. Any existing documentation overview will be overwritten.',
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        handleRegenerateDocs();
+      }
+    });
+  };
+
+  const handleDeleteDocs = async () => {
+    setIsSaving(true);
+    try {
+      await apiService.updateCollection(collectionItem.id, {
+        description: ''
+      });
+      
+      const { collections, setCollections } = useStore.getState();
+      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, description: '' } : c));
+      
+      setDocContent('');
+      setIsEditing(false);
+      addToast('Documentation guide deleted successfully', 'success', 2000);
+    } catch (error) {
+      console.error("Failed to delete documentation:", error);
+      addToast('Failed to delete documentation', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const triggerDeleteConfirm = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Documentation Guide?',
+      message: 'Are you sure you want to permanently delete the overview guide and description for this collection? This action cannot be undone.',
+      onConfirm: () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        handleDeleteDocs();
+      }
+    });
+  };
+
+  const handlePrintDocs = () => {
+    if (!docContent.trim()) {
+      addToast('No documentation content to print', 'warning');
+      return;
+    }
+    window.print();
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -298,13 +397,48 @@ export function CollectionDocPanel() {
 
         {/* Action button */}
         {!isEditing && activeSubTab === 'docs' && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="flex items-center justify-center gap-2 bg-[var(--primary)] hover:opacity-90 text-white border border-transparent px-4 py-2 rounded text-xs font-semibold shadow-md transition-all self-start md:self-auto"
-          >
-            <Edit3 className="w-4 h-4" />
-            Edit Documentation
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+            <button
+              onClick={() => setIsEditing(true)}
+              className="flex items-center justify-center gap-1.5 bg-[var(--primary)] hover:opacity-90 text-white border border-transparent px-3 py-1.5 rounded-lg text-xs font-semibold shadow transition-all cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              Edit
+            </button>
+            <button
+              onClick={triggerRegenerateConfirm}
+              disabled={isGeneratingAiDoc}
+              className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 disabled:opacity-50 text-white border border-transparent px-3 py-1.5 rounded-lg text-xs font-semibold shadow transition-all cursor-pointer"
+            >
+              {isGeneratingAiDoc ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  AI Generate Guide
+                </>
+              )}
+            </button>
+            <button
+              onClick={handlePrintDocs}
+              className="flex items-center justify-center gap-1.5 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 text-indigo-500" />
+              Print Guide
+            </button>
+            {docContent.trim() && (
+              <button
+                onClick={triggerDeleteConfirm}
+                className="flex items-center justify-center gap-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -395,31 +529,51 @@ You can write step-by-step startup instructions.
                   />
 
                   {/* Editor Actions */}
-                  <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] pt-3.5">
+                  <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3.5">
                     <button
-                      onClick={handleCancel}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors border border-transparent"
+                      onClick={triggerRegenerateConfirm}
+                      disabled={isGeneratingAiDoc}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                     >
-                      <X className="w-3.5 h-3.5" />
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded bg-[var(--primary)] text-white hover:opacity-90 shadow transition-all disabled:opacity-50"
-                    >
-                      {isSaving ? (
+                      {isGeneratingAiDoc ? (
                         <>
-                          <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                          Saving...
+                          <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Generating...
                         </>
                       ) : (
                         <>
-                          <Check className="w-3.5 h-3.5" />
-                          Save Changes
+                          <Sparkles className="w-3.5 h-3.5" />
+                          Generate with AI
                         </>
                       )}
                     </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCancel}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors border border-transparent cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded bg-[var(--primary)] text-white hover:opacity-90 shadow transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        {isSaving ? (
+                          <>
+                            <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            Save Changes
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -973,6 +1127,51 @@ You can write step-by-step startup instructions.
           <MockSettings collection={collectionItem} />
         )}
       </div>
+
+      {/* Printer-friendly container */}
+      <div className="hidden print:block bg-white text-gray-900 p-10 font-sans leading-relaxed select-text">
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body * {
+              visibility: hidden !important;
+            }
+            .print-section, .print-section * {
+              visibility: visible !important;
+            }
+            .print-section {
+              position: absolute !important;
+              left: 0 !important;
+              top: 0 !important;
+              width: 100% !important;
+              background: white !important;
+              color: black !important;
+            }
+            button, nav, header, sidebar, .no-print {
+              display: none !important;
+            }
+          }
+        `}} />
+        <div className="print-section">
+          <div style={{ borderBottom: '2px solid #4f46e5', paddingBottom: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#4f46e5', letterSpacing: '0.05em', textTransform: 'uppercase' }}>API Guide & Reference Manual</span>
+              <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginTop: '4px', color: '#111827' }}>{collectionItem?.name}</h1>
+            </div>
+            <span style={{ fontSize: '11px', color: '#6b7280' }}>Printed on {new Date().toLocaleDateString()}</span>
+          </div>
+          <div className="markdown-body select-text text-sm leading-relaxed" style={{ color: '#1f2937' }}>
+            {renderMarkdown(docContent)}
+          </div>
+        </div>
+      </div>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
