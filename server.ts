@@ -433,19 +433,26 @@ Body: ${JSON.stringify(requestConfig.body || {})}
     }
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+  // Vite middleware or static serving (skipped in backend-only mode)
+  if (process.env.BACKEND_ONLY === "true") {
+    console.log("Running in BACKEND_ONLY mode. Skipping frontend static file serving/Vite integration.");
+    app.get("/", (req, res) => {
+      res.json({ status: "ok", mode: "backend-only", message: "OpenPost API Backend is active" });
     });
-    app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
   }
 
   app.listen(PORT, "0.0.0.0", () => {

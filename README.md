@@ -72,8 +72,45 @@ Then add packaging scripts to `package.json`.
 https://openpost.hyvercode.com
 
 
+## Execution Modes
 
+This application can be run in three different setups depending on your deployment and development needs:
 
+### 1. Monolith Mode (Default)
+Runs both the frontend assets (Vite dev server or static distribution files) and the backend APIs in a single, combined process.
+* **Development**:
+  ```bash
+  npm run dev
+  # or
+  npm run dev:monolith
+  ```
+* **Production Build & Run**:
+  ```bash
+  npm run build
+  npm start
+  ```
 
+### 2. Backend Only Mode
+Skips frontend compiling and rendering completely. Runs only the Express API routes, auth controller, rate limiters, and mock proxies.
+* **Development**:
+  ```bash
+  npm run dev:backend
+  ```
+* **Production Build & Run**:
+  ```bash
+  npm run build:backend
+  npm run start:backend
+  ```
 
-
+### 3. Frontend Only Mode
+Launches the standalone Vite development environment or builds static client assets only.
+* **Development**:
+  ```bash
+  npm run dev:frontend
+  ```
+  *Note: Any `/api` calls are automatically proxied to the backend at `http://localhost:3000` (or configured via `VITE_API_URL`).*
+* **Production Build & Run**:
+  ```bash
+  npm run build:frontend
+  npm run preview:frontend
+  ```
