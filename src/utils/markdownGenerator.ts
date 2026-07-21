@@ -15,8 +15,8 @@ export function generateCollectionMarkdown(collection: ApiCollection, selectedRe
   md += `--- \n\n`;
 
   const requestsToInclude = selectedRequestIds 
-    ? collection.requests.filter(req => selectedRequestIds.has(req.id))
-    : collection.requests;
+    ? (collection.requests || []).filter(req => selectedRequestIds.has(req.id))
+    : (collection.requests || []);
 
   requestsToInclude.forEach(req => {
     md += `## ${req.name}\n\n`;
@@ -25,7 +25,7 @@ export function generateCollectionMarkdown(collection: ApiCollection, selectedRe
     md += `\n`;
 
     // Headers
-    const activeHeaders = req.headers.filter(h => h.enabled && h.key);
+    const activeHeaders = (req.headers || []).filter(h => h.enabled && h.key);
     if (activeHeaders.length > 0) {
       md += `### Headers\n\n`;
       md += `| Key | Value |\n`;
