@@ -1,25 +1,20 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-import Database from 'better-sqlite3';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 
 const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
 
-let prismaOptions: any = {};
+let adapter: any;
 
-if (databaseUrl.startsWith('file:')) {
-  const dbPath = databaseUrl.replace('file:', '');
-  const db = new Database(dbPath);
-  const adapter = new PrismaBetterSqlite3(db);
-  prismaOptions.adapter = adapter;
+if (databaseUrl.startsWith('file:') || databaseUrl.startsWith('sqlite:')) {
+  adapter = new PrismaBetterSqlite3({ url: databaseUrl.replace('sqlite:', 'file:') });
+} else if (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://')) {
+  adapter = new PrismaPg(databaseUrl);
+} else if (databaseUrl.startsWith('mysql://') || databaseUrl.startsWith('mariadb://')) {
+  adapter = new PrismaMariaDb(databaseUrl);
 } else {
-  prismaOptions.datasources = {
-    db: {
-      url: databaseUrl,
-    },
-  };
+  throw new Error(`Unsupported database URL: ${databaseUrl}`);
 }
 
-export const prisma = new PrismaClient(prismaOptions);
-
+export const prisma = new PrismaClient({ adapter });

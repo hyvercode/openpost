@@ -67,11 +67,6 @@ npm install -D electron-builder
 Then add packaging scripts to `package.json`.
 
 
-## Cloud
-
-https://openpost.hyvercode.com
-
-
 ## Execution Modes
 
 This application can be run in three different setups depending on your deployment and development needs:
@@ -114,3 +109,7 @@ Launches the standalone Vite development environment or builds static client ass
   npm run build:frontend
   npm run preview:frontend
   ```
+
+## Cloud
+
+https://openpost.hyvercode.com
