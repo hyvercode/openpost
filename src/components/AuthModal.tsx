@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { RequestAuth } from '../types';
 import { useStore } from '../store/useStore';
 import { Key, Lock, User, Eye, EyeOff, Copy, Check, ExternalLink, Shield, Info, X, Loader2 } from 'lucide-react';
-import axios from 'axios';
+import { api } from '../lib/api';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -109,7 +109,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
       params.append('client_id', oauthClientId);
       params.append('client_secret', oauthClientSecret);
 
-      const res = await axios.post('/api/proxy', {
+      const res = await api.post('/proxy', {
         method: 'POST',
         url: oauthAccessTokenUrl,
         headers: {
@@ -156,7 +156,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
         headers['Authorization'] = `Basic ${btoa(`${oauthClientId}:${oauthClientSecret}`)}`;
       }
 
-      const res = await axios.post('/api/proxy', {
+      const res = await api.post('/proxy', {
         method: 'POST',
         url: oauthAccessTokenUrl,
         headers,

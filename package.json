@@ -5,10 +5,13 @@
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
+    "db:setup": "tsx scripts/setup-prisma.ts && npx prisma generate",
+    "predev": "npm run db:setup",
     "dev": "tsx server.ts",
     "dev:monolith": "tsx server.ts",
     "dev:backend": "BACKEND_ONLY=true tsx server.ts",
     "dev:frontend": "vite",
+    "prebuild": "npm run db:setup",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "build:monolith": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "build:backend": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",

@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
 import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap } from 'lucide-react';
-import axios from 'axios';
 import { KeyValue, RequestAuth } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService, api } from '../lib/api';
@@ -884,7 +883,7 @@ export function RequestPanel() {
         }
       });
 
-      const res = await axios.post('/api/proxy', {
+      const res = await api.post('/proxy', {
         method: 'POST',
         url: finalUrl,
         headers: {
@@ -933,7 +932,7 @@ export function RequestPanel() {
       });
 
       const { proxyConfig } = useStore.getState();
-      const res = await axios.post('/api/proxy', {
+      const res = await api.post('/proxy', {
         method: 'POST',
         url: finalUrl,
         headers: {

@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
+import { api } from './lib/api';
 import { apiService } from './lib/api';
 import { useStore } from './store/useStore';
 import { Sidebar } from './components/Sidebar';
@@ -52,7 +52,8 @@ export default function App() {
     setResponseCollapsed,
     layoutMode,
     setLayoutMode,
-    addToast
+    addToast,
+    setIsWorkspaceLoading
   } = useStore();
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -316,7 +317,7 @@ export default function App() {
       }
 
       try {
-        const res = await axios.get('/api/auth/me', {
+        const res = await api.get('/auth/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setUser(res.data);
@@ -411,6 +412,7 @@ export default function App() {
     let isMounted = true;
 
     const loadWorkspaceData = async () => {
+      setIsWorkspaceLoading(true);
       try {
         const [collectionsData, environmentsData, deploymentsData] = await Promise.all([
           apiService.getCollections(currentWorkspace.id),
@@ -425,6 +427,10 @@ export default function App() {
         setDeployments(deploymentsData);
       } catch (err) {
         console.error("Failed to load workspace data:", err);
+      } finally {
+        if (isMounted) {
+          setIsWorkspaceLoading(false);
+        }
       }
     };
 
@@ -432,7 +438,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [currentWorkspace, setCollections, setEnvironments, setDeployments]);
+  }, [currentWorkspace, setCollections, setEnvironments, setDeployments, setIsWorkspaceLoading]);
 
   if (window.location.pathname.startsWith('/auth/callback')) {
     const params = new URLSearchParams(window.location.search);

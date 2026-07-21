@@ -85,6 +85,8 @@ interface AppState {
   addLatency: (ms: number) => void;
   isRequestLoading: boolean;
   setIsRequestLoading: (isLoading: boolean) => void;
+  isWorkspaceLoading: boolean;
+  setIsWorkspaceLoading: (isLoading: boolean) => void;
   toasts: Toast[];
   addToast: (message: string, type: Toast['type'], duration?: number) => void;
   removeToast: (id: string) => void;
@@ -288,6 +290,8 @@ export const useStore = create<AppState>((set) => ({
   })),
   isRequestLoading: false,
   setIsRequestLoading: (isRequestLoading) => set({ isRequestLoading }),
+  isWorkspaceLoading: false,
+  setIsWorkspaceLoading: (isWorkspaceLoading) => set({ isWorkspaceLoading }),
   toasts: [],
   addToast: (message, type, duration = 3000) => {
     const id = Math.random().toString(36).substr(2, 9);
