@@ -28,9 +28,8 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
-RUN npm ci --omit=dev && npm install prisma -D
+RUN npm install --omit=dev && npm install --no-save prisma
 RUN npx prisma generate
-RUN npm uninstall prisma
 
 # Production Stage
 FROM node:20-slim AS runner
