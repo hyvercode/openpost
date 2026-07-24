@@ -220,6 +220,7 @@ export interface TestCase {
   requestId: string;
   name: string;
   assertions: TestAssertion[];
+  history?: { timestamp: number; durationMs: number; success: boolean }[];
 }
 
 export interface TestSuite {
