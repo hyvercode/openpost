@@ -22,6 +22,16 @@ COPY . .
 # Build the application (Vite + Server bundle)
 RUN npm run build
 
+# Production Dependencies Stage
+FROM node:20-slim AS deps
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY package*.json ./
+COPY prisma ./prisma/
+RUN npm ci --omit=dev && npm install prisma -D
+RUN npx prisma generate
+RUN npm uninstall prisma
+
 # Production Stage
 FROM node:20-slim AS runner
 
@@ -34,12 +44,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install ONLY production dependencies
-# Note: We need this because server is bundled with --packages=external
-RUN npm install --omit=dev
-
-# Generate Prisma Client for the production environment
-RUN npx prisma generate
+# Copy node_modules from deps (includes production Prisma client)
+COPY --from=deps /app/node_modules ./node_modules
 
 # Copy built assets and server bundle from builder
 COPY --from=builder /app/dist ./dist
