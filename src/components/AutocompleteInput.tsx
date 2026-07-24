@@ -18,7 +18,7 @@ export function AutocompleteInput({
   className,
   ...props
 }: AutocompleteInputProps) {
-  const { currentEnvironment } = useStore();
+  const { environments } = useStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const [query, setQuery] = useState('');
   const [startIndex, setStartIndex] = useState(-1);
@@ -27,7 +27,18 @@ export function AutocompleteInput({
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const variables = currentEnvironment?.variables || [];
+  const variables = React.useMemo(() => {
+    const vars: Record<string, any> = {};
+    environments.forEach(env => {
+      env.variables.forEach(v => {
+        if (v.key && !vars[v.key]) {
+          vars[v.key] = v;
+        }
+      });
+    });
+    return Object.values(vars);
+  }, [environments]);
+
   const filteredVars = variables.filter(v => 
     v.key && v.key.toLowerCase().includes(query.toLowerCase())
   );
@@ -202,14 +213,14 @@ export function AutocompleteInput({
             width: `${dropdownPos.width}px` 
           }}
         >
-          {!currentEnvironment ? (
+          {environments.length === 0 ? (
             <div className="px-3 py-2 text-[10px] text-[var(--text-secondary)] italic flex items-center gap-2">
               <AlertCircle className="w-3 h-3" />
-              No environment selected
+              No environments available
             </div>
           ) : filteredVars.length === 0 ? (
             <div className="px-3 py-2 text-[10px] text-[var(--text-secondary)] italic">
-              {query ? `No variables matching "${query}"` : 'No variables in environment'}
+              {query ? `No variables matching "${query}"` : 'No variables in environments'}
             </div>
           ) : (
             <div className="max-h-60 overflow-y-auto py-1">
@@ -252,7 +263,7 @@ export function AutocompleteTextarea({
   className,
   ...props
 }: AutocompleteTextareaProps) {
-  const { currentEnvironment } = useStore();
+  const { environments } = useStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const [query, setQuery] = useState('');
   const [startIndex, setStartIndex] = useState(-1);
@@ -261,7 +272,18 @@ export function AutocompleteTextarea({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const variables = currentEnvironment?.variables || [];
+  const variables = React.useMemo(() => {
+    const vars: Record<string, any> = {};
+    environments.forEach(env => {
+      env.variables.forEach(v => {
+        if (v.key && !vars[v.key]) {
+          vars[v.key] = v;
+        }
+      });
+    });
+    return Object.values(vars);
+  }, [environments]);
+
   const filteredVars = variables.filter(v => 
     v.key && v.key.toLowerCase().includes(query.toLowerCase())
   );
@@ -434,14 +456,14 @@ export function AutocompleteTextarea({
             width: `${dropdownPos.width}px` 
           }}
         >
-          {!currentEnvironment ? (
+          {environments.length === 0 ? (
             <div className="px-3 py-2 text-[10px] text-[var(--text-secondary)] italic flex items-center gap-2">
               <AlertCircle className="w-3 h-3" />
-              No environment selected
+              No environments available
             </div>
           ) : filteredVars.length === 0 ? (
             <div className="px-3 py-2 text-[10px] text-[var(--text-secondary)] italic">
-              {query ? `No variables matching "${query}"` : 'No variables in environment'}
+              {query ? `No variables matching "${query}"` : 'No variables in environments'}
             </div>
           ) : (
             <div className="max-h-60 overflow-y-auto py-1">
