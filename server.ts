@@ -1,3 +1,4 @@
+import jwt from "jsonwebtoken";
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -278,8 +279,28 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
 
     try {
       const collection = await prisma.collection.findUnique({
-        where: { id: collectionId }
-      });
+      where: { id: collectionId }
+    });
+    
+    if (collection && collection.mockVisibility === 'private') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized: Private mock server requires authentication' });
+      }
+      try {
+        const decoded = jwt.verify(authHeader.split('Bearer ')[1], process.env.JWT_SECRET || 'fallback-secret-key-for-dev');
+        const userId = decoded.uid || decoded.userId;
+        const membership = await prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId: collection.workspaceId, userId } }
+        });
+        const workspace = await prisma.workspace.findUnique({ where: { id: collection.workspaceId }});
+        if (!membership && workspace?.ownerId !== userId) {
+          return res.status(403).json({ error: 'Forbidden' });
+        }
+      } catch (e) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+    }
 
       if (!collection) {
         return res.status(404).json({ error: "Collection not found" });
@@ -385,8 +406,28 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
     try {
       // Fetch deployment from database
       const deployment = await prisma.deployment.findUnique({
-        where: { id: deployId }
-      });
+      where: { id: deployId }
+    });
+    
+    if (deployment && deployment.mockVisibility === 'private') {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized: Private mock server requires authentication' });
+      }
+      try {
+        const decoded = jwt.verify(authHeader.split('Bearer ')[1], process.env.JWT_SECRET || 'fallback-secret-key-for-dev');
+        const userId = decoded.uid || decoded.userId;
+        const membership = await prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId: deployment.workspaceId, userId } }
+        });
+        const workspace = await prisma.workspace.findUnique({ where: { id: deployment.workspaceId }});
+        if (!membership && workspace?.ownerId !== userId) {
+          return res.status(403).json({ error: 'Forbidden' });
+        }
+      } catch (e) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
+    }
 
       if (!deployment) {
         return res.status(404).json({ error: `Mock Deployment with ID "${deployId}" not found` });

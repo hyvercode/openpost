@@ -32,9 +32,9 @@ export class DeploymentController {
   updateDeployment = async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      const { mockConfig, requests, collectionName } = req.body;
+      const { mockConfig, requests, collectionName, mockVisibility } = req.body;
       const updated = await this.deploymentService.updateDeployment(id, {
-        mockConfig, requests, collectionName
+        mockConfig, requests, collectionName, mockVisibility
       });
       res.json(updated);
     } catch (error: any) {

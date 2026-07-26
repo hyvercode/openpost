@@ -29,6 +29,9 @@ export interface ApiFolder {
   name: string;
   parentId?: string | null;
   position?: number;
+  shareVisibility?: "public" | "private";
+  mockVisibility?: "public" | "private";
+  docVisibility?: "public" | "private";
 }
 
 export interface RequestAuth {
@@ -124,6 +127,9 @@ export interface ApiCollection {
   icon?: string;
   mockConfig?: MockConfig;
   position?: number;
+  shareVisibility?: "public" | "private";
+  mockVisibility?: "public" | "private";
+  docVisibility?: "public" | "private";
 }
 
 export interface Environment {
@@ -132,6 +138,9 @@ export interface Environment {
   name: string;
   variables: KeyValue[];
   position?: number;
+  shareVisibility?: "public" | "private";
+  mockVisibility?: "public" | "private";
+  docVisibility?: "public" | "private";
 }
 
 export interface LogEntry {
