@@ -1043,6 +1043,7 @@ export function RequestPanel() {
     }
   };
 
+  const COMMON_HEADERS = ["Accept","Accept-Charset","Accept-Encoding","Accept-Language","Authorization","Cache-Control","Connection","Content-Length","Content-Type","Cookie","Date","Expect","Forwarded","From","Host","If-Match","If-Modified-Since","If-None-Match","If-Range","If-Unmodified-Since","Max-Forwards","Origin","Pragma","Proxy-Authorization","Range","Referer","TE","Upgrade","User-Agent","Via","Warning"];
   const renderKeyValueEditor = (type: 'headers' | 'params' | 'mockHeaders') => {
     const items = type === 'headers' ? headers : type === 'params' ? params : mockHeaders;
     
@@ -1105,6 +1106,7 @@ export function RequestPanel() {
                     type="text"
                     placeholder="Key"
                     value={item.key || ''}
+                    suggestions={type === 'headers' || type === 'mockHeaders' ? COMMON_HEADERS : undefined}
                     onValueChange={(val) => handleKeyValueChange(type, item.id, 'key', val)}
                     className={cn(
                       "w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors",
