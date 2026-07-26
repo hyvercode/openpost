@@ -184,14 +184,48 @@ export function AutocompleteInput({
     };
   }, [showDropdown]);
 
+  const bgRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (showDropdown) {
       updateDropdownPosition();
     }
   }, [showDropdown, query]);
 
+  const highlightedCode = React.useMemo(() => {
+    let escaped = String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    
+    escaped = escaped.replace(/{{([^{}]+)}}/g, (match) => {
+      const varName = match.slice(2, -2);
+      const exists = variables.some(v => v.key === varName && v.enabled !== false);
+      return `<span class="${cn(
+        "px-0.5 rounded font-bold cursor-help",
+        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 border border-dashed border-gray-500/30"
+      )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
+    });
+    return escaped;
+  }, [value, variables]);
+
+  const handleScroll = (e: React.UIEvent<HTMLInputElement>) => {
+    if (bgRef.current) {
+      bgRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    }
+  };
+
   return (
-    <div className="relative w-full flex items-center">
+    <div className="relative w-full flex items-center min-w-0">
+      <div 
+        ref={bgRef}
+        className={cn(
+          className,
+          "absolute inset-0 pointer-events-none whitespace-pre overflow-hidden border-transparent focus:border-transparent bg-transparent flex items-center"
+        )}
+        style={{ color: 'var(--text-primary)' }}
+        dangerouslySetInnerHTML={{ __html: highlightedCode || (props.placeholder ? `<span class="text-[var(--text-secondary)]">${props.placeholder}</span>` : '') }}
+      />
       <input
         ref={inputRef}
         value={value}
@@ -199,7 +233,11 @@ export function AutocompleteInput({
         onKeyDown={handleKeyDown}
         onClick={handleKeyUpAndClick}
         onKeyUp={handleKeyUpAndClick}
-        className={className}
+        onScroll={handleScroll}
+        className={cn(
+          className,
+          "relative z-10 text-transparent caret-[var(--text-primary)] bg-transparent"
+        )}
         {...props}
       />
       
@@ -243,7 +281,7 @@ export function AutocompleteInput({
                     <span className="font-mono truncate">{v.key}</span>
                   </div>
                   <span className="text-[10px] text-[var(--text-secondary)] font-mono truncate max-w-[150px] opacity-60">
-                    {v.value}
+                    {v.isSecret || v.type === 'secret' ? '••••••••' : v.value}
                   </span>
                 </div>
               ))}
@@ -427,14 +465,50 @@ export function AutocompleteTextarea({
     };
   }, [showDropdown]);
 
+  const bgRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (showDropdown) {
       updateDropdownPosition();
     }
   }, [showDropdown, query]);
 
+  const highlightedCode = React.useMemo(() => {
+    let escaped = String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    
+    escaped = escaped.replace(/{{([^{}]+)}}/g, (match) => {
+      const varName = match.slice(2, -2);
+      const exists = variables.some(v => v.key === varName && v.enabled !== false);
+      return `<span class="${cn(
+        "px-0.5 rounded font-bold cursor-help",
+        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 border border-dashed border-gray-500/30"
+      )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
+    });
+    // For textarea, ensure trailing newlines are rendered
+    return escaped + (escaped.endsWith('\n') ? ' ' : '');
+  }, [value, variables]);
+
+  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (bgRef.current) {
+      bgRef.current.scrollTop = e.currentTarget.scrollTop;
+      bgRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    }
+  };
+
   return (
-    <div className="relative w-full flex-1 flex flex-col">
+    <div className="relative w-full flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div 
+        ref={bgRef}
+        className={cn(
+          className,
+          "absolute inset-0 pointer-events-none break-words whitespace-pre-wrap overflow-hidden border-transparent focus:border-transparent bg-transparent"
+        )}
+        style={{ color: 'var(--text-primary)' }}
+        dangerouslySetInnerHTML={{ __html: highlightedCode || (props.placeholder ? `<span class="text-[var(--text-secondary)]">${props.placeholder}</span>` : '') }}
+      />
       <textarea
         ref={textareaRef}
         value={value}
@@ -442,7 +516,11 @@ export function AutocompleteTextarea({
         onKeyDown={handleKeyDown}
         onClick={handleKeyUpAndClick}
         onKeyUp={handleKeyUpAndClick}
-        className={className}
+        onScroll={handleScroll}
+        className={cn(
+          className,
+          "relative z-10 text-transparent caret-[var(--text-primary)] bg-transparent"
+        )}
         {...props}
       />
       
@@ -486,7 +564,7 @@ export function AutocompleteTextarea({
                     <span className="font-mono truncate">{v.key}</span>
                   </div>
                   <span className="text-[10px] text-[var(--text-secondary)] font-mono truncate max-w-[180px] opacity-60">
-                    {v.value}
+                    {v.isSecret || v.type === 'secret' ? '••••••••' : v.value}
                   </span>
                 </div>
               ))}
