@@ -2,17 +2,18 @@ FROM node:22-slim AS base
 WORKDIR /app
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# 1. Copy package files first
 COPY package*.json ./
+COPY prisma.config.ts ./
+COPY prisma ./prisma/
+
+# Copy the rest of the application
+COPY . .
 
 # 2. Install ALL dependencies (including @prisma/client)
 RUN npm install
 
 # Generate Prisma Client
-RUN npx prisma generate
-
-# Copy the rest of the application
-COPY . .
+RUN npm run db:setup
 
 # Build the application (Vite + Server bundle)
 RUN npm run build:agent
@@ -23,10 +24,15 @@ RUN npm run build
 FROM node:20-slim AS deps
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+
+# Copy package files and prisma configurations
 COPY package*.json ./
+COPY prisma.config.ts ./
 COPY prisma ./prisma/
-RUN npm install --omit=dev && npm install --no-save prisma
-RUN npx prisma generate
+
+ npm install --omit=dev && npm install --no-save prisma
+
+RUN npm run db:setup
 
 # Production Stage
 FROM node:20-slim AS runner
@@ -49,6 +55,11 @@ COPY . .
 
 FROM base AS builder
 WORKDIR /app
+
+COPY package*.json ./
+COPY prisma.config.ts ./
+COPY prisma ./prisma/
+
 COPY . .
 
 RUN npm run build
