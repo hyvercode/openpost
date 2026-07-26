@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore';
 import { KeyValue } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
-import { Trash2, Save, Settings2, Plus, Check } from 'lucide-react';
+import { Trash2, Save, Settings2, Plus, Check, Eye, EyeOff, Lock, Unlock } from 'lucide-react';
 
 export function EnvironmentPanel() {
   const { editingEnvironment, setEditingEnvironment, environments, setEnvironments, addToast } = useStore();
@@ -11,6 +11,7 @@ export function EnvironmentPanel() {
   const [envName, setEnvName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'Saved' | 'Saving...' | 'Changed' | ''>('');
+  const [revealedIds, setRevealedIds] = useState<Record<string, boolean>>({});
 
   const skipNextAutosave = useRef(false);
   const loadedEnvIdRef = useRef<string | null>(null);
@@ -20,7 +21,7 @@ export function EnvironmentPanel() {
       const storeVars = editingEnvironment.variables || [];
       // Check if store version is different from local version
       const isDifferentFromStore = variables.length > 0 && 
-        (variables.length !== storeVars.length || !variables.every((v, i) => storeVars[i] && v.key === storeVars[i].key && v.value === storeVars[i].value));
+        (variables.length !== storeVars.length || !variables.every((v, i) => storeVars[i] && v.key === storeVars[i].key && v.value === storeVars[i].value && v.isSecret === storeVars[i].isSecret));
 
       if (editingEnvironment.id !== loadedEnvIdRef.current || isDifferentFromStore) {
         const isNewEnv = editingEnvironment.id !== loadedEnvIdRef.current;
@@ -37,9 +38,11 @@ export function EnvironmentPanel() {
             id: v.id || uuidv4(),
             key: v.key || '',
             value: v.value || '',
-            enabled: v.enabled !== false
+            enabled: v.enabled !== false,
+            isSecret: v.isSecret ?? (v.type === 'secret'),
+            type: v.type || (v.isSecret ? 'secret' : 'text')
           }));
-          setVariables(normalizedVariables.length ? normalizedVariables : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
+          setVariables(normalizedVariables.length ? normalizedVariables : [{ id: uuidv4(), key: '', value: '', enabled: true, isSecret: false }]);
           setEnvName(editingEnvironment.name || '');
           setSaveStatus('');
         }
@@ -99,7 +102,7 @@ export function EnvironmentPanel() {
     
     const isVarsSame = cleanVars.length === storeVars.length && cleanVars.every((v, i) => {
       const sv = storeVars[i];
-      return sv && v.key === sv.key && v.value === sv.value && v.enabled === sv.enabled;
+      return sv && v.key === sv.key && v.value === sv.value && v.enabled === sv.enabled && (v.isSecret ?? false) === (sv.isSecret ?? false);
     });
 
     if (isNameSame && isVarsSame) {
@@ -153,18 +156,50 @@ export function EnvironmentPanel() {
   };
 
   const handleAddVariable = () => {
-    setVariables(prev => [...prev, { id: uuidv4(), key: '', value: '', enabled: true }]);
+    setVariables(prev => [...prev, { id: uuidv4(), key: '', value: '', enabled: true, isSecret: false }]);
   };
 
-  const handleChange = (id: string, field: keyof KeyValue, value: string | boolean) => {
+  const handleChange = (id: string, field: keyof KeyValue, value: any) => {
     setVariables(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v));
+  };
+
+  const handleToggleSecret = (id: string) => {
+    setVariables(prev => prev.map(v => {
+      if (v.id === id) {
+        const nextSecret = !v.isSecret;
+        return {
+          ...v,
+          isSecret: nextSecret,
+          type: nextSecret ? 'secret' : 'text'
+        };
+      }
+      return v;
+    }));
+  };
+
+  const toggleReveal = (id: string) => {
+    setRevealedIds(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const hasSecretVars = variables.some(v => v.isSecret);
+  const allSecretsRevealed = hasSecretVars && variables.filter(v => v.isSecret).every(v => revealedIds[v.id]);
+
+  const handleToggleAllRevealed = () => {
+    const nextState = !allSecretsRevealed;
+    const updatedRevealed: Record<string, boolean> = { ...revealedIds };
+    variables.forEach(v => {
+      if (v.isSecret) {
+        updatedRevealed[v.id] = nextState;
+      }
+    });
+    setRevealedIds(updatedRevealed);
   };
 
   const handleRemove = (id: string) => {
     setVariables(prev => {
       const newVars = prev.filter(v => v.id !== id);
       return newVars.length === 0 
-        ? [{ id: uuidv4(), key: '', value: '', enabled: true }]
+        ? [{ id: uuidv4(), key: '', value: '', enabled: true, isSecret: false }]
         : newVars;
     });
   };
@@ -185,7 +220,7 @@ export function EnvironmentPanel() {
               placeholder="Environment Name"
             />
           </div>
-          <p className="text-xs text-[var(--text-secondary)]">Manage environment variables for this environment</p>
+          <p className="text-xs text-[var(--text-secondary)]">Manage environment variables and secrets for this environment</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center min-w-[80px] text-xs font-medium text-[var(--text-secondary)]">
@@ -193,6 +228,25 @@ export function EnvironmentPanel() {
             {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
             {saveStatus === 'Changed' && <span>Unsaved...</span>}
           </div>
+          {hasSecretVars && (
+            <button
+              onClick={handleToggleAllRevealed}
+              className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-2 rounded text-xs font-medium transition-colors flex items-center gap-1.5"
+              title={allSecretsRevealed ? "Mask all secret values" : "Reveal all secret values"}
+            >
+              {allSecretsRevealed ? (
+                <>
+                  <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Mask All Secrets</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Reveal All Secrets</span>
+                </>
+              )}
+            </button>
+          )}
           <button 
             onClick={handleAddVariable}
             className="bg-[var(--bg-hover)] border border-[var(--border-strong)] hover:border-[var(--border-focus)] text-[var(--text-primary)] px-3 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2"
@@ -215,48 +269,97 @@ export function EnvironmentPanel() {
         <div className="flex border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="w-8 shrink-0 border-r border-[var(--border-subtle)]"></div>
           <div className="flex-1 py-2 px-3 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)] border-r border-[var(--border-subtle)]">Variable</div>
-          <div className="flex-1 py-2 px-3 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)]">Initial Value</div>
+          <div className="flex-1 py-2 px-3 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)] border-r border-[var(--border-subtle)]">Initial Value</div>
+          <div className="w-28 shrink-0 py-2 px-3 text-[10px] uppercase tracking-widest font-medium text-[var(--text-secondary)] text-center">Type</div>
           <div className="w-10 shrink-0"></div>
         </div>
         <div className="flex-1 overflow-y-auto p-1">
-          {variables.map((item) => (
-            <div key={item.id} className="flex items-center group mb-1 border-b border-[var(--bg-panel)] pb-1">
-              <div className="w-8 shrink-0 flex items-center justify-center">
-                <input 
-                  type="checkbox" 
-                  checked={item.enabled}
-                  onChange={(e) => handleChange(item.id, 'enabled', e.target.checked)}
-                  className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
-                />
+          {variables.map((item) => {
+            const isSecret = !!item.isSecret;
+            const isRevealed = !!revealedIds[item.id];
+
+            return (
+              <div key={item.id} className="flex items-center group mb-1 border-b border-[var(--bg-panel)] pb-1">
+                <div className="w-8 shrink-0 flex items-center justify-center">
+                  <input 
+                    type="checkbox" 
+                    checked={item.enabled}
+                    onChange={(e) => handleChange(item.id, 'enabled', e.target.checked)}
+                    className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
+                  />
+                </div>
+                <div className="flex-1 px-1">
+                  <input
+                    type="text"
+                    placeholder="Key (e.g., API_KEY)"
+                    value={item.key || ''}
+                    onChange={(e) => {
+                      const newKey = e.target.value;
+                      handleChange(item.id, 'key', newKey);
+                    }}
+                    className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
+                  />
+                </div>
+                <div className="relative flex-1 px-1 flex items-center">
+                  <input
+                    type={isSecret && !isRevealed ? "password" : "text"}
+                    placeholder={isSecret ? "Secret Value" : "Value"}
+                    value={item.value || ''}
+                    onChange={(e) => handleChange(item.id, 'value', e.target.value)}
+                    className={`w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors ${
+                      isSecret ? "pr-8" : ""
+                    }`}
+                  />
+                  {isSecret && (
+                    <button
+                      type="button"
+                      onClick={() => toggleReveal(item.id)}
+                      title={isRevealed ? "Mask secret value" : "Reveal secret value"}
+                      className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded transition-colors"
+                    >
+                      {isRevealed ? (
+                        <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  )}
+                </div>
+                <div className="w-28 shrink-0 px-1 flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleSecret(item.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                      isSecret
+                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
+                        : "bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
+                    }`}
+                    title={isSecret ? "Variable is masked as Secret. Click to convert to Default text." : "Variable is Default text. Click to mask as Secret."}
+                  >
+                    {isSecret ? (
+                      <>
+                        <Lock className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span>Secret</span>
+                      </>
+                    ) : (
+                      <>
+                        <Unlock className="w-3 h-3 text-[var(--text-secondary)] shrink-0" />
+                        <span>Default</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="w-10 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => handleRemove(item.id)}
+                    className="text-[var(--text-secondary)] hover:text-[var(--text-delete)] p-1.5"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
-              <div className="flex-1 px-1">
-                <input
-                  type="text"
-                  placeholder="Key (e.g., API_KEY)"
-                  value={item.key || ''}
-                  onChange={(e) => handleChange(item.id, 'key', e.target.value)}
-                  className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
-                />
-              </div>
-              <div className="flex-1 px-1">
-                <input
-                  type="text"
-                  placeholder="Value"
-                  value={item.value || ''}
-                  onChange={(e) => handleChange(item.id, 'value', e.target.value)}
-                  className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1.5 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
-                />
-              </div>
-              <div className="w-10 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => handleRemove(item.id)}
-                  className="text-[var(--text-secondary)] hover:text-[var(--text-delete)] p-1.5"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
