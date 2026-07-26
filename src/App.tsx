@@ -21,7 +21,7 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { AuthScreen } from './components/AuthScreen';
 import { Toaster } from './components/Toaster';
 import { ShareImportModal } from './components/ShareImportModal';
-import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server } from 'lucide-react';
+import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight } from 'lucide-react';
 import { Workspace, Theme } from './types';
 import { cn } from './utils';
 
@@ -601,6 +601,22 @@ export default function App() {
                 <LayoutGrid className="w-3.5 h-3.5" />
                 <span className="hidden md:inline text-[10px]">Docking</span>
               </button>
+              
+              <div className="h-3 w-px bg-[var(--border-strong)] mx-0.5" />
+
+              <button
+                onClick={() => setResponseCollapsed(!responseCollapsed)}
+                className={cn(
+                  "p-1 rounded transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
+                  !responseCollapsed 
+                    ? "text-[var(--icon-color)] hover:text-[var(--text-primary)]" 
+                    : "bg-amber-500/20 text-amber-500 font-bold border border-amber-500/40 shadow-sm"
+                )}
+                title={responseCollapsed ? "Unhide / Expand Response Panel" : "Hide / Collapse Response Panel"}
+              >
+                <PanelRight className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline text-[10px]">{responseCollapsed ? "Show Response" : "Response"}</span>
+              </button>
             </div>
 
             <div className="h-4 w-px bg-[var(--border-strong)]"></div>
@@ -671,12 +687,12 @@ export default function App() {
                   
                   <div 
                     className={cn(
-                      "relative flex items-center justify-center cursor-col-resize select-none shrink-0 transition-all z-30 group hidden lg:flex",
+                      "relative flex items-center justify-center select-none shrink-0 transition-all z-30 group flex",
                       isResizingPanels ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)] hover:bg-[var(--primary)]",
-                      responseCollapsed && "pointer-events-none opacity-0 w-0"
+                      !responseCollapsed && "cursor-col-resize"
                     )}
                     style={{ width: responseCollapsed ? '0px' : '4px' }}
-                    onMouseDown={handlePanelMouseDown}
+                    onMouseDown={!responseCollapsed ? handlePanelMouseDown : undefined}
                     onDoubleClick={() => setResponseCollapsed(!responseCollapsed)}
                   >
                     <button
@@ -685,13 +701,21 @@ export default function App() {
                         setResponseCollapsed(!responseCollapsed);
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
-                      className="absolute h-9 w-4 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md transition-all cursor-pointer z-40"
+                      className={cn(
+                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto",
+                        responseCollapsed 
+                          ? "right-0 top-1/2 -translate-y-1/2 h-14 px-2 bg-[var(--primary)] text-white hover:brightness-110 rounded-l-lg shadow-xl border-y border-l border-white/20 font-bold text-xs gap-1" 
+                          : "h-9 w-4 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md"
+                      )}
                       title={responseCollapsed ? "Expand Response Panel" : "Collapse Response Panel"}
                     >
                       {responseCollapsed ? (
-                        <ChevronLeft className="w-3 h-3" />
+                        <>
+                          <ChevronLeft className="w-4 h-4" />
+                          <span className="text-[10px] uppercase tracking-wider font-mono hidden sm:inline">Response</span>
+                        </>
                       ) : (
-                        <ChevronRight className="w-3 h-3" />
+                        <ChevronRight className="w-3.5 h-3.5" />
                       )}
                     </button>
                   </div>
@@ -728,12 +752,12 @@ export default function App() {
                   
                   <div 
                     className={cn(
-                      "relative flex items-center justify-center cursor-row-resize select-none shrink-0 transition-all z-30 group flex",
+                      "relative flex items-center justify-center select-none shrink-0 transition-all z-30 group flex",
                       isResizingPanelsVertical ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)] hover:bg-[var(--primary)]",
-                      responseCollapsed && "pointer-events-none opacity-0 h-0"
+                      !responseCollapsed && "cursor-row-resize"
                     )}
                     style={{ height: responseCollapsed ? '0px' : '4px' }}
-                    onMouseDown={handleVerticalPanelMouseDown}
+                    onMouseDown={!responseCollapsed ? handleVerticalPanelMouseDown : undefined}
                     onDoubleClick={() => setResponseCollapsed(!responseCollapsed)}
                   >
                     <button
@@ -742,13 +766,21 @@ export default function App() {
                         setResponseCollapsed(!responseCollapsed);
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
-                      className="absolute h-4 w-9 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md transition-all cursor-pointer z-40"
+                      className={cn(
+                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto",
+                        responseCollapsed 
+                          ? "bottom-0 right-6 py-1.5 px-3 bg-[var(--primary)] text-white hover:brightness-110 rounded-t-lg shadow-xl border-x border-t border-white/20 font-bold text-xs gap-1.5" 
+                          : "h-4 w-9 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md"
+                      )}
                       title={responseCollapsed ? "Expand Response Panel" : "Collapse Response Panel"}
                     >
                       {responseCollapsed ? (
-                        <ChevronLeft className="w-3 h-3 rotate-90" />
+                        <>
+                          <ChevronUp className="w-4 h-4" />
+                          <span className="text-[10px] uppercase tracking-wider font-mono">Expand Response</span>
+                        </>
                       ) : (
-                        <ChevronRight className="w-3 h-3 rotate-90" />
+                        <ChevronDown className="w-3.5 h-3.5" />
                       )}
                     </button>
                   </div>

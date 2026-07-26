@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore';
 import { cn } from '../utils';
 import { api } from '../lib/api';
 import { JsonTree } from './JsonTree';
-import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download, Cpu, Gauge, Zap, X, Server, Info, GitCompare, RefreshCw, Trash2 } from 'lucide-react';
+import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download, Cpu, Gauge, Zap, X, Server, Info, GitCompare, RefreshCw, Trash2, ChevronRight } from 'lucide-react';
 import { diffLines } from 'diff';
 import { generateCurl, generateFetch, generateAxios, generatePythonRequests, generateGo, generateJavaOkHttp, generatePhpCurl, generateRubyNetHttp, generateCsharpHttpClient, generateSwiftUrlSession } from '../utils/snippetGenerator';
 import { replaceEnvironmentVariables } from '../utils';
@@ -522,7 +522,8 @@ export function ResponsePanel() {
     setActiveRequest,
     collections,
     setCollections,
-    addToast
+    addToast,
+    setResponseCollapsed
   } = useStore();
   const isLightTheme = theme === 'light';
 
@@ -820,13 +821,22 @@ export function ResponsePanel() {
            </div>
         </div>
         
-        {response && !response.error && activeTab !== 'code' && (
-          <PerformanceOverview 
-            response={response} 
-            isPerfPanelOpen={isPerfPanelOpen} 
-            setIsPerfPanelOpen={setIsPerfPanelOpen} 
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {response && !response.error && activeTab !== 'code' && (
+            <PerformanceOverview 
+              response={response} 
+              isPerfPanelOpen={isPerfPanelOpen} 
+              setIsPerfPanelOpen={setIsPerfPanelOpen} 
+            />
+          )}
+          <button
+            onClick={() => setResponseCollapsed(true)}
+            className="p-1 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded transition-colors"
+            title="Collapse Response Panel"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
       <div className="flex-1 bg-[var(--bg-input)] flex flex-col min-h-0 relative">
         <AnimatePresence>
