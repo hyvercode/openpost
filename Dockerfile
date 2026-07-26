@@ -13,12 +13,6 @@ COPY prisma ./prisma/
 # Install semua dependencies (termasuk devDependencies untuk build)
 RUN npm install
 
-# Sediakan dummy DATABASE_URL agar `prisma generate` tidak error saat build
-ENV DATABASE_URL="file:/app/data/dev.db"
-
-# Generate Prisma Client (Sesuaikan jika di package.json Anda namanya 'db:setup')
-RUN npx prisma generate
-
 # Copy SISA seluruh source code aplikasi (Ditaruh SEBELUM build)
 COPY . .
 
@@ -55,5 +49,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "dist/server.cjs"]
