@@ -611,12 +611,14 @@ export default function App() {
                 const nextIndex = (themes.indexOf(theme) + 1) % themes.length;
                 setTheme(themes[nextIndex]);
               }}
-              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md text-[var(--text-primary)] transition-colors flex items-center gap-1.5"
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md text-[var(--text-primary)] transition-all duration-300 flex items-center gap-1.5 group active:scale-95"
               title={`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`}
             >
-              {theme === 'default' ? <MonitorSmartphone className="w-4 h-4 text-[var(--icon-color)]" /> : 
-               theme === 'light' ? <Sun className="w-4 h-4 text-[var(--icon-color)]" /> : 
-               <Moon className="w-4 h-4 text-[var(--icon-color)]" />}
+              <div className="transition-transform duration-300 ease-out group-hover:rotate-12 group-active:rotate-45">
+                {theme === 'default' ? <MonitorSmartphone className="w-4 h-4 text-[var(--icon-color)]" /> : 
+                 theme === 'light' ? <Sun className="w-4 h-4 text-[var(--icon-color)]" /> : 
+                 <Moon className="w-4 h-4 text-[var(--icon-color)]" />}
+              </div>
               <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
                 {theme}
               </span>
