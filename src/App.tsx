@@ -56,6 +56,9 @@ export default function App() {
     setIsWorkspaceLoading
   } = useStore();
   const [loading, setLoading] = useState(true);
+  const [publicDocId, setPublicDocId] = useState<string | null>(null);
+  const [publicDocCollection, setPublicDocCollection] = useState<ApiCollection | null>(null);
+  const [publicDocError, setPublicDocError] = useState<string | null>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isResizingPanels, setIsResizingPanels] = useState(false);
@@ -308,6 +311,22 @@ export default function App() {
   };
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const docId = params.get('public_doc');
+    if (docId) {
+      setPublicDocId(docId);
+      setLoading(true);
+      apiService.getSharedCollection(docId, 'doc')
+        .then(col => {
+          setPublicDocCollection(col);
+          setLoading(false);
+        })
+        .catch(err => {
+          setPublicDocError('This documentation is private or does not exist.');
+          setLoading(false);
+        });
+      return;
+    }
     const fetchUser = async () => {
       const token = localStorage.getItem('auth_token');
       if (!token) {

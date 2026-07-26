@@ -27,7 +27,10 @@ export class CollectionService {
       position: data.position,
       mockConfig: data.mockConfig,
       folders: data.folders,
-      requests: data.requests
+      requests: data.requests,
+      shareVisibility: data.shareVisibility,
+      mockVisibility: data.mockVisibility,
+      docVisibility: data.docVisibility
     };
 
     return this.collectionRepository.create(fullData);

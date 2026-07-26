@@ -99,8 +99,8 @@ export const apiService = {
     return res.data;
   },
 
-  async getSharedCollection(id: string): Promise<ApiCollection> {
-    const res = await api.get(`/collections/shared/${id}`);
+  async getSharedCollection(id: string, purpose: 'import' | 'doc' = 'import'): Promise<ApiCollection> {
+    const res = await api.get(`/collections/shared/${id}?purpose=${purpose}`);
     return res.data;
   },
 

@@ -75,7 +75,7 @@ export function ShareImportModal() {
         throw new Error('Missing collection context for this shared item.');
       }
 
-      const collectionData = await apiService.getSharedCollection(targetColId);
+      const collectionData = await apiService.getSharedCollection(targetColId, 'import');
       setSharedCollection(collectionData);
 
       if (type === 'collection') {

@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
 import { ApiCollection, RequestItem, Environment } from '../types';
 import { PromptModal } from './PromptModal';
+import { ShareSettingsModal } from './ShareSettingsModal';
 import { ConfirmModal } from './ConfirmModal';
 import { CustomizeCollectionModal, getCollectionIcon } from './CustomizeCollectionModal';
 import { exportToGateway, GatewayType } from '../utils/gatewayExports';
@@ -1704,14 +1705,12 @@ export function Sidebar() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActiveDropdown(null);
-                                const shareUrl = `${window.location.origin}?share_type=collection&share_id=${collection.id}`;
-                                navigator.clipboard.writeText(shareUrl);
-                                addToast('Collection share link copied to clipboard!', 'success', 2500);
+                                setModal({ isOpen: true, title: 'Share Settings', type: 'share_settings', targetId: collection.id });
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
                             >
                               <Share2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                              <span className="font-semibold text-emerald-500">Share Collection Link</span>
+                              <span className="font-semibold text-emerald-500">Share / Visibility Settings</span>
                             </button>
                             <button
                               onClick={(e) => {

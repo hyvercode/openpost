@@ -8,6 +8,7 @@ export interface DeploymentData {
   version?: string;
   requests?: any;
   mockConfig?: any;
+  mockVisibility?: "public" | "private";
 }
 
 export class DeploymentRepository {
@@ -44,7 +45,8 @@ export class DeploymentRepository {
         collectionName: data.collectionName,
         version: data.version || 'v1',
         requests: data.requests ? JSON.stringify(data.requests) : "[]",
-        mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : "{}"
+        mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : "{}",
+        mockVisibility: data.mockVisibility || "private"
       }
     });
     return this.parseDep(created);
@@ -56,7 +58,8 @@ export class DeploymentRepository {
       data: {
         ...(data.mockConfig !== undefined && { mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : undefined }),
         ...(data.requests !== undefined && { requests: data.requests ? JSON.stringify(data.requests) : undefined }),
-        ...(data.collectionName !== undefined && { collectionName: data.collectionName })
+        ...(data.collectionName !== undefined && { collectionName: data.collectionName }),
+        ...(data.mockVisibility !== undefined && { mockVisibility: data.mockVisibility })
       }
     });
     return this.parseDep(updated);

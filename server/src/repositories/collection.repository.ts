@@ -11,6 +11,9 @@ export interface CollectionData {
   mockConfig?: any;
   folders?: any;
   requests?: any;
+  shareVisibility?: "public" | "private";
+  mockVisibility?: "public" | "private";
+  docVisibility?: "public" | "private";
 }
 
 export class CollectionRepository {
@@ -50,7 +53,10 @@ export class CollectionRepository {
         position: data.position || 0,
         mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : "{}",
         folders: data.folders ? JSON.stringify(data.folders) : "[]",
-        requests: data.requests ? JSON.stringify(data.requests) : "[]"
+        requests: data.requests ? JSON.stringify(data.requests) : "[]",
+        shareVisibility: (data.shareVisibility as any) || "private",
+        mockVisibility: (data.mockVisibility as any) || "private",
+        docVisibility: (data.docVisibility as any) || "private"
       }
     });
     return this.parseCollection(created);
@@ -67,7 +73,10 @@ export class CollectionRepository {
         ...(data.position !== undefined && { position: data.position }),
         ...(data.mockConfig !== undefined && { mockConfig: JSON.stringify(data.mockConfig) }),
         ...(data.folders !== undefined && { folders: JSON.stringify(data.folders) }),
-        ...(data.requests !== undefined && { requests: JSON.stringify(data.requests) })
+        ...(data.requests !== undefined && { requests: JSON.stringify(data.requests) }),
+        ...(data.shareVisibility !== undefined && { shareVisibility: data.shareVisibility }),
+        ...(data.mockVisibility !== undefined && { mockVisibility: data.mockVisibility }),
+        ...(data.docVisibility !== undefined && { docVisibility: data.docVisibility })
       }
     });
     return this.parseCollection(updated);
