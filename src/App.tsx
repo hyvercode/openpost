@@ -702,18 +702,13 @@ export default function App() {
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
                       className={cn(
-                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto",
-                        responseCollapsed 
-                          ? "right-0 top-1/2 -translate-y-1/2 h-14 px-2 bg-[var(--primary)] text-white hover:brightness-110 rounded-l-lg shadow-xl border-y border-l border-white/20 font-bold text-xs gap-1" 
-                          : "h-9 w-4 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md"
+                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto h-9 w-4 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md",
+                        responseCollapsed ? "right-1 top-1/2 -translate-y-1/2" : ""
                       )}
                       title={responseCollapsed ? "Expand Response Panel" : "Collapse Response Panel"}
                     >
                       {responseCollapsed ? (
-                        <>
-                          <ChevronLeft className="w-4 h-4" />
-                          <span className="text-[10px] uppercase tracking-wider font-mono hidden sm:inline">Response</span>
-                        </>
+                        <ChevronLeft className="w-3.5 h-3.5" />
                       ) : (
                         <ChevronRight className="w-3.5 h-3.5" />
                       )}
@@ -767,18 +762,13 @@ export default function App() {
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
                       className={cn(
-                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto",
-                        responseCollapsed 
-                          ? "bottom-0 right-6 py-1.5 px-3 bg-[var(--primary)] text-white hover:brightness-110 rounded-t-lg shadow-xl border-x border-t border-white/20 font-bold text-xs gap-1.5" 
-                          : "h-4 w-9 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md"
+                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto h-4 w-9 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md",
+                        responseCollapsed ? "bottom-1 left-1/2 -translate-x-1/2" : ""
                       )}
                       title={responseCollapsed ? "Expand Response Panel" : "Collapse Response Panel"}
                     >
                       {responseCollapsed ? (
-                        <>
-                          <ChevronUp className="w-4 h-4" />
-                          <span className="text-[10px] uppercase tracking-wider font-mono">Expand Response</span>
-                        </>
+                        <ChevronUp className="w-3.5 h-3.5" />
                       ) : (
                         <ChevronDown className="w-3.5 h-3.5" />
                       )}
