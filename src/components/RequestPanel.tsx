@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
-import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap } from 'lucide-react';
+import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap, MoreVertical } from 'lucide-react';
 import { KeyValue, RequestAuth } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService, api } from '../lib/api';
@@ -59,6 +59,22 @@ export function RequestPanel() {
   const [introspectionSchema, setIntrospectionSchema] = useState<any>(null);
   const [isDetectingGql, setIsDetectingGql] = useState(false);
   const [requestMode, setRequestMode] = useState<'proxy' | 'direct'>('proxy');
+  const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
+  const kebabRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (kebabRef.current && !kebabRef.current.contains(e.target as Node)) {
+        setIsKebabMenuOpen(false);
+      }
+    };
+    if (isKebabMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isKebabMenuOpen]);
 
   const isLocalUrl = useMemo(() => {
     return /localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/i.test(url || '');
@@ -1247,51 +1263,73 @@ export function RequestPanel() {
               : 'Send'}
           </button>
           
-          <div className="flex items-center justify-center min-w-[80px] text-xs font-medium text-[var(--text-secondary)]">
+          <div className="hidden sm:flex items-center justify-center text-xs font-medium text-[var(--text-secondary)] shrink-0 px-1">
             {saveStatus === 'Saving...' && <span className="animate-pulse">Saving...</span>}
             {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
             {saveStatus === 'Changed' && <span>Unsaved...</span>}
           </div>
 
-          {activeRequest?.lastRun && (
-            <div className="flex items-center gap-3 px-3 py-1 bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded-md text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-tight shadow-sm">
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-3 h-3 text-blue-400" />
-                <span>{activeRequest.lastRun.timestamp}</span>
-              </div>
-              <div className="w-px h-3 bg-[var(--border-subtle)]" />
-              <div className="flex items-center gap-1.5">
-                <Zap className="w-3 h-3 text-yellow-400" />
-                <span>{activeRequest.lastRun.timeMs}ms</span>
-              </div>
-              <div className="w-px h-3 bg-[var(--border-subtle)]" />
-              <div className={cn(
-                "w-2 h-2 rounded-full",
-                activeRequest.lastRun.status >= 200 && activeRequest.lastRun.status < 300 ? "bg-green-500" :
-                activeRequest.lastRun.status >= 400 ? "bg-red-500" : "bg-yellow-500"
-              )} />
-            </div>
-          )}
-
-          <div className="flex items-center gap-1.5 bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-2.5 py-1 text-xs h-9">
-            <span className="text-[var(--text-secondary)] font-semibold uppercase text-[9px] tracking-wider">Request Mode</span>
-            <select
-              value={requestMode}
-              onChange={(e) => setRequestMode(e.target.value as 'proxy' | 'direct')}
-              className="bg-transparent font-bold text-[var(--text-primary)] focus:outline-none cursor-pointer text-xs pr-1 border-none focus:ring-0 focus:border-none"
+          {/* Kebab Menu Dropdown */}
+          <div className="relative shrink-0 flex items-center" ref={kebabRef}>
+            <button
+              onClick={() => setIsKebabMenuOpen(!isKebabMenuOpen)}
+              title="More options"
+              className={cn(
+                "p-2.5 rounded bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-focus)] transition-colors flex items-center justify-center",
+                isKebabMenuOpen && "bg-[var(--bg-surface)] text-[var(--text-primary)] border-[var(--border-focus)]"
+              )}
             >
-              <option value="proxy" className="bg-[var(--bg-panel)] text-[var(--text-primary)]">☁️ Cloud Proxy</option>
-              <option value="direct" className="bg-[var(--bg-panel)] text-[var(--text-primary)]">💻 Direct Browser</option>
-            </select>
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {isKebabMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 z-[999] w-64 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg shadow-xl py-2 px-1 text-xs space-y-1.5 animate-in fade-in zoom-in-95">
+                {/* Last Run Stats */}
+                {activeRequest?.lastRun && (
+                  <div className="px-2.5 py-1.5 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-md text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-tight flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3 h-3 text-blue-400" />
+                      <span>{activeRequest.lastRun.timestamp}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Zap className="w-3 h-3 text-yellow-400" />
+                      <span>{activeRequest.lastRun.timeMs}ms</span>
+                    </div>
+                    <div className={cn(
+                      "w-2 h-2 rounded-full",
+                      activeRequest.lastRun.status >= 200 && activeRequest.lastRun.status < 300 ? "bg-green-500" :
+                      activeRequest.lastRun.status >= 400 ? "bg-red-500" : "bg-yellow-500"
+                    )} />
+                  </div>
+                )}
+
+                {/* Request Mode Dropdown */}
+                <div className="px-2 py-1 flex items-center justify-between hover:bg-[var(--bg-hover)] rounded transition-colors">
+                  <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Request Mode</span>
+                  <select
+                    value={requestMode}
+                    onChange={(e) => setRequestMode(e.target.value as 'proxy' | 'direct')}
+                    className="bg-[var(--bg-base)] border border-[var(--border-subtle)] font-bold text-[var(--text-primary)] rounded px-2 py-1 focus:outline-none cursor-pointer text-xs"
+                  >
+                    <option value="proxy">☁️ Cloud Proxy</option>
+                    <option value="direct">💻 Direct Browser</option>
+                  </select>
+                </div>
+
+                {/* Import cURL */}
+                <button
+                  onClick={() => {
+                    setIsKebabMenuOpen(false);
+                    setIsCurlModalOpen(true);
+                  }}
+                  className="w-full px-2 py-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded font-medium transition-colors flex items-center gap-2 text-left"
+                >
+                  <TerminalSquare className="w-4 h-4 text-[var(--primary)]" />
+                  <span>Import cURL</span>
+                </button>
+              </div>
+            )}
           </div>
-          
-          <button 
-            onClick={() => setIsCurlModalOpen(true)}
-            className="bg-[var(--bg-hover)] border border-[var(--border-strong)] hover:border-[var(--border-focus)] text-[var(--text-primary)] px-4 rounded text-xs font-medium transition-colors flex items-center gap-2"
-          >
-            <TerminalSquare className="w-3.5 h-3.5" />
-            Import cURL
-          </button>
         </div>
 
         {urlErrorMsg && (
