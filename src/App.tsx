@@ -22,7 +22,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { Toaster } from './components/Toaster';
 import { ShareImportModal } from './components/ShareImportModal';
 import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight } from 'lucide-react';
-import { Workspace, Theme } from './types';
+import { Workspace, Theme, ApiCollection } from './types';
 import { cn } from './utils';
 
 export default function App() {

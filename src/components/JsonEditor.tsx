@@ -269,8 +269,8 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
       const varName = match.slice(2, -2);
       const exists = envVars.some(v => v.key === varName && v.enabled);
       return `<span class="${cn(
-        "px-0.5 rounded font-bold cursor-help",
-        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 border border-dashed border-gray-500/30"
+        "rounded cursor-help",
+        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 outline outline-1 outline-dashed outline-gray-500/30"
       )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
     });
 
