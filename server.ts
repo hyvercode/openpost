@@ -288,7 +288,7 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         return res.status(401).json({ error: 'Unauthorized: Private mock server requires authentication' });
       }
       try {
-        const decoded = jwt.verify(authHeader.split('Bearer ')[1], process.env.JWT_SECRET || 'fallback-secret-key-for-dev');
+        const decoded = jwt.verify(authHeader.split('Bearer ')[1], process.env.JWT_SECRET || 'fallback-secret-key-for-dev') as any;
         const userId = decoded.uid || decoded.userId;
         const membership = await prisma.workspaceMember.findUnique({
           where: { workspaceId_userId: { workspaceId: collection.workspaceId, userId } }
@@ -415,7 +415,7 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         return res.status(401).json({ error: 'Unauthorized: Private mock server requires authentication' });
       }
       try {
-        const decoded = jwt.verify(authHeader.split('Bearer ')[1], process.env.JWT_SECRET || 'fallback-secret-key-for-dev');
+        const decoded = jwt.verify(authHeader.split('Bearer ')[1], process.env.JWT_SECRET || 'fallback-secret-key-for-dev') as any;
         const userId = decoded.uid || decoded.userId;
         const membership = await prisma.workspaceMember.findUnique({
           where: { workspaceId_userId: { workspaceId: deployment.workspaceId, userId } }

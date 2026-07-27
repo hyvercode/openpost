@@ -50,7 +50,7 @@ export function Sidebar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   
-  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'deploy'|'bulk_move', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
+  const [modal, setModal] = useState<{isOpen: boolean, title: string, type: 'collection'|'request'|'environment'|'folder'|'rename_collection'|'rename_folder'|'rename_request'|'workspace'|'rename_workspace'|'deploy'|'bulk_move'|'share_settings', targetId?: string, targetFolderId?: string, targetRequestId?: string, initialValue?: string}>({isOpen: false, title: '', type: 'collection'});
   const [isModalSubmitting, setIsModalSubmitting] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{isOpen: boolean, title: string, message: string, onConfirm: () => void}>({isOpen: false, title: '', message: '', onConfirm: () => {}});
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);

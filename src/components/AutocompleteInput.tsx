@@ -220,8 +220,8 @@ export function AutocompleteInput({
       const varName = match.slice(2, -2);
       const exists = variables.some(v => v.key === varName && v.enabled !== false);
       return `<span class="${cn(
-        "px-0.5 rounded font-bold cursor-help",
-        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 border border-dashed border-gray-500/30"
+        "rounded cursor-help",
+        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 outline outline-1 outline-dashed outline-gray-500/30"
       )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
     });
     return escaped;
@@ -465,18 +465,18 @@ export function AutocompleteTextarea({
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (dropdownMode === 'env' ? filteredVars.length > 0 : filteredSuggestions.length > 0) {
-        setActiveIndex(prev => (prev + 1) % (dropdownMode === 'env' ? filteredVars.length : filteredSuggestions.length));
+      if (filteredVars.length > 0) {
+        setActiveIndex(prev => (prev + 1) % filteredVars.length);
       }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (dropdownMode === 'env' ? filteredVars.length > 0 : filteredSuggestions.length > 0) {
-        setActiveIndex(prev => (prev - 1 + (dropdownMode === 'env' ? filteredVars.length : filteredSuggestions.length)) % (dropdownMode === 'env' ? filteredVars.length : filteredSuggestions.length));
+      if (filteredVars.length > 0) {
+        setActiveIndex(prev => (prev - 1 + filteredVars.length) % filteredVars.length);
       }
     } else if (e.key === 'Enter' || e.key === 'Tab') {
-      if (dropdownMode === 'env' ? filteredVars.length > 0 : filteredSuggestions.length > 0) {
+      if (filteredVars.length > 0) {
         e.preventDefault();
-        selectVariable(dropdownMode === 'env' ? filteredVars[activeIndex].key : filteredSuggestions[activeIndex]);
+        selectVariable(filteredVars[activeIndex].key);
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -533,8 +533,8 @@ export function AutocompleteTextarea({
       const varName = match.slice(2, -2);
       const exists = variables.some(v => v.key === varName && v.enabled !== false);
       return `<span class="${cn(
-        "px-0.5 rounded font-bold cursor-help",
-        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 border border-dashed border-gray-500/30"
+        "rounded cursor-help",
+        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 outline outline-1 outline-dashed outline-gray-500/30"
       )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
     });
     // For textarea, ensure trailing newlines are rendered
