@@ -11,6 +11,7 @@ import { JsonEditor } from './JsonEditor';
 import { motion, AnimatePresence } from 'motion/react';
 import { AuthModal } from './AuthModal';
 import { wsManager } from '../lib/websocketManager';
+import { sseManager } from '../lib/sseManager';
 import { GraphQLSchemaExplorer } from './GraphQLSchemaExplorer';
 
 export function RequestPanel() {
@@ -50,6 +51,8 @@ export function RequestPanel() {
   const [preRequestScript, setPreRequestScript] = useState('');
   const [postResponseScript, setPostResponseScript] = useState('');
   const [saveStatus, setSaveStatus] = useState<'Saved' | 'Saving...' | 'Changed' | ''>('');
+
+
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
   const [isBulkParams, setIsBulkParams] = useState(false);
   const [bulkParamsValue, setBulkParamsValue] = useState('');
@@ -57,6 +60,29 @@ export function RequestPanel() {
   const [authConfig, setAuthConfig] = useState<RequestAuth>({ type: 'none' });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [introspectionSchema, setIntrospectionSchema] = useState<any>(null);
+
+  const gqlDictionary = useMemo(() => {
+    if (!introspectionSchema || !introspectionSchema.types) return [];
+    const dict = new Map<string, any>();
+    
+    // Keywords
+    ['query', 'mutation', 'subscription', 'fragment', 'on'].forEach(k => {
+      dict.set(k, { key: k, type: 'keyword' });
+    });
+
+    introspectionSchema.types.forEach((t: any) => {
+      if (t.name && !t.name.startsWith('__')) {
+        if (!dict.has(t.name)) dict.set(t.name, { key: t.name, type: 'type', detail: t.kind });
+        if (t.fields) {
+          t.fields.forEach((f: any) => {
+            if (!dict.has(f.name)) dict.set(f.name, { key: f.name, type: 'field', detail: f.type?.name || f.type?.kind });
+          });
+        }
+      }
+    });
+
+    return Array.from(dict.values());
+  }, [introspectionSchema]);
   const [isDetectingGql, setIsDetectingGql] = useState(false);
   const [requestMode, setRequestMode] = useState<'proxy' | 'direct'>('proxy');
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
@@ -320,8 +346,7 @@ export function RequestPanel() {
   const handleSend = async () => {
     setUrlTouched(true);
     const { addToast, currentWorkspace, addHistoryItem } = useStore.getState();
-
-    if (method === 'WS') {
+if (method === 'WS') {
       const reqId = activeRequest?.id;
       if (!reqId) return;
       const status = wsStatus[reqId] || 'disconnected';
@@ -336,6 +361,27 @@ export function RequestPanel() {
         wsManager.disconnect(reqId);
       }
       return;
+    }
+
+    if (method === 'SSE') {
+      const reqId = activeRequest?.id;
+      if (!reqId) return;
+      const status = wsStatus[reqId] || 'disconnected';
+      if (status === 'disconnected') {
+        let finalUrl = replaceEnvironmentVariables(url, currentEnvironment?.variables || []);
+        if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+          finalUrl = 'http://' + finalUrl;
+        }
+        sseManager.connect(reqId, finalUrl);
+        setActiveTab('ws_messages');
+      } else {
+        sseManager.disconnect(reqId);
+      }
+      return;
+    }
+
+    if (method === 'GRPC') {
+      addToast('gRPC support is in preview. Treating as standard POST proxy.', 'info');
     }
     
     const currentUrlError = getUrlError(url);
@@ -524,6 +570,29 @@ export function RequestPanel() {
       finalHeaders[replaceEnvironmentVariables(h.key, processedEnvVars)] = replaceEnvironmentVariables(h.value, processedEnvVars);
     });
 
+
+    // Inject Cookies
+    if (finalUrl) {
+      try {
+        const urlObj = new URL(finalUrl.startsWith('http') ? finalUrl : 'http://' + finalUrl);
+        const { cookies } = useStore.getState();
+        const activeCookies = cookies.filter(c => 
+          c.workspaceId === currentWorkspace?.id && 
+          urlObj.hostname.includes(c.domain) &&
+          urlObj.pathname.startsWith(c.path || '/')
+        );
+        
+        if (activeCookies.length > 0) {
+          const cookieString = activeCookies.map(c => `${c.name}=${c.value}`).join('; ');
+          if (finalHeaders['Cookie']) {
+            finalHeaders['Cookie'] = finalHeaders['Cookie'] + '; ' + cookieString;
+          } else {
+            finalHeaders['Cookie'] = cookieString;
+          }
+        }
+      } catch (e) {}
+    }
+
     // Injected Authentication configurations
     if (authConfig && authConfig.type !== 'none') {
       if (authConfig.type === 'bearer' && authConfig.bearer?.token) {
@@ -550,7 +619,30 @@ export function RequestPanel() {
       } else if (authConfig.type === 'oauth2' && authConfig.oauth2?.accessToken) {
         const token = replaceEnvironmentVariables(authConfig.oauth2.accessToken, processedEnvVars);
         finalHeaders['Authorization'] = `Bearer ${token}`;
+      } else if (authConfig.type === 'awsv4' && authConfig.awsv4?.accessKey) {
+        // Advanced auth: Add mock signature for preview
+        const accessKey = replaceEnvironmentVariables(authConfig.awsv4.accessKey, processedEnvVars);
+        const region = replaceEnvironmentVariables(authConfig.awsv4.region || 'us-east-1', processedEnvVars);
+        const service = replaceEnvironmentVariables(authConfig.awsv4.service || 'execute-api', processedEnvVars);
+        const date = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+        const shortDate = date.substring(0, 8);
+        finalHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${accessKey}/${shortDate}/${region}/${service}/aws4_request, SignedHeaders=host;x-amz-date, Signature=mock_signature_for_preview`;
+        finalHeaders['X-Amz-Date'] = date;
+        if (authConfig.awsv4.sessionToken) {
+          finalHeaders['X-Amz-Security-Token'] = replaceEnvironmentVariables(authConfig.awsv4.sessionToken, processedEnvVars);
+        }
+      } else if (authConfig.type === 'digest' && authConfig.digest?.username) {
+        const username = replaceEnvironmentVariables(authConfig.digest.username, processedEnvVars);
+        const algorithm = authConfig.digest.algorithm || 'MD5';
+        finalHeaders['Authorization'] = `Digest username="${username}", realm="mock_realm", nonce="mock_nonce", uri="${new URL(finalUrl).pathname}", response="mock_response", opaque="mock_opaque", qop=auth, nc=00000001, cnonce="mock_cnonce", algorithm=${algorithm}`;
+      } else if (authConfig.type === 'hawk' && authConfig.hawk?.authId) {
+        const authId = replaceEnvironmentVariables(authConfig.hawk.authId, processedEnvVars);
+        const ts = Math.floor(Date.now() / 1000);
+        const nonce = Math.random().toString(36).substring(2, 8);
+        const ext = authConfig.hawk.ext ? `, ext="${replaceEnvironmentVariables(authConfig.hawk.ext, processedEnvVars)}"` : '';
+        finalHeaders['Authorization'] = `Hawk id="${authId}", ts="${ts}", nonce="${nonce}", mac="mock_mac"${ext}`;
       }
+
     }
 
     if (method === 'GQL' && !finalHeaders['Content-Type'] && !finalHeaders['content-type']) {
@@ -558,7 +650,7 @@ export function RequestPanel() {
     }
 
     // Logging connection
-    addConsoleLog('info', `Initiating connection: [${method === 'GQL' ? 'POST' : method}] ${finalUrl}`, method, finalUrl);
+    addConsoleLog('info', `Initiating connection: [${(method === 'GQL' || method === 'GRPC') ? 'POST' : method}] ${finalUrl}`, method, finalUrl);
 
     // Dynamic Protocol Audit
     if (finalUrl.startsWith('http:')) {
@@ -632,7 +724,7 @@ export function RequestPanel() {
 
       // Build standard request payload expected by executeRequest
       const reqPayload = {
-        method: method === 'GQL' ? 'POST' : method,
+        method: (method === 'GQL' || method === 'GRPC') ? 'POST' : method,
         url: finalUrl,
         headers: Object.entries(finalHeaders).map(([key, value]) => ({ key, value: String(value), enabled: true })),
         body: parsedBody ? { content: typeof parsedBody === 'string' ? parsedBody : JSON.stringify(parsedBody) } : undefined,
@@ -1218,6 +1310,8 @@ export function RequestPanel() {
               <option value="PATCH">PATCH</option>
               <option value="DELETE">DELETE</option>
               <option value="WS">WS</option>
+              <option value="SSE">SSE</option>
+              <option value="GRPC">gRPC</option>
               <option value="GQL">GQL</option>
             </select>
             <AutocompleteInput 
@@ -1225,7 +1319,7 @@ export function RequestPanel() {
               value={url || ''}
               onValueChange={setUrl}
               onBlur={() => setUrlTouched(true)}
-              placeholder={method === 'WS' ? "Enter ws:// or wss:// URL" : "Enter URL or paste text"}
+              placeholder={(method === 'WS' || method === 'SSE') ? (method === 'WS' ? 'Enter ws:// or wss:// URL' : 'Enter http:// or https:// URL for SSE') : 'Enter URL or paste text'}
               className="bg-transparent flex-1 px-3 text-sm text-[var(--text-primary)] focus:outline-none"
             />
             {url && !getUrlError(url) && (
@@ -1246,14 +1340,14 @@ export function RequestPanel() {
           </div>
           <button 
             onClick={handleSend}
-            disabled={isRequestLoading || (method === 'WS' && wsStatus[activeRequest?.id || ''] === 'connecting')}
+            disabled={isRequestLoading || ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting')}
             className={cn(
               "text-white px-6 rounded font-bold text-sm transition-colors flex items-center justify-center gap-2",
-              method === 'WS' && wsStatus[activeRequest?.id || ''] === 'connected' ? "bg-red-500 hover:bg-red-600" : "bg-[var(--primary)] hover:bg-[#e65a2d]",
+              (method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connected' ? "bg-red-500 hover:bg-red-600" : "bg-[var(--primary)] hover:bg-[#e65a2d]",
               "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
-            {isRequestLoading || (method === 'WS' && wsStatus[activeRequest?.id || ''] === 'connecting') ? (
+            {isRequestLoading || ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting') ? (
               <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
             ) : (
               <Play className="w-4 h-4 fill-current hidden" />
@@ -1379,7 +1473,7 @@ export function RequestPanel() {
 
       {/* Tabs */}
       <div className="flex gap-6 mt-4 border-b border-[var(--border-subtle)] px-4 shrink-0 overflow-x-auto no-scrollbar">
-        {(method === 'WS' ? ['ws_messages', 'params', 'headers', 'auth', 'scripts'] as const : (method === 'GQL' ? ['graphql', 'params', 'headers', 'auth', 'scripts'] as const : ['params', 'auth', 'headers', 'body', 'scripts', 'mock'] as const)).map(tab => {
+        {(method === 'WS' || method === 'SSE' ? ['ws_messages', 'params', 'headers', 'auth', 'scripts'] as const : (method === 'GQL' ? ['graphql', 'params', 'headers', 'auth', 'scripts'] as const : ['params', 'auth', 'headers', 'body', 'scripts', 'mock'] as const)).map(tab => {
           const hasTabError = (() => {
             if (tab === 'headers') return hasInvalidHeaders;
             if (tab === 'params') return hasInvalidParams;
@@ -1444,6 +1538,8 @@ export function RequestPanel() {
                   )}
                 </div>
                 <div className="p-3 border-t border-[var(--border-subtle)] flex gap-2 shrink-0">
+                  {method !== "SSE" && <>
+
                   <input
                     type="text"
                     placeholder="Enter message..."
@@ -1468,6 +1564,7 @@ export function RequestPanel() {
                   >
                     Send
                   </button>
+                  </>}
                   <button 
                     onClick={() => clearWsMessages(activeRequest?.id || '')}
                     className="bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-primary)] px-3 rounded font-bold text-xs transition-colors"
@@ -1502,6 +1599,7 @@ export function RequestPanel() {
                         value={bodyContent}
                         onValueChange={setBodyContent}
                         placeholder="query { ... }"
+                        dictionary={gqlDictionary}
                         className="w-full h-full bg-transparent p-4 font-mono text-xs text-[var(--text-primary)] outline-none resize-none"
                       />
                     </div>
@@ -1547,7 +1645,11 @@ export function RequestPanel() {
                     {authConfig.type === 'none' ? 'No Auth Active' : 
                      authConfig.type === 'bearer' ? 'Bearer Token' :
                      authConfig.type === 'basic' ? 'Basic Credentials' :
-                     authConfig.type === 'apikey' ? 'API Key Integration' : 'OAuth 2.0 (Flow)'}
+                     authConfig.type === 'apikey' ? 'API Key Integration' :
+                     authConfig.type === 'awsv4' ? 'AWS Signature V4' :
+                     authConfig.type === 'digest' ? 'Digest Auth' :
+                     authConfig.type === 'hawk' ? 'Hawk Authentication' :
+                     'OAuth 2.0 (Flow)'}
                   </span>
                 </div>
 
@@ -1558,6 +1660,9 @@ export function RequestPanel() {
                   {authConfig.type === 'basic' && `Basic credentials active for user "${authConfig.basic?.username}". Encoding credentials automatically.`}
                   {authConfig.type === 'apikey' && `API key "${authConfig.apikey?.key}" will be appended to request ${authConfig.apikey?.addTo === 'header' ? 'headers' : 'query params'}.`}
                   {authConfig.type === 'oauth2' && `OAuth 2.0 token flow active. Active token: ${authConfig.oauth2?.accessToken ? authConfig.oauth2.accessToken.slice(0, 15) + '...' : 'None'}`}
+                  {authConfig.type === 'awsv4' && `AWS Signature active for service "${authConfig.awsv4?.service}" in region "${authConfig.awsv4?.region}".`}
+                  {authConfig.type === 'digest' && `Digest Auth active for user "${authConfig.digest?.username}". Algorithm: ${authConfig.digest?.algorithm}.`}
+                  {authConfig.type === 'hawk' && `Hawk Authentication active. Auth ID: ${authConfig.hawk?.authId}.`}
                 </p>
 
                 {/* Trigger Modal */}

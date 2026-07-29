@@ -64,9 +64,6 @@ model Collection {
   mockConfig  String?
   folders     String   @default("[]")
   requests    String   @default("[]")
-  shareVisibility String? @default("private")
-  mockVisibility  String? @default("private")
-  docVisibility   String? @default("private")
   
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
@@ -90,7 +87,6 @@ model Deployment {
   createdAt      DateTime  @default(now())
   requests       String    @default("[]")
   mockConfig     String?
-  mockVisibility String?   @default("private")
   
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

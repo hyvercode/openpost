@@ -173,24 +173,63 @@ export function CollectionDocPanel() {
   const [docVersion, setDocVersion] = useState('1.0.0');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // Find the current active collection based on tab ID
-  const collectionItem = collections.find(c => c.id === activeTabId);
+  let targetType: 'collection' | 'folder' | 'request' = 'collection';
+  let targetEntity: any = null;
+  let targetCollection: any = null;
+
+  for (const c of collections) {
+    if (c.id === activeTabId) {
+      targetType = 'collection';
+      targetEntity = c;
+      targetCollection = c;
+      break;
+    }
+    const folder = c.folders?.find(f => f.id === activeTabId);
+    if (folder) {
+      targetType = 'folder';
+      targetEntity = folder;
+      targetCollection = c;
+      break;
+    }
+    const request = c.requests?.find(r => r.id === activeTabId);
+    if (request) {
+      targetType = 'request';
+      targetEntity = request;
+      targetCollection = c;
+      break;
+    }
+  }
+
+  const collectionItem = targetCollection;
 
   useEffect(() => {
     if (collectionItem && selectedEndpoints.size === 0) {
-      setSelectedEndpoints(new Set(collectionItem.requests.map(r => r.id)));
+      if (targetType === 'collection') {
+        setSelectedEndpoints(new Set(collectionItem.requests.map((r: any) => r.id)));
+      } else if (targetType === 'folder') {
+        const folderReqs = collectionItem.requests.filter((r: any) => r.folderId === targetEntity.id);
+        setSelectedEndpoints(new Set(folderReqs.map((r: any) => r.id)));
+      } else if (targetType === 'request') {
+        setSelectedEndpoints(new Set([targetEntity.id]));
+      }
     }
-  }, [collectionItem]);
+  }, [collectionItem, targetEntity, targetType]);
 
   useEffect(() => {
-    if (collectionItem) {
-      setDocContent(collectionItem.description || '');
-      setPdfTitle(collectionItem.name || '');
-      setPdfAccentColor(collectionItem.color || '#4F46E5');
+    if (targetEntity) {
+      setDocContent(targetEntity.description || '');
+      setPdfTitle(targetEntity.name || '');
+      setPdfAccentColor(collectionItem?.color || '#4F46E5');
     }
-  }, [collectionItem]);
+  }, [targetEntity, collectionItem]);
 
-  if (!collectionItem) {
+  useEffect(() => {
+    if (targetType !== 'collection' && (activeSubTab === 'mock' || activeSubTab === 'export')) {
+      setActiveSubTab('docs');
+    }
+  }, [targetType, activeSubTab]);
+
+  if (!collectionItem || !targetEntity) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-[var(--text-secondary)] p-8">
         <BookOpen className="w-12 h-12 text-[var(--border-strong)] mb-4 stroke-1 animate-pulse" />
@@ -213,26 +252,44 @@ export function CollectionDocPanel() {
     onConfirm: () => {}
   });
 
+  const updateTargetDescription = async (newMarkdown: string) => {
+    if (targetType === 'collection') {
+      await apiService.updateCollection(collectionItem.id, { description: newMarkdown });
+      const { collections, setCollections } = useStore.getState();
+      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, description: newMarkdown } : c));
+    } else if (targetType === 'folder') {
+      const updatedFolders = (collectionItem.folders || []).map((f: any) => 
+        f.id === targetEntity.id ? { ...f, description: newMarkdown } : f
+      );
+      await apiService.updateCollection(collectionItem.id, { folders: updatedFolders });
+      const { collections, setCollections } = useStore.getState();
+      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, folders: updatedFolders } : c));
+    } else if (targetType === 'request') {
+      const updatedRequests = (collectionItem.requests || []).map((r: any) => 
+        r.id === targetEntity.id ? { ...r, description: newMarkdown } : r
+      );
+      await apiService.updateCollection(collectionItem.id, { requests: updatedRequests });
+      const { collections, setCollections } = useStore.getState();
+      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, requests: updatedRequests } : c));
+    }
+  };
+
   const handleRegenerateDocs = async () => {
     setIsGeneratingAiDoc(true);
     try {
       const response = await apiService.generateDocumentation(
         collectionItem.name,
         collectionItem.folders || [],
-        collectionItem.requests || []
+        collectionItem.requests || [],
+        targetType,
+        targetEntity?.name
       );
       
       const newMarkdown = response.markdown;
       setDocContent(newMarkdown);
       
       if (!isEditing) {
-        await apiService.updateCollection(collectionItem.id, {
-          description: newMarkdown
-        });
-        
-        const { collections, setCollections } = useStore.getState();
-        setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, description: newMarkdown } : c));
-        
+        await updateTargetDescription(newMarkdown);
         addToast('AI documentation generated and saved successfully!', 'success', 3000);
       } else {
         addToast('AI documentation generated! Review and save changes when ready.', 'success', 4000);
@@ -249,7 +306,7 @@ export function CollectionDocPanel() {
     setConfirmModal({
       isOpen: true,
       title: 'Regenerate Documentation with AI?',
-      message: 'This will use Gemini AI to automatically analyze all requests and folders in this collection, and generate a beautifully-structured Markdown user guide. Any existing documentation overview will be overwritten.',
+      message: 'This will use Gemini AI to automatically generate a beautifully-structured Markdown user guide for this entity. Any existing documentation overview will be overwritten.',
       onConfirm: () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
         handleRegenerateDocs();
@@ -260,12 +317,7 @@ export function CollectionDocPanel() {
   const handleDeleteDocs = async () => {
     setIsSaving(true);
     try {
-      await apiService.updateCollection(collectionItem.id, {
-        description: ''
-      });
-      
-      const { collections, setCollections } = useStore.getState();
-      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, description: '' } : c));
+      await updateTargetDescription('');
       
       setDocContent('');
       setIsEditing(false);
@@ -282,7 +334,7 @@ export function CollectionDocPanel() {
     setConfirmModal({
       isOpen: true,
       title: 'Delete Documentation Guide?',
-      message: 'Are you sure you want to permanently delete the overview guide and description for this collection? This action cannot be undone.',
+      message: 'Are you sure you want to permanently delete the overview guide and description? This action cannot be undone.',
       onConfirm: () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
         handleDeleteDocs();
@@ -301,17 +353,11 @@ export function CollectionDocPanel() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await apiService.updateCollection(collectionItem.id, {
-        description: docContent
-      });
-      
-      const { collections, setCollections } = useStore.getState();
-      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, description: docContent } : c));
-      
+      await updateTargetDescription(docContent);
       setIsEditing(false);
       addToast('Documentation updated successfully', 'success', 2000);
     } catch (error) {
-      console.error("Failed to save collection documentation:", error);
+      console.error("Failed to save documentation:", error);
       addToast('Failed to update documentation', 'error');
     } finally {
       setIsSaving(false);
@@ -319,19 +365,25 @@ export function CollectionDocPanel() {
   };
 
   const handleCancel = () => {
-    setDocContent(collectionItem.description || '');
+    setDocContent(targetEntity.description || '');
     setIsEditing(false);
   };
 
   // Group requests by folder
   const folders = collectionItem.folders || [];
-  const requests = collectionItem.requests || [];
+  let requests = collectionItem.requests || [];
 
-  const rootRequests = requests.filter(r => !r.folderId);
-  const folderGroups = folders.map(f => ({
+  if (targetType === 'folder') {
+    requests = requests.filter((r: any) => r.folderId === targetEntity.id);
+  } else if (targetType === 'request') {
+    requests = requests.filter((r: any) => r.id === targetEntity.id);
+  }
+
+  const rootRequests = requests.filter((r: any) => !r.folderId || targetType === 'folder');
+  const folderGroups = folders.map((f: any) => ({
     folder: f,
-    requests: requests.filter(r => r.folderId === f.id)
-  })).filter(g => g.requests.length > 0 || g.folder);
+    requests: requests.filter((r: any) => r.folderId === f.id && targetType !== 'folder' && targetType !== 'request')
+  })).filter((g: any) => g.requests.length > 0 || (g.folder && targetType === 'collection'));
 
   const totalEndpoints = requests.length;
 
@@ -376,22 +428,24 @@ export function CollectionDocPanel() {
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold leading-tight">{collectionItem.name} Documentation</h2>
+              <h2 className="text-lg font-bold leading-tight">{targetEntity.name} Documentation</h2>
               <span className="bg-orange-500/10 text-[var(--primary)] border border-orange-500/20 text-xs px-2.5 py-0.5 rounded-full font-semibold">
-                API Reference
+                {targetType === 'collection' ? 'API Reference' : targetType === 'folder' ? 'Folder Docs' : 'Request Docs'}
               </span>
             </div>
-            <div className="flex items-center gap-4 text-xs text-[var(--text-secondary)] mt-1.5 flex-wrap">
-              <span className="flex items-center gap-1.5">
-                <Folder className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                {folders.length} Folder{folders.length !== 1 && 's'}
-              </span>
-              <span className="h-3 w-px bg-[var(--border-subtle)]"></span>
-              <span className="flex items-center gap-1.5">
-                <FileCode className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                {totalEndpoints} Endpoint{totalEndpoints !== 1 && 's'}
-              </span>
-            </div>
+            {targetType === 'collection' && (
+              <div className="flex items-center gap-4 text-xs text-[var(--text-secondary)] mt-1.5 flex-wrap">
+                <span className="flex items-center gap-1.5">
+                  <Folder className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                  {folders.length} Folder{folders.length !== 1 && 's'}
+                </span>
+                <span className="h-3 w-px bg-[var(--border-subtle)]"></span>
+                <span className="flex items-center gap-1.5">
+                  <FileCode className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                  {totalEndpoints} Endpoint{totalEndpoints !== 1 && 's'}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -466,30 +520,34 @@ export function CollectionDocPanel() {
         >
           API Endpoints ({totalEndpoints})
         </button>
-        <button
-          onClick={() => { setActiveSubTab('mock'); setIsEditing(false); }}
-          className={cn(
-            "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
-            activeSubTab === 'mock' 
-              ? "text-[var(--primary)] border-b-[var(--primary)]" 
-              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
-          )}
-        >
-          <Globe className="w-3.5 h-3.5" />
-          Public Mock API
-        </button>
-        <button
-          onClick={() => { setActiveSubTab('export'); setIsEditing(false); }}
-          className={cn(
-            "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
-            activeSubTab === 'export' 
-              ? "text-[var(--primary)] border-b-[var(--primary)]" 
-              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
-          )}
-        >
-          <BookOpen className="w-3.5 h-3.5" />
-          Documentation
-        </button>
+        {targetType === 'collection' && (
+          <button
+            onClick={() => { setActiveSubTab('mock'); setIsEditing(false); }}
+            className={cn(
+              "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
+              activeSubTab === 'mock' 
+                ? "text-[var(--primary)] border-b-[var(--primary)]" 
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
+            )}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            Public Mock API
+          </button>
+        )}
+        {targetType === 'collection' && (
+          <button
+            onClick={() => { setActiveSubTab('export'); setIsEditing(false); }}
+            className={cn(
+              "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
+              activeSubTab === 'export' 
+                ? "text-[var(--primary)] border-b-[var(--primary)]" 
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
+            )}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Documentation
+          </button>
+        )}
       </div>
 
       {/* Content Area */}

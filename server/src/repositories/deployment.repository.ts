@@ -45,8 +45,7 @@ export class DeploymentRepository {
         collectionName: data.collectionName,
         version: data.version || 'v1',
         requests: data.requests ? JSON.stringify(data.requests) : "[]",
-        mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : "{}",
-        mockVisibility: data.mockVisibility || "private"
+        mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : "{}"
       }
     });
     return this.parseDep(created);

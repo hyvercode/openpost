@@ -14,6 +14,7 @@ import { EnvironmentPanel } from './components/EnvironmentPanel';
 import { DeploymentPanel } from './components/DeploymentPanel';
 import { CollectionDocPanel } from './components/CollectionDocPanel';
 import { SettingsView } from './components/SettingsView';
+import { CookieManager } from './components/CookieManager';
 import { TestRunnerPanel } from './components/TestRunnerPanel';
 import { TabBar } from './components/TabBar';
 import { BottomDrawer } from './components/BottomDrawer';
@@ -944,6 +945,8 @@ export default function App() {
             </div>
           ) : activeView === 'settings' ? (
             <SettingsView />
+          ) : activeView === 'cookies' ? (
+            <CookieManager />
           ) : activeView === 'test_suite' ? (
             <div className="flex-1 flex flex-col min-h-0">
               <TestRunnerPanel />
