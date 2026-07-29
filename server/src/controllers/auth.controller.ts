@@ -17,6 +17,32 @@ export class AuthController {
     }
   };
 
+  verifyEmail = async (req: Request, res: Response) => {
+    try {
+      const token = (req.query.token as string) || req.body.token;
+      if (!token) {
+        return res.status(400).json({ error: 'Verification token is required' });
+      }
+      const data = await this.authService.verifyEmail(token);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  resendVerification = async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+      const data = await this.authService.resendVerificationEmail(email);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
   login = async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;

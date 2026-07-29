@@ -30,6 +30,9 @@ interface AppState {
   theme: Theme;
   setTheme: (theme: Theme) => void;
   
+  primaryColor: string | null;
+  setPrimaryColor: (color: string | null) => void;
+  
   openTabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc' | 'test_suite'; name: string; method?: string; isDirty?: boolean }>;
   setOpenTabs: (tabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc' | 'test_suite'; name: string; method?: string; isDirty?: boolean }>) => void;
   activeTabId: string | null;
@@ -166,6 +169,16 @@ export const useStore = create<AppState>((set) => ({
   setTheme: (theme) => {
     localStorage.setItem('theme', theme);
     set({ theme });
+  },
+
+  primaryColor: localStorage.getItem('primaryColor') || null,
+  setPrimaryColor: (primaryColor) => {
+    if (primaryColor) {
+      localStorage.setItem('primaryColor', primaryColor);
+    } else {
+      localStorage.removeItem('primaryColor');
+    }
+    set({ primaryColor });
   },
 
   openTabs: [],

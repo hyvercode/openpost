@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { cn } from '../utils';
 import { AlertCircle } from 'lucide-react';
+import { getActiveGraphQLTheme, highlightGraphQLCode, GraphQLThemeConfig } from '../utils/graphqlTheme';
 
 interface AutocompleteInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
   value: string;
@@ -350,6 +351,7 @@ export function AutocompleteTextarea({
   onValueChange,
   className,
   dictionary = [],
+  isGraphQL = false,
   ...props
 }: AutocompleteTextareaProps) {
   const { environments } = useStore();
@@ -359,6 +361,15 @@ export function AutocompleteTextarea({
   const [mode, setMode] = useState<'env' | 'dict'>('env');
   const [activeIndex, setActiveIndex] = useState(0);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const [gqlTheme, setGqlTheme] = useState<GraphQLThemeConfig>(() => getActiveGraphQLTheme());
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      setGqlTheme(getActiveGraphQLTheme());
+    };
+    window.addEventListener('gql_theme_changed', handleThemeChange);
+    return () => window.removeEventListener('gql_theme_changed', handleThemeChange);
+  }, []);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -531,6 +542,11 @@ export function AutocompleteTextarea({
   }, [showDropdown, query]);
 
   const highlightedCode = React.useMemo(() => {
+    if (isGraphQL || (dictionary && dictionary.length > 0)) {
+      const code = highlightGraphQLCode(value || '', gqlTheme, dictionary);
+      return code + ((value || '').endsWith('\n') ? ' ' : '');
+    }
+
     let escaped = String(value || '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -545,26 +561,8 @@ export function AutocompleteTextarea({
       )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
     });
 
-    if (dictionary && dictionary.length > 0) {
-      const allWords = dictionary.map(d => d.key).join('|');
-      if (allWords) {
-        const regex = new RegExp(`\\b(${allWords})\\b`, 'g');
-        escaped = escaped.replace(regex, (match) => {
-          const dictItem = dictionary.find(d => d.key === match);
-          if (dictItem && dictItem.type === 'keyword') {
-            return `<span class="text-pink-400 font-bold">${match}</span>`;
-          } else if (dictItem && dictItem.type === 'type') {
-            return `<span class="text-yellow-400">${match}</span>`;
-          } else if (dictItem && dictItem.type === 'field') {
-            return `<span class="text-blue-400">${match}</span>`;
-          }
-          return match;
-        });
-      }
-    }
-
     return escaped + (escaped.endsWith('\n') ? ' ' : '');
-  }, [value, variables, dictionary]);
+  }, [value, variables, dictionary, isGraphQL, gqlTheme]);
 
   const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
     if (bgRef.current) {
@@ -657,6 +655,7 @@ export function AutocompleteTextarea({
 interface AutocompleteTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'value' | 'onChange'> {
   dictionary?: { key: string; detail?: string; type?: string; id?: string }[];
   value: string;
+  isGraphQL?: boolean;
   onValueChange?: (value: string) => void;
   onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
 }

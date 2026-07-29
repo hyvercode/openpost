@@ -22,9 +22,11 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { AuthScreen } from './components/AuthScreen';
 import { Toaster } from './components/Toaster';
 import { ShareImportModal } from './components/ShareImportModal';
-import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight } from 'lucide-react';
-import { Workspace, Theme, ApiCollection } from './types';
+import { CurlImportModal } from './components/CurlImportModal';
+import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare } from 'lucide-react';
+import { Workspace, Theme, ApiCollection, RequestItem } from './types';
 import { cn } from './utils';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function App() {
   const { 
@@ -43,6 +45,7 @@ export default function App() {
     setActiveView,
     theme, 
     setTheme,
+    primaryColor,
     sidebarCollapsed,
     setSidebarCollapsed,
     sidebarWidth,
@@ -54,9 +57,57 @@ export default function App() {
     layoutMode,
     setLayoutMode,
     addToast,
-    setIsWorkspaceLoading
+    setIsWorkspaceLoading,
+    setActiveRequest,
+    openTab
   } = useStore();
   const [loading, setLoading] = useState(true);
+  const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
+
+  const handleCurlImport = (curlData: { method: string; url: string; headers: Array<{ key: string; value: string }>; body: string }) => {
+    const newReqId = `curl_${uuidv4().slice(0, 8)}`;
+    const headersList = curlData.headers.map(h => ({ id: uuidv4(), key: h.key, value: h.value, enabled: true }));
+    if (headersList.length === 0 || headersList[headersList.length - 1].key !== '') {
+      headersList.push({ id: uuidv4(), key: '', value: '', enabled: true });
+    }
+
+    let reqName = 'Imported cURL';
+    if (curlData.url) {
+      try {
+        const parsedUrl = new URL(curlData.url.startsWith('http') ? curlData.url : `https://${curlData.url}`);
+        reqName = parsedUrl.pathname.split('/').filter(Boolean).pop() || parsedUrl.hostname;
+      } catch {
+        reqName = curlData.url.slice(0, 20);
+      }
+    }
+
+    const newRequest: RequestItem = {
+      id: newReqId,
+      collectionId: '',
+      workspaceId: currentWorkspace?.id || 'default',
+      name: `${curlData.method} ${reqName}`,
+      method: curlData.method || 'GET',
+      url: curlData.url || '',
+      headers: headersList,
+      params: [{ id: uuidv4(), key: '', value: '', enabled: true }],
+      body: {
+        type: curlData.body ? 'raw' : 'none',
+        content: curlData.body || ''
+      },
+      auth: { type: 'none' }
+    };
+
+    setActiveRequest(newRequest);
+    openTab({
+      id: newReqId,
+      type: 'request',
+      name: newRequest.name,
+      method: newRequest.method
+    });
+    setActiveView('request');
+    setIsCurlModalOpen(false);
+    addToast(`Imported ${curlData.method} request from cURL!`, 'success');
+  };
   const [publicDocId, setPublicDocId] = useState<string | null>(null);
   const [publicDocCollection, setPublicDocCollection] = useState<ApiCollection | null>(null);
   const [publicDocError, setPublicDocError] = useState<string | null>(null);
@@ -226,6 +277,19 @@ export default function App() {
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [dragState]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (primaryColor) {
+      root.style.setProperty('--primary', primaryColor);
+      root.style.setProperty('--icon-color', primaryColor);
+      root.style.setProperty('--border-focus', primaryColor);
+    } else {
+      root.style.removeProperty('--primary');
+      root.style.removeProperty('--icon-color');
+      root.style.removeProperty('--border-focus');
+    }
+  }, [primaryColor, theme]);
 
   useEffect(() => {
     if (!resizeState) return;
@@ -559,6 +623,18 @@ export default function App() {
                 <option key={env.id} value={env.id}>{env.name}</option>
               ))}
             </select>
+
+            <div className="h-4 w-px bg-[var(--border-strong)] hidden sm:block"></div>
+
+            <button
+              onClick={() => setIsCurlModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group shadow-2xs"
+              title="Import request from cURL command string"
+            >
+              <TerminalSquare className="w-3.5 h-3.5 text-[var(--primary)] group-hover:text-white transition-colors" />
+              <span className="hidden sm:inline">Import from cURL</span>
+              <span className="sm:hidden">cURL</span>
+            </button>
           </div>
           <div className="flex items-center gap-3">
             {/* Layout Mode Toggles */}
@@ -981,6 +1057,11 @@ export default function App() {
         </footer>
       </div>
       <ShareImportModal />
+      <CurlImportModal 
+        isOpen={isCurlModalOpen} 
+        onImport={handleCurlImport} 
+        onCancel={() => setIsCurlModalOpen(false)} 
+      />
       <Toaster />
     </div>
   );
