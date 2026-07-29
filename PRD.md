@@ -12,9 +12,13 @@
   5. Cookies Manager: Fitur untuk melihat, menambah, dan mengelola cookies secara otomatis untuk domain tertentu agar testing API yang membutuhkan sesi/cookie menjadi lebih mudah.
      Done
   6. Code Snippet Generator: Fitur untuk otomatis meng-generate kode request ke dalam berbagai bahasa pemrograman (cURL, JavaScript Axios/Fetch, Python Requests, Go, dll) dari request yang sedang dibuka.
+     Done
 
   7. Scripting Sandbox API (pm.*): Eksekusi Pre-request Scripts & Tests menggunakan environment sandbox yang mirip dengan Postman (misalnya dengan syntax pm.response.json()) untuk validasi response yang lebih advanced.
+     Done
 
   8. OpenAPI / Swagger Import: Selain mendukung import format Postman v2.1, aplikasi juga bisa mendukung import langsung dari file dokumentasi OpenAPI/Swagger.
+     Done
 
   9. Automated API Testing (Runner): Fitur untuk menjalankan serangkaian request dalam satu folder/collection secara berurutan dengan laporan keberhasilan test (mirip Postman Collection Runner).
+     Done
