@@ -27,6 +27,7 @@ export interface KeyValue {
 export interface ApiFolder {
   id: string;
   name: string;
+  description?: string;
   parentId?: string | null;
   position?: number;
   shareVisibility?: "public" | "private";
@@ -35,7 +36,7 @@ export interface ApiFolder {
 }
 
 export interface RequestAuth {
-  type: 'none' | 'bearer' | 'basic' | 'apikey' | 'oauth2';
+  type: 'none' | 'bearer' | 'basic' | 'apikey' | 'oauth2' | 'awsv4' | 'digest' | 'hawk';
   bearer?: {
     token: string;
   };
@@ -58,6 +59,24 @@ export interface RequestAuth {
     accessToken: string;
     refreshToken?: string;
   };
+  awsv4?: {
+    accessKey: string;
+    secretKey: string;
+    region: string;
+    service: string;
+    sessionToken?: string;
+  };
+  digest?: {
+    username: string;
+    password?: string;
+    algorithm?: string;
+  };
+  hawk?: {
+    authId: string;
+    authKey: string;
+    algorithm: 'sha256' | 'sha1';
+    ext?: string;
+  };
 }
 
 export interface RequestItem {
@@ -65,6 +84,7 @@ export interface RequestItem {
   collectionId: string;
   workspaceId: string;
   name: string;
+  description?: string;
   method: string;
   url: string;
   headers: KeyValue[];
@@ -249,6 +269,17 @@ export interface ProxyConfig {
   useAuth: boolean;
   username?: string;
   password?: string;
+}
+
+export interface CookieItem {
+  id: string;
+  workspaceId: string;
+  domain: string;
+  name: string;
+  value: string;
+  path: string;
+  secure: boolean;
+  httpOnly: boolean;
 }
 
 export interface WsMessage {

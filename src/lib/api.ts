@@ -118,8 +118,8 @@ export const apiService = {
     await api.delete(`/collections/${id}`);
   },
 
-  async generateDocumentation(collectionName: string, folders: any[], requests: any[]): Promise<{ markdown: string }> {
-    const res = await api.post('/collections/generate-docs', { collectionName, folders, requests });
+  async generateDocumentation(collectionName: string, folders: any[], requests: any[], targetType?: 'collection' | 'folder' | 'request', targetName?: string): Promise<{ markdown: string }> {
+    const res = await api.post('/collections/generate-docs', { collectionName, folders, requests, targetType, targetName });
     return res.data;
   },
 

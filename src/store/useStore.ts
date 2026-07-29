@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage, ProxyConfig } from "../types";
+import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage, ProxyConfig, CookieItem } from "../types";
 
 interface AppState {
   user: User | null;
@@ -24,8 +24,8 @@ interface AppState {
   deployments: Deployment[];
   setDeployments: (deployments: Deployment[]) => void;
 
-  activeView: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite';
-  setActiveView: (view: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite') => void;
+  activeView: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite' | 'cookies';
+  setActiveView: (view: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite' | 'cookies') => void;
 
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -112,6 +112,12 @@ interface AppState {
   selectedRequestIds: string[];
   setSelectedRequestIds: (ids: string[]) => void;
   toggleRequestSelection: (id: string) => void;
+
+  cookies: CookieItem[];
+  setCookies: (cookies: CookieItem[]) => void;
+  addCookie: (cookie: CookieItem) => void;
+  updateCookie: (id: string, cookie: Partial<CookieItem>) => void;
+  deleteCookie: (id: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -392,5 +398,33 @@ export const useStore = create<AppState>((set) => ({
     } else {
       return { selectedRequestIds: [...state.selectedRequestIds, id] };
     }
+  }),
+
+  cookies: (() => {
+    try {
+      const saved = localStorage.getItem('cookies');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  setCookies: (cookies) => {
+    localStorage.setItem('cookies', JSON.stringify(cookies));
+    set({ cookies });
+  },
+  addCookie: (cookie) => set((state) => {
+    const updated = [...state.cookies, cookie];
+    localStorage.setItem('cookies', JSON.stringify(updated));
+    return { cookies: updated };
+  }),
+  updateCookie: (id, updates) => set((state) => {
+    const updated = state.cookies.map(c => c.id === id ? { ...c, ...updates } : c);
+    localStorage.setItem('cookies', JSON.stringify(updated));
+    return { cookies: updated };
+  }),
+  deleteCookie: (id) => set((state) => {
+    const updated = state.cookies.filter(c => c.id !== id);
+    localStorage.setItem('cookies', JSON.stringify(updated));
+    return { cookies: updated };
   }),
 }));

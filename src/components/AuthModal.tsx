@@ -37,6 +37,27 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
   const [oauthScope, setOauthScope] = useState('');
   const [oauthAccessToken, setOauthAccessToken] = useState('');
   const [showOauthSecret, setShowOauthSecret] = useState(false);
+  // AWS Signature V4
+  const [awsAccessKey, setAwsAccessKey] = useState('');
+  const [awsSecretKey, setAwsSecretKey] = useState('');
+  const [awsRegion, setAwsRegion] = useState('us-east-1');
+  const [awsService, setAwsService] = useState('execute-api');
+  const [awsSessionToken, setAwsSessionToken] = useState('');
+  const [showAwsSecret, setShowAwsSecret] = useState(false);
+
+  // Digest Auth
+  const [digestUsername, setDigestUsername] = useState('');
+  const [digestPassword, setDigestPassword] = useState('');
+  const [digestAlgorithm, setDigestAlgorithm] = useState('MD5');
+  const [showDigestPassword, setShowDigestPassword] = useState(false);
+
+  // Hawk Auth
+  const [hawkAuthId, setHawkAuthId] = useState('');
+  const [hawkAuthKey, setHawkAuthKey] = useState('');
+  const [hawkAlgorithm, setHawkAlgorithm] = useState<'sha256' | 'sha1'>('sha256');
+  const [hawkExt, setHawkExt] = useState('');
+  const [showHawkKey, setShowHawkKey] = useState(false);
+
 
   const [copiedCallback, setCopiedCallback] = useState(false);
   const [isTokenLoading, setIsTokenLoading] = useState(false);
@@ -226,7 +247,26 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
         clientSecret: oauthClientSecret,
         scope: oauthScope,
         accessToken: oauthAccessToken
+      } : undefined,
+      awsv4: type === 'awsv4' ? {
+        accessKey: awsAccessKey,
+        secretKey: awsSecretKey,
+        region: awsRegion,
+        service: awsService,
+        sessionToken: awsSessionToken
+      } : undefined,
+      digest: type === 'digest' ? {
+        username: digestUsername,
+        password: digestPassword,
+        algorithm: digestAlgorithm
+      } : undefined,
+      hawk: type === 'hawk' ? {
+        authId: hawkAuthId,
+        authKey: hawkAuthKey,
+        algorithm: hawkAlgorithm,
+        ext: hawkExt
       } : undefined
+
     };
 
     onSave(config);
@@ -268,7 +308,12 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
               <option value="bearer">Bearer Token</option>
               <option value="basic">Basic Auth</option>
               <option value="apikey">API Key</option>
+              
               <option value="oauth2">OAuth 2.0 (Token Flow)</option>
+              <option value="awsv4">AWS Signature V4</option>
+              <option value="digest">Digest Auth</option>
+              <option value="hawk">Hawk Authentication</option>
+
             </select>
           </div>
 
