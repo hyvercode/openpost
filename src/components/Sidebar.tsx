@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2, CheckSquare, Square, X, Check, Cookie } from 'lucide-react';
+import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2, CheckSquare, Square, X, Check, Cookie, FileCode } from 'lucide-react';
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
@@ -14,6 +14,8 @@ import { exportToOpenAPI } from '../utils/openapiExport';
 import { exportToPostman } from '../utils/postmanExport';
 import { TestRunnerSidebar } from './TestRunnerSidebar';
 import { WorkspaceMembersModal } from './WorkspaceMembersModal';
+import { OpenApiImportModal } from './OpenApiImportModal';
+import { parseOpenAPISpec } from '../utils/openapiImport';
 
 export function Sidebar() {
   const { 
@@ -59,6 +61,8 @@ export function Sidebar() {
   const [isNavDropdownOpen, setIsNavDropdownOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showImportMenu, setShowImportMenu] = useState(false);
+  const [isOpenApiModalOpen, setIsOpenApiModalOpen] = useState(false);
   const [draggedOverId, setDraggedOverId] = useState<string | null>(null);
   const [draggedOverType, setDraggedOverType] = useState<'collection' | 'folder' | 'request' | null>(null);
 
@@ -434,10 +438,37 @@ export function Sidebar() {
 
     const reader = new FileReader();
     reader.onload = async (e) => {
+      const content = (e.target?.result as string) || '';
+
+      // Try OpenAPI / Swagger first if content has openapi/swagger fields or YAML
+      if (content.includes('openapi') || content.includes('swagger') || file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+        try {
+          const openapiRes = parseOpenAPISpec(content, currentWorkspace.id);
+          const created = await apiService.createCollection(openapiRes.collection);
+          const state = useStore.getState();
+          state.setCollections([...state.collections, created]);
+          addToast(`OpenAPI spec "${created.name}" imported successfully!`, 'success', 3000);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          return;
+        } catch (oErr) {
+          console.log("Not an OpenAPI file or parse error, trying JSON formats...", oErr);
+        }
+      }
+
       try {
-        const content = e.target?.result as string;
         const parsedData = JSON.parse(content);
         
+        // Import OpenAPI JSON if parsed JSON has openapi or swagger key
+        if (parsedData.openapi || parsedData.swagger) {
+          const openapiRes = parseOpenAPISpec(content, currentWorkspace.id);
+          const created = await apiService.createCollection(openapiRes.collection);
+          const state = useStore.getState();
+          state.setCollections([...state.collections, created]);
+          addToast(`OpenAPI spec "${created.name}" imported successfully!`, 'success', 3000);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          return;
+        }
+
         // Import our custom format
         if (parsedData.type === 'apitester_export' && parsedData.collections && parsedData.environments) {
           // Import collections
@@ -582,11 +613,11 @@ export function Sidebar() {
           const created = await apiService.createCollection(collectionDoc);
           const state = useStore.getState();
           state.setCollections([...state.collections, created]);
-          
+          addToast(`Postman collection "${created.name}" imported!`, 'success', 2000);
         }
       } catch (error) {
-        console.error("Error parsing Postman/JSON file", error);
-        alert("Failed to import file. Please ensure it's a valid JSON format.");
+        console.error("Error parsing JSON/YAML file", error);
+        alert("Failed to import file. Please ensure it is a valid Postman JSON, OpenPost JSON, or OpenAPI/Swagger JSON/YAML format.");
       }
     };
     reader.readAsText(file);
@@ -1082,6 +1113,17 @@ export function Sidebar() {
                   <button 
                     onClick={(e) => { 
                       e.stopPropagation(); 
+                      setActiveView('test_suite');
+                      openTab({ id: `runner_folder_${folder.id}`, type: 'test_suite', name: `Runner: ${folder.name}` });
+                    }}
+                    className="text-emerald-500 hover:text-emerald-400 p-0.5 rounded transition-colors"
+                    title="Run Folder (Collection Runner)"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-emerald-500/20" />
+                  </button>
+                  <button 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
                       setActiveView('collection_doc');
                       openTab({ id: folder.id, type: 'collection_doc', name: `${folder.name} Docs` });
                     }}
@@ -1407,13 +1449,43 @@ export function Sidebar() {
                 </div>
               )}
             </div>
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
-              title="Import Data (JSON/Postman)"
-            >
-              <Upload className="w-4 h-4" />
-            </button>
+            <div className="relative">
+              <button 
+                onClick={() => setShowImportMenu(!showImportMenu)}
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
+                title="Import Data"
+              >
+                <Upload className="w-4 h-4" />
+              </button>
+
+              {showImportMenu && (
+                <div className="absolute top-full mt-1 right-0 w-52 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg shadow-xl py-1 z-50">
+                  <div className="px-3 py-1.5 border-b border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                    Import Source
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowImportMenu(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Upload File (JSON / YAML / Postman)</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowImportMenu(false);
+                      setIsOpenApiModalOpen(true);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
+                  >
+                    <FileCode className="w-3.5 h-3.5 text-[var(--primary)]" />
+                    <span>OpenAPI / Swagger Spec</span>
+                  </button>
+                </div>
+              )}
+            </div>
             <button 
               onClick={() => setSidebarCollapsed(true)}
               className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded hover:bg-[var(--bg-hover)] transition-colors"
@@ -1697,6 +1769,18 @@ export function Sidebar() {
                             }}
                           />
                           <div className="absolute right-0 top-full mt-1 w-52 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg shadow-[var(--shadow-panel)] py-1.5 z-50 animate-fade-in font-sans">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                setActiveView('test_suite');
+                                openTab({ id: `runner_${collection.id}`, type: 'test_suite', name: `Runner: ${collection.name}` });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-500 hover:bg-emerald-500/10 font-bold transition-colors text-left"
+                            >
+                              <Play className="w-4 h-4 text-emerald-500 shrink-0 fill-emerald-500/20" />
+                              <span>Run Collection</span>
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2329,6 +2413,11 @@ export function Sidebar() {
         initialIcon={customizationModal.icon}
         onSubmit={handleSaveCustomization}
         onCancel={() => setCustomizationModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      <OpenApiImportModal
+        isOpen={isOpenApiModalOpen}
+        onClose={() => setIsOpenApiModalOpen(false)}
       />
 
       {/* Bulk Move Modal */}

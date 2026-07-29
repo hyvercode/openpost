@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
-import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap, MoreVertical } from 'lucide-react';
+import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap, MoreVertical, Code2 } from 'lucide-react';
 import { KeyValue, RequestAuth } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService, api } from '../lib/api';
 import { CurlImportModal } from './CurlImportModal';
+import { CodeSnippetModal } from './CodeSnippetModal';
 import { AutocompleteInput, AutocompleteTextarea } from './AutocompleteInput';
 import { JsonEditor } from './JsonEditor';
 import { motion, AnimatePresence } from 'motion/react';
@@ -13,6 +14,7 @@ import { AuthModal } from './AuthModal';
 import { wsManager } from '../lib/websocketManager';
 import { sseManager } from '../lib/sseManager';
 import { GraphQLSchemaExplorer } from './GraphQLSchemaExplorer';
+import { runScriptSandbox } from '../utils/sandbox';
 
 export function RequestPanel() {
   const { 
@@ -54,6 +56,7 @@ export function RequestPanel() {
 
 
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
+  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isBulkParams, setIsBulkParams] = useState(false);
   const [bulkParamsValue, setBulkParamsValue] = useState('');
   const [urlTouched, setUrlTouched] = useState(false);
@@ -416,130 +419,29 @@ if (method === 'WS') {
     const envVars = currentEnvironment ? currentEnvironment.variables : [];
     
     // Process scripts (Pre-request)
-    const runSandbox = (script: string, context: { envVars: KeyValue[], response?: any }) => {
-      if (!script) return { envVars: context.envVars };
-      
-      const currentVars = [...context.envVars];
-      const pm = {
-        environment: {
-          set: (key: string, value: any) => {
-            const valToSet = (value !== null && typeof value === 'object') ? JSON.stringify(value) : String(value);
-            const index = currentVars.findIndex(v => v.key === key);
-            if (index !== -1) {
-              currentVars[index] = { ...currentVars[index], value: valToSet };
-            } else {
-              currentVars.push({ id: uuidv4(), key, value: valToSet, enabled: true });
-            }
-            addConsoleLog('info', `[Environment] Set ${key} = ${valToSet}`);
-          },
-          get: (key: string) => {
-            const v = currentVars.find(v => v.key === key);
-            return v ? v.value : undefined;
-          }
-        },
-        globals: {
-          set: (key: string, value: string) => {
-            try {
-              const globals = JSON.parse(localStorage.getItem('pm_globals') || '{}');
-              globals[key] = value;
-              localStorage.setItem('pm_globals', JSON.stringify(globals));
-              addConsoleLog('info', `[Globals] Set ${key} = ${value}`);
-            } catch (e) {
-              console.error("Failed to set global", e);
-            }
-          },
-          get: (key: string) => {
-            try {
-              const globals = JSON.parse(localStorage.getItem('pm_globals') || '{}');
-              return globals[key];
-            } catch (e) {
-              return undefined;
-            }
-          }
-        },
-        variables: {
-          set: (key: string, value: string) => pm.environment.set(key, value),
-          get: (key: string) => {
-            const envVal = pm.environment.get(key);
-            if (envVal !== undefined) return envVal;
-            return pm.globals.get(key);
-          }
-        },
-        test: (name: string, fn: () => void) => {
-          try {
-            fn();
-            addConsoleLog('success', `[Test Passed] ${name}`);
-          } catch (e: any) {
-            addConsoleLog('error', `[Test Failed] ${name}: ${e.message}`);
-          }
-        },
-        response: {
-          json: () => context.response?.data,
-          code: context.response?.status,
-          status: context.response?.status,
-          statusText: context.response?.statusText,
-          time: context.response?.timeMs,
-          responseTime: context.response?.timeMs,
-          responseSize: context.response?.size,
-          headers: context.response?.headers
-        },
-        expect: (val: any) => ({
-          to: {
-            equal: (other: any) => {
-              if (val !== other) throw new Error(`Assertion failed: Expected ${val} to equal ${other}`);
-            },
-            eql: (other: any) => {
-              if (JSON.stringify(val) !== JSON.stringify(other)) throw new Error(`Assertion failed: Expected ${JSON.stringify(val)} to equal ${JSON.stringify(other)}`);
-            },
-            be: {
-              oneOf: (arr: any[]) => {
-                if (!arr.includes(val)) throw new Error(`Assertion failed: Expected ${val} to be one of ${JSON.stringify(arr)}`);
-              },
-              a: (type: string) => {
-                if (typeof val !== type) throw new Error(`Assertion failed: Expected ${val} to be a ${type}`);
-              }
-            },
-            not: {
-              equal: (other: any) => {
-                if (val === other) throw new Error(`Assertion failed: Expected ${val} to not equal ${other}`);
-              }
-            }
-          }
-        }),
-        request: {
-          url: url,
-          method,
-          body: bodyContent
-        }
-      };
-
-      try {
-        const sandboxFunc = new Function('pm', 'console', script);
-        sandboxFunc(pm, { log: (msg: any) => addConsoleLog('info', `[Sandbox] ${typeof msg === 'object' ? JSON.stringify(msg) : msg}`) });
-      } catch (e: any) {
-        addConsoleLog('error', `Script Runtime Error: ${e.message}`);
-        addToast(`Script Error: ${e.message}`, 'error');
-      }
-
-      return { envVars: currentVars };
-    };
-
     let processedEnvVars = envVars;
+    let preRequestHeaders: Record<string, string> = {};
+
     if (preRequestScript) {
       addConsoleLog('info', 'Running Pre-request script...');
-      const result = runSandbox(preRequestScript, { envVars });
-      processedEnvVars = result.envVars;
-      
+      const sandboxRes = runScriptSandbox(preRequestScript, {
+        envVars,
+        requestInfo: { url, method, headers: {}, body: bodyContent },
+        addConsoleLog
+      });
+      processedEnvVars = sandboxRes.envVars;
+      if (sandboxRes.requestHeaders) {
+        preRequestHeaders = sandboxRes.requestHeaders;
+      }
+
       // If environment variables changed, update the store (local and backend)
       if (currentEnvironment && JSON.stringify(processedEnvVars) !== JSON.stringify(envVars)) {
         const updatedEnv = { ...currentEnvironment, variables: processedEnvVars };
         useStore.getState().setCurrentEnvironment(updatedEnv);
         
-        // Also update the item in the environments list to keep store consistent
         const { environments, setEnvironments } = useStore.getState();
         setEnvironments(environments.map(e => e.id === currentEnvironment.id ? updatedEnv : e));
         
-        // Persist to Postgres
         apiService.updateEnvironment(currentEnvironment.id, { variables: processedEnvVars }).catch(console.error);
       }
     }
@@ -565,7 +467,7 @@ if (method === 'WS') {
     }
 
     // Process Headers
-    const finalHeaders: Record<string, string> = {};
+    const finalHeaders: Record<string, string> = { ...preRequestHeaders };
     headers.filter(h => h.enabled && h.key).forEach(h => {
       finalHeaders[replaceEnvironmentVariables(h.key, processedEnvVars)] = replaceEnvironmentVariables(h.value, processedEnvVars);
     });
@@ -782,15 +684,19 @@ if (method === 'WS') {
 
       // Process scripts (Post-response)
       if (postResponseScript) {
-        addConsoleLog('info', 'Running Post-response script...');
-        const scriptResult = runSandbox(postResponseScript, { envVars: processedEnvVars, response: res.data });
+        addConsoleLog('info', 'Running Post-response script (Tests)...');
+        const scriptResult = runScriptSandbox(postResponseScript, {
+          envVars: processedEnvVars,
+          response: resData,
+          requestInfo: { url: finalUrl, method, headers: finalHeaders, body: parsedBody },
+          addConsoleLog
+        });
         
         // If environment variables changed in post-response, update store
         if (currentEnvironment && JSON.stringify(scriptResult.envVars) !== JSON.stringify(processedEnvVars)) {
           const finalEnv = { ...currentEnvironment, variables: scriptResult.envVars };
           useStore.getState().setCurrentEnvironment(finalEnv);
           
-          // Also update the item in the environments list to keep store consistent
           const { environments, setEnvironments } = useStore.getState();
           setEnvironments(environments.map(e => e.id === currentEnvironment.id ? finalEnv : e));
           
@@ -1363,6 +1269,16 @@ if (method === 'WS') {
             {saveStatus === 'Changed' && <span>Unsaved...</span>}
           </div>
 
+          {/* Code Snippet Button */}
+          <button
+            onClick={() => setIsCodeModalOpen(true)}
+            title="Generate Code Snippet"
+            className="p-2.5 rounded bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold"
+          >
+            <Code2 className="w-4 h-4 text-[var(--primary)]" />
+            <span className="hidden md:inline">Code</span>
+          </button>
+
           {/* Kebab Menu Dropdown */}
           <div className="relative shrink-0 flex items-center" ref={kebabRef}>
             <button
@@ -1409,6 +1325,18 @@ if (method === 'WS') {
                     <option value="direct">💻 Direct Browser</option>
                   </select>
                 </div>
+
+                {/* Code Snippet Generator */}
+                <button
+                  onClick={() => {
+                    setIsKebabMenuOpen(false);
+                    setIsCodeModalOpen(true);
+                  }}
+                  className="w-full px-2 py-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded font-medium transition-colors flex items-center gap-2 text-left"
+                >
+                  <Code2 className="w-4 h-4 text-[var(--primary)]" />
+                  <span>Code Snippets</span>
+                </button>
 
                 {/* Import cURL */}
                 <button
@@ -1680,46 +1608,115 @@ if (method === 'WS') {
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
-                      <Play className="w-3 h-3 text-green-500" />
+                      <Play className="w-3.5 h-3.5 text-emerald-500" />
                       Pre-request Script
                     </label>
                     <span className="text-[10px] text-[var(--text-secondary)] italic">Executes before sending the request</span>
                   </div>
+
+                  {/* Quick Snippets for Pre-request */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-semibold text-[var(--text-secondary)] mr-1">Snippets:</span>
+                    {[
+                      { label: '+ Set Env Var', code: 'pm.environment.set("variable_name", "value");' },
+                      { label: '+ Get Env Var', code: 'const val = pm.environment.get("variable_name");' },
+                      { label: '+ Set Global', code: 'pm.globals.set("global_name", "value");' },
+                      { label: '+ Add Header', code: 'pm.request.headers.add({ key: "X-Custom-Header", value: "HeaderValue" });' }
+                    ].map((snip, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setPreRequestScript(prev => (prev ? prev + '\n' + snip.code : snip.code))}
+                        className="text-[10px] px-2 py-0.5 rounded bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
+                      >
+                        {snip.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <textarea
                     value={preRequestScript}
                     onChange={(e) => setPreRequestScript(e.target.value)}
-                    placeholder="// Use pm.environment.set('key', 'value') to update variables\n// Use pm.request.headers.add({ key: 'X-Foo', value: 'Bar' }) to add headers"
-                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-y transition-colors leading-relaxed"
+                    placeholder="// Use pm.environment.set('key', 'value') to update variables&#10;// Use pm.request.headers.add({ key: 'X-Foo', value: 'Bar' }) to add headers"
+                    className="h-36 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-3 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-y transition-colors leading-relaxed"
                     spellCheck={false}
                   />
                 </div>
 
-                <div className="flex flex-col gap-3 pb-4">
+                <div className="flex flex-col gap-3 pb-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
-                      <Check className="w-3 h-3 text-blue-500" />
+                      <Check className="w-3.5 h-3.5 text-sky-500" />
                       Post-response Script (Tests)
                     </label>
-                    <span className="text-[10px] text-[var(--text-secondary)] italic">Executes after receiving the response</span>
+                    <span className="text-[10px] text-[var(--text-secondary)] italic">Executes after receiving response</span>
                   </div>
+
+                  {/* Quick Snippets for Post-response */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-semibold text-[var(--text-secondary)] mr-1">Snippets:</span>
+                    {[
+                      {
+                        label: 'Status 200',
+                        code: 'pm.test("Status code is 200", function () {\n    pm.response.to.have.status(200);\n});'
+                      },
+                      {
+                        label: 'JSON Value',
+                        code: 'pm.test("Check JSON field", function () {\n    var jsonData = pm.response.json();\n    pm.expect(jsonData.id).to.not.be.undefined;\n});'
+                      },
+                      {
+                        label: 'Body String',
+                        code: 'pm.test("Body matches string", function () {\n    pm.expect(pm.response.text()).to.include("success");\n});'
+                      },
+                      {
+                        label: 'Time < 200ms',
+                        code: 'pm.test("Response time is less than 200ms", function () {\n    pm.expect(pm.response.responseTime).to.be.below(200);\n});'
+                      },
+                      {
+                        label: 'Header Check',
+                        code: 'pm.test("Content-Type is present", function () {\n    pm.response.to.have.header("content-type");\n});'
+                      }
+                    ].map((snip, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setPostResponseScript(prev => (prev ? prev + '\n\n' + snip.code : snip.code))}
+                        className="text-[10px] px-2 py-0.5 rounded bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
+                      >
+                        {snip.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <textarea
                     value={postResponseScript}
                     onChange={(e) => setPostResponseScript(e.target.value)}
-                    placeholder="// Use pm.test('Name', () => { ... }) for validations\n// Use pm.response.json() to access response data"
-                    className="h-40 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-y transition-colors leading-relaxed"
+                    placeholder="// Use pm.test('Name', () => { ... }) for validations&#10;// Use pm.response.json() to access response data"
+                    className="h-36 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-3 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] resize-y transition-colors leading-relaxed"
                     spellCheck={false}
                   />
                 </div>
                 
                 <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-lg p-3 text-[10px] text-[var(--text-secondary)] leading-relaxed">
-                  <p className="font-bold text-[var(--text-primary)] mb-1">Available API (Sandbox):</p>
-                  <ul className="list-disc list-inside space-y-0.5">
-                    <li><code className="text-[var(--text-code)]">pm.environment.set(key, value)</code> - Set environment variable</li>
-                    <li><code className="text-[var(--text-code)]">pm.environment.get(key)</code> - Get environment variable</li>
-                    <li><code className="text-[var(--text-code)]">pm.response.json()</code> - Get response body as JSON</li>
-                    <li><code className="text-[var(--text-code)]">pm.test(name, fn)</code> - Run a test validation</li>
-                    <li><code className="text-[var(--text-code)]">console.log(msg)</code> - Log to internal console</li>
-                  </ul>
+                  <p className="font-bold text-[var(--text-primary)] mb-1">Available Sandbox API (<code className="text-[var(--primary)]">pm.*</code>):</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px]">
+                    <div>
+                      <p className="font-semibold text-[var(--text-primary)]">Variables & Headers:</p>
+                      <ul className="list-disc list-inside space-y-0.5 font-mono text-[9.5px]">
+                        <li>pm.environment.set(key, val) / .get(key)</li>
+                        <li>pm.globals.set(key, val) / .get(key)</li>
+                        <li>pm.variables.get(key)</li>
+                        <li>pm.request.headers.add(&#123;key, value&#125;)</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-[var(--text-primary)]">Response & Testing:</p>
+                      <ul className="list-disc list-inside space-y-0.5 font-mono text-[9.5px]">
+                        <li>pm.response.json() / .text()</li>
+                        <li>pm.response.code / .status / .responseTime</li>
+                        <li>pm.test(name, fn)</li>
+                        <li>pm.expect(val).to.equal / .eql / .include</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -1985,6 +1982,22 @@ if (method === 'WS') {
         auth={authConfig}
         onSave={(updatedAuth) => setAuthConfig(updatedAuth)}
         onClose={() => setIsAuthModalOpen(false)}
+      />
+
+      <CodeSnippetModal
+        isOpen={isCodeModalOpen}
+        onClose={() => setIsCodeModalOpen(false)}
+        request={{
+          method,
+          url,
+          headers,
+          params,
+          bodyType,
+          bodyContent,
+          bodyFormData,
+          gqlVariables,
+          authConfig
+        }}
       />
     </motion.div>
   );
