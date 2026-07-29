@@ -22,3 +22,11 @@
 
   9. Automated API Testing (Runner): Fitur untuk menjalankan serangkaian request dalam satu folder/collection secara berurutan dengan laporan keberhasilan test (mirip Postman Collection Runner).
      Done
+ 10. Buat email konfirmasi jika register berhasil dan user hanya bisa login jika email sudah terkonfimrasi
+     Done
+ 11. Create a Settings panel interface that allows users to pick custom primary colors for the UI instead of being limited to the three predefined themes.
+     Done
+ 12. Add a 'Mock Server' feature that allows users to define endpoint responses based on path/method, enabling them to simulate an API before the backend is ready.
+     Done
+ 13. Integrated GraphQL Schema Explorer, Visual Query Builder, and Live Query Validation within RequestPanel.
+     Done

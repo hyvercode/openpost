@@ -14,7 +14,10 @@ import { AuthModal } from './AuthModal';
 import { wsManager } from '../lib/websocketManager';
 import { sseManager } from '../lib/sseManager';
 import { GraphQLSchemaExplorer } from './GraphQLSchemaExplorer';
+import { GraphQLThemeSelector } from './GraphQLThemeSelector';
+import { GraphQLHeaderInjector } from './GraphQLHeaderInjector';
 import { runScriptSandbox } from '../utils/sandbox';
+import { saveGraphQLHistoryItem } from '../utils/graphqlHistory';
 
 export function RequestPanel() {
   const { 
@@ -648,6 +651,16 @@ if (method === 'WS') {
         timeMs: resData.timeMs || 0,
         status: resData.status || 200
       };
+
+      if (method === 'GQL' || computedBodyType === 'graphql' || (bodyContent && (bodyContent.trim().startsWith('query') || bodyContent.trim().startsWith('mutation') || bodyContent.trim().startsWith('{')))) {
+        saveGraphQLHistoryItem(currentWorkspace?.id || 'default', {
+          query: bodyContent,
+          variables: gqlVariables,
+          status: resData.status || 200,
+          timeMs: resData.timeMs,
+          url: finalUrl
+        });
+      }
 
       addHistoryItem({
         workspaceId: currentWorkspace?.id || 'default',
@@ -1518,6 +1531,15 @@ if (method === 'WS') {
                        Introspect
                      </button>
                    </div>
+                   <div className="flex items-center gap-2">
+                     <GraphQLHeaderInjector 
+                       headers={headers} 
+                       onHeadersChange={setHeaders} 
+                       onIntrospect={handleIntrospect}
+                       isLoadingIntrospection={isRequestLoading}
+                     />
+                     <GraphQLThemeSelector />
+                   </div>
                 </div>
                 <div className="flex-1 flex min-h-0 overflow-hidden">
                   <div className="flex-1 flex flex-col border-r border-[var(--border-subtle)] min-w-0">
@@ -1526,13 +1548,14 @@ if (method === 'WS') {
                       <AutocompleteTextarea
                         value={bodyContent}
                         onValueChange={setBodyContent}
-                        placeholder="query { ... }"
+                        placeholder="query {\n  countries {\n    code\n    name\n  }\n}"
                         dictionary={gqlDictionary}
+                        isGraphQL={true}
                         className="w-full h-full bg-transparent p-4 font-mono text-xs text-[var(--text-primary)] outline-none resize-none"
                       />
                     </div>
                   </div>
-                  <div className="w-1/3 flex flex-col min-w-0">
+                  <div className="w-1/3 flex flex-col min-w-0 border-r border-[var(--border-subtle)]">
                     <div className="px-4 py-1.5 bg-[var(--bg-panel)] text-[10px] text-[var(--text-secondary)] font-bold uppercase border-b border-[var(--border-subtle)] select-none">Variables (JSON)</div>
                     <div className="flex-1 min-h-0">
                       <JsonEditor
@@ -1541,15 +1564,23 @@ if (method === 'WS') {
                       />
                     </div>
                   </div>
-                  {introspectionSchema && (
-                    <GraphQLSchemaExplorer 
-                      schema={introspectionSchema}
-                      onInsertQuery={(queryStub) => {
-                        setBodyContent(queryStub);
-                        addToast('Query template inserted!', 'success', 2000);
-                      }}
-                    />
-                  )}
+                  <GraphQLSchemaExplorer 
+                    schema={introspectionSchema}
+                    currentQuery={bodyContent}
+                    isLoading={isRequestLoading}
+                    onIntrospect={handleIntrospect}
+                    onLoadSampleSchema={(s) => {
+                      setIntrospectionSchema(s);
+                      addToast('Sample GraphQL schema loaded', 'success', 2000);
+                    }}
+                    onInsertQuery={(queryStub, variables) => {
+                      setBodyContent(queryStub);
+                      if (variables !== undefined) {
+                        setGqlVariables(variables);
+                      }
+                      addToast('Query applied to editor!', 'success', 2000);
+                    }}
+                  />
                 </div>
               </div>
             )}

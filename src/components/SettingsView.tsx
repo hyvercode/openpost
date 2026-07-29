@@ -1,12 +1,38 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../lib/api';
-import { User, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff } from 'lucide-react';
+import { User, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff, Palette, Sun, Moon, Check, RotateCcw, Sparkles } from 'lucide-react';
 import { cn } from '../utils';
 
+const COLOR_PRESETS = [
+  { name: 'Ubuntu Orange', value: '#DD4814' },
+  { name: 'Electric Violet', value: '#8B5CF6' },
+  { name: 'Ocean Cyan', value: '#06B6D4' },
+  { name: 'Mint Emerald', value: '#10B981' },
+  { name: 'Crimson Rose', value: '#F43F5E' },
+  { name: 'Sunset Amber', value: '#F59E0B' },
+  { name: 'Royal Indigo', value: '#6366F1' },
+  { name: 'Cyber Pink', value: '#EC4899' },
+  { name: 'Deep Teal', value: '#14B8A6' },
+  { name: 'Vibrant Coral', value: '#FF6B6B' },
+];
+
 export const SettingsView: React.FC = () => {
-  const { user, setUser, workspaces, currentWorkspace, setCurrentWorkspace, addToast, proxyConfig, setProxyConfig } = useStore();
-  const [activeTab, setActiveTab] = useState<'profile' | 'workspace' | 'team' | 'security' | 'proxy'>('profile');
+  const { 
+    user, 
+    setUser, 
+    workspaces, 
+    currentWorkspace, 
+    setCurrentWorkspace, 
+    addToast, 
+    proxyConfig, 
+    setProxyConfig,
+    theme,
+    setTheme,
+    primaryColor,
+    setPrimaryColor
+  } = useStore();
+  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'workspace' | 'team' | 'security' | 'proxy'>('profile');
   const [isSaving, setIsSaving] = useState(false);
 
   // Proxy State
@@ -115,6 +141,17 @@ export const SettingsView: React.FC = () => {
             <User className="w-4 h-4" />
             Profile
           </button>
+
+          <button 
+            onClick={() => setActiveTab('appearance')}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+              activeTab === 'appearance' ? "bg-[var(--primary)] text-white" : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            )}
+          >
+            <Palette className="w-4 h-4" />
+            Theme & Appearance
+          </button>
           
           <button 
             onClick={() => setActiveTab('workspace')}
@@ -222,6 +259,243 @@ export const SettingsView: React.FC = () => {
                     </button>
                   </div>
                 </form>
+              </div>
+            )}
+
+            {activeTab === 'appearance' && (
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[var(--text-primary)]">Theme & Appearance</h1>
+                  <p className="text-[var(--text-secondary)]">Customize the visual theme and pick your custom primary accent colors for the UI</p>
+                </div>
+
+                {/* Base Color Mode */}
+                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                    <Sun className="w-4 h-4 text-[var(--primary)]" />
+                    Base Color Mode
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTheme('default');
+                        addToast('Base theme set to Ubuntu Aubergine', 'info');
+                      }}
+                      className={cn(
+                        "p-4 rounded-lg border flex flex-col items-center gap-2 text-center transition-all cursor-pointer relative",
+                        theme === 'default'
+                          ? "border-[var(--primary)] bg-[var(--primary)]/10 ring-2 ring-[var(--primary)]/30"
+                          : "border-[var(--border-strong)] bg-[var(--bg-hover)] hover:border-[var(--text-secondary)]"
+                      )}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#2C001E] border-2 border-[#DD4814] flex items-center justify-center shadow-md">
+                        <div className="w-4 h-4 rounded-full bg-[#DD4814]" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-[var(--text-primary)]">Ubuntu Aubergine</div>
+                        <div className="text-[11px] text-[var(--text-secondary)]">Signature warm purple theme</div>
+                      </div>
+                      {theme === 'default' && (
+                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-xs font-bold">
+                          ✓
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTheme('light');
+                        addToast('Base theme set to Light Mode', 'info');
+                      }}
+                      className={cn(
+                        "p-4 rounded-lg border flex flex-col items-center gap-2 text-center transition-all cursor-pointer relative",
+                        theme === 'light'
+                          ? "border-[var(--primary)] bg-[var(--primary)]/10 ring-2 ring-[var(--primary)]/30"
+                          : "border-[var(--border-strong)] bg-[var(--bg-hover)] hover:border-[var(--text-secondary)]"
+                      )}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#FDFDFD] border-2 border-[#AEA79F] flex items-center justify-center shadow-md">
+                        <Sun className="w-5 h-5 text-[#DD4814]" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-[var(--text-primary)]">Light Mode</div>
+                        <div className="text-[11px] text-[var(--text-secondary)]">High-contrast bright workspace</div>
+                      </div>
+                      {theme === 'light' && (
+                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-xs font-bold">
+                          ✓
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTheme('dark');
+                        addToast('Base theme set to Slate Dark Mode', 'info');
+                      }}
+                      className={cn(
+                        "p-4 rounded-lg border flex flex-col items-center gap-2 text-center transition-all cursor-pointer relative",
+                        theme === 'dark'
+                          ? "border-[var(--primary)] bg-[var(--primary)]/10 ring-2 ring-[var(--primary)]/30"
+                          : "border-[var(--border-strong)] bg-[var(--bg-hover)] hover:border-[var(--text-secondary)]"
+                      )}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#0F172A] border-2 border-[#334155] flex items-center justify-center shadow-md">
+                        <Moon className="w-5 h-5 text-[#E95420]" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-[var(--text-primary)]">Slate Dark</div>
+                        <div className="text-[11px] text-[var(--text-secondary)]">Modern slate dark workspace</div>
+                      </div>
+                      {theme === 'dark' && (
+                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-xs font-bold">
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Primary Accent Color Selection */}
+                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-[var(--primary)]" />
+                        Custom Primary Accent Color
+                      </h3>
+                      <p className="text-xs text-[var(--text-secondary)] mt-1">
+                        Pick any custom color to override buttons, active tabs, highlights, and focus rings.
+                      </p>
+                    </div>
+                    {primaryColor && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPrimaryColor(null);
+                          addToast('Reset primary color to theme default', 'success');
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Reset Accent
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Preset Swatches */}
+                  <div>
+                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)] block mb-3">Color Presets</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                      {COLOR_PRESETS.map((preset) => {
+                        const isSelected = primaryColor?.toLowerCase() === preset.value.toLowerCase();
+                        return (
+                          <button
+                            key={preset.value}
+                            type="button"
+                            onClick={() => {
+                              setPrimaryColor(preset.value);
+                              addToast(`Primary color updated to ${preset.name}`, 'success');
+                            }}
+                            className={cn(
+                              "flex items-center gap-2.5 p-2.5 rounded-lg border transition-all text-left group cursor-pointer",
+                              isSelected
+                                ? "border-[var(--primary)] bg-[var(--primary)]/15 shadow-sm ring-1 ring-[var(--primary)]"
+                                : "border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:border-[var(--border-strong)]"
+                            )}
+                          >
+                            <span
+                              className="w-6 h-6 rounded-full shrink-0 border border-white/20 shadow-sm flex items-center justify-center transition-transform group-hover:scale-110"
+                              style={{ backgroundColor: preset.value }}
+                            >
+                              {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                            </span>
+                            <div className="truncate">
+                              <span className="text-xs font-semibold block text-[var(--text-primary)] truncate">{preset.name}</span>
+                              <span className="text-[10px] font-mono text-[var(--text-secondary)] block">{preset.value}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom Color Picker & Hex Input */}
+                  <div className="pt-4 border-t border-[var(--border-subtle)]">
+                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)] block mb-2">Custom Color Value</label>
+                    <div className="flex items-center gap-3">
+                      <div className="relative flex items-center">
+                        <input
+                          type="color"
+                          value={primaryColor || (theme === 'dark' ? '#E95420' : '#DD4814')}
+                          onChange={(e) => {
+                            setPrimaryColor(e.target.value);
+                          }}
+                          className="w-10 h-10 rounded cursor-pointer border-0 p-0 bg-transparent"
+                          title="Click to open color picker"
+                        />
+                      </div>
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          value={primaryColor || ''}
+                          placeholder={theme === 'dark' ? '#E95420' : '#DD4814'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (!val) {
+                              setPrimaryColor(null);
+                            } else if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                              setPrimaryColor(val);
+                            }
+                          }}
+                          className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm font-mono text-[var(--text-primary)] outline-none focus:border-[var(--primary)] uppercase"
+                        />
+                      </div>
+                      <div className="text-xs text-[var(--text-secondary)] font-mono px-2">
+                        {primaryColor ? 'Custom Accent Active' : 'Default Theme Accent'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live UI Preview Card */}
+                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[var(--primary)]" />
+                    Live Theme Preview
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    See how your custom primary accent color affects UI controls in real-time.
+                  </p>
+
+                  <div className="p-4 bg-[var(--bg-base)] rounded-md border border-[var(--border-subtle)] space-y-4">
+                    {/* Sample Tabs */}
+                    <div className="flex items-center border-b border-[var(--border-subtle)] gap-4 text-xs font-medium">
+                      <div className="pb-2 text-[var(--primary)] border-b-2 border-[var(--primary)] font-bold">Active Endpoint</div>
+                      <div className="pb-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Headers (3)</div>
+                      <div className="pb-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Body</div>
+                    </div>
+
+                    {/* Sample Controls */}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button type="button" className="bg-[var(--primary)] text-white px-4 py-2 rounded text-xs font-bold shadow-md hover:opacity-90 transition-opacity">
+                        Primary Action
+                      </button>
+                      <button type="button" className="border border-[var(--primary)] text-[var(--primary)] px-4 py-2 rounded text-xs font-semibold hover:bg-[var(--primary)]/10 transition-colors">
+                        Secondary Action
+                      </button>
+                      <span className="bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 px-2.5 py-1 rounded text-[11px] font-bold">
+                        200 OK
+                      </span>
+                      <span className="bg-[var(--primary)] text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
+                        GET
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 

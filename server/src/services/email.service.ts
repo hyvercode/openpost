@@ -31,6 +31,39 @@ export class EmailService {
     return this.transporter;
   }
 
+  async sendVerificationEmail(to: string, verificationLink: string) {
+    const from = process.env.SMTP_FROM || 'no-reply@example.com';
+    const transporter = this.getTransporter();
+
+    const mailOptions = {
+      from,
+      to,
+      subject: 'Confirm Your Email Address - OpenPost API',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+          <h1 style="color: #E95420;">Welcome to OpenPost API!</h1>
+          <p>Thank you for registering. Please confirm your email address to activate your account and start using OpenPost.</p>
+          <div style="margin: 30px 0;">
+            <a href="${verificationLink}" style="background-color: #E95420; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Confirm Email Address</a>
+          </div>
+          <p style="font-size: 12px; color: #666;">Or copy and paste this URL into your browser:</p>
+          <p style="font-size: 12px; color: #666; word-break: break-all;"><a href="${verificationLink}">${verificationLink}</a></p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+          <p style="font-size: 11px; color: #999;">If you did not create an account on OpenPost API, you can safely ignore this email.</p>
+        </div>
+      `,
+    };
+
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Verification email sent: %s', info.messageId);
+      return info;
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+      throw new Error('Failed to send verification email');
+    }
+  }
+
   async sendInvitationEmail(to: string, workspaceName: string, inviteLink: string) {
     const from = process.env.SMTP_FROM || 'no-reply@example.com';
     const transporter = this.getTransporter();

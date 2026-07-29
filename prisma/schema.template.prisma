@@ -15,6 +15,8 @@ model User {
   password           String?
   displayName        String?
   photoURL           String?
+  isEmailVerified    Boolean           @default(false)
+  verificationToken  String?           @unique
   resetToken         String?           @unique
   resetTokenExpires  DateTime?
   workspaces         WorkspaceMember[]

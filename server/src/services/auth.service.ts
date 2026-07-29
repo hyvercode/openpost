@@ -16,16 +16,89 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = uuidv4();
+
     const user = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         displayName: email.split('@')[0],
+        isEmailVerified: false,
+        verificationToken,
       },
     });
 
-    const token = jwt.sign({ userId: user.uid }, JWT_SECRET, { expiresIn: '7d' });
-    return { user: { uid: user.uid, email: user.email, displayName: user.displayName }, token };
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const verificationLink = `${appUrl}/?verificationToken=${verificationToken}`;
+
+    try {
+      await this.emailService.sendVerificationEmail(email, verificationLink);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+    }
+
+    return {
+      message: 'Registration successful! Please check your email inbox to confirm your account before logging in.',
+      email: user.email,
+      requiresVerification: true,
+      verificationLink // Included for development/testing convenience
+    };
+  }
+
+  async verifyEmail(token: string) {
+    const user = await prisma.user.findUnique({
+      where: { verificationToken: token },
+    });
+
+    if (!user) {
+      throw new Error('Invalid or expired confirmation link');
+    }
+
+    await prisma.user.update({
+      where: { uid: user.uid },
+      data: {
+        isEmailVerified: true,
+        verificationToken: null,
+      },
+    });
+
+    return { 
+      success: true, 
+      message: 'Your email has been confirmed successfully! You can now sign in.',
+      email: user.email
+    };
+  }
+
+  async resendVerificationEmail(email: string) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return { success: true, message: 'If an account exists, a confirmation link has been sent.' };
+    }
+
+    if (user.isEmailVerified) {
+      throw new Error('This email address is already confirmed. Please sign in.');
+    }
+
+    const verificationToken = uuidv4();
+    await prisma.user.update({
+      where: { uid: user.uid },
+      data: { verificationToken },
+    });
+
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const verificationLink = `${appUrl}/?verificationToken=${verificationToken}`;
+
+    try {
+      await this.emailService.sendVerificationEmail(email, verificationLink);
+    } catch (error) {
+      console.error('Failed to send verification email:', error);
+    }
+
+    return { 
+      success: true, 
+      message: 'A new confirmation email has been sent. Please check your inbox.',
+      verificationLink 
+    };
   }
 
   async login(email: string, password: string) {
@@ -37,6 +110,10 @@ export class AuthService {
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
       throw new Error('Invalid email or password');
+    }
+
+    if (!user.isEmailVerified) {
+      throw new Error('Your email address has not been confirmed yet. Please check your inbox for the confirmation email before logging in.');
     }
 
     const token = jwt.sign({ userId: user.uid }, JWT_SECRET, { expiresIn: '7d' });
