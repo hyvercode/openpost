@@ -25,7 +25,8 @@ import { Toaster } from './components/Toaster';
 import { ShareImportModal } from './components/ShareImportModal';
 import { CurlImportModal } from './components/CurlImportModal';
 import { AgentDownloadModal } from './components/AgentDownloadModal';
-import { LogOut, Cloud, MonitorSmartphone, Download, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw } from 'lucide-react';
+import { QuickSearchModal } from './components/QuickSearchModal';
+import { LogOut, Cloud, MonitorSmartphone, Download, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw, Search } from 'lucide-react';
 import { Workspace, Theme, ApiCollection, RequestItem } from './types';
 import { cn } from './utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -67,7 +68,8 @@ export default function App() {
     setActiveRequest,
     openTab,
     isAgentModalOpen,
-    setIsAgentModalOpen
+    setIsAgentModalOpen,
+    setIsQuickSearchOpen
   } = useStore();
   const [loading, setLoading] = useState(true);
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
@@ -679,6 +681,19 @@ export default function App() {
               <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)] absolute right-2 pointer-events-none" />
             </div>
 
+            {/* Quick Search Workspace Trigger */}
+            <button
+              onClick={() => setIsQuickSearchOpen(true)}
+              className="flex items-center gap-2 bg-[var(--bg-hover)]/60 hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg px-2.5 py-1 transition-all shadow-2xs cursor-pointer group shrink-0"
+              title="Quick Search Workspace (Cmd+K / Ctrl+K)"
+            >
+              <Search className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--primary)] transition-colors" />
+              <span className="hidden sm:inline font-medium">Search...</span>
+              <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-[var(--text-tertiary)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded shadow-2xs">
+                <span className="text-[11px]">⌘</span>K
+              </kbd>
+            </button>
+
             {/* Quick Actions Group */}
             <div className="flex items-center bg-[var(--bg-hover)]/40 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
               <button
@@ -1162,6 +1177,7 @@ export default function App() {
         isOpen={isAgentModalOpen}
         onClose={() => setIsAgentModalOpen(false)}
       />
+      <QuickSearchModal />
       <Toaster />
     </div>
   );

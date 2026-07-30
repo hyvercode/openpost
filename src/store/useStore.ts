@@ -30,6 +30,8 @@ interface AppState {
 
   isAgentModalOpen: boolean;
   setIsAgentModalOpen: (open: boolean) => void;
+  isQuickSearchOpen: boolean;
+  setIsQuickSearchOpen: (open: boolean) => void;
 
   deployments: Deployment[];
   setDeployments: (deployments: Deployment[]) => void;
@@ -144,6 +146,8 @@ export const useStore = create<AppState>((set) => ({
   setBulkRunStopRequested: (stop) => set({ bulkRunStopRequested: stop }),
   isAgentModalOpen: false,
   setIsAgentModalOpen: (open) => set({ isAgentModalOpen: open }),
+  isQuickSearchOpen: false,
+  setIsQuickSearchOpen: (open) => set({ isQuickSearchOpen: open }),
   user: null,
   setUser: (user) => set({ user }),
   

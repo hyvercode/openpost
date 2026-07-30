@@ -50,3 +50,7 @@
      Done
  23. Moved Desktop Agent modal state (isAgentModalOpen, setIsAgentModalOpen) to global Zustand store for universal accessibility across components.
      Done
+ 24. Implemented global keyboard shortcut (Cmd/Ctrl + K) command palette search overlay for jumping between requests, collections, and environments.
+     Done
+ 25. Enhanced Manage Workspace Members modal with a solid opaque background container and added loading state spinners when sending and resending invitations.
+     Done
