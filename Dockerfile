@@ -13,11 +13,6 @@ COPY prisma ./prisma/
 # Install semua dependencies
 RUN npm install
 
-# --- TAMBAHKAN BARIS INI ---
-# Wajib di-generate sebelum build agar TypeScript mengenali @prisma/client
-RUN npx prisma generate
-# ---------------------------
-
 # Copy SISA seluruh source code aplikasi
 COPY . .
 
