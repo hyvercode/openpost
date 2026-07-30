@@ -621,186 +621,222 @@ export default function App() {
         onMouseDown={handleSidebarMouseDown}
       />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-11 border-b border-[var(--border-subtle)] flex items-center justify-between px-4 shrink-0 bg-[var(--bg-panel)]">
-          <div className="flex items-center gap-4">
+        <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-3 md:px-4 shrink-0 bg-[var(--bg-panel)] shadow-2xs select-none gap-2 overflow-x-auto scrollbar-none">
+          {/* Left Context Controls */}
+          <div className="flex items-center gap-2 md:gap-3 shrink-0">
             {sidebarCollapsed && (
               <button 
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-1 hover:bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
+                className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1 shadow-2xs"
                 title="Expand Sidebar"
               >
                 <ChevronRight className="w-4 h-4" />
-                <span className="text-[11px] font-medium pr-1">Sidebar</span>
+                <span className="text-xs font-semibold pr-1 hidden sm:inline">Sidebar</span>
               </button>
             )}
-            <h2 className="text-sm font-medium text-[var(--text-primary)]">
-              Workspace: <span className="font-semibold">{currentWorkspace?.name || 'Loading...'}</span>
-            </h2>
-            <div className="h-4 w-px bg-[var(--border-strong)]"></div>
-            <select 
-              className="bg-[var(--bg-hover)] border border-[var(--border-strong)] text-xs text-[var(--text-primary)] rounded px-2 py-1 outline-none focus:border-[var(--border-focus)]"
-              value={currentEnvironment?.id || ''}
-              onChange={(e) => {
-                const env = environments.find(env => env.id === e.target.value);
-                setCurrentEnvironment(env || null);
-              }}
-            >
-              <option value="">No Environment</option>
-              {environments.map(env => (
-                <option key={env.id} value={env.id}>{env.name}</option>
-              ))}
-            </select>
 
-            <div className="h-4 w-px bg-[var(--border-strong)] hidden sm:block"></div>
+            {/* Workspace Identifier */}
+            <div 
+              className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[var(--bg-hover)]/60 border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] font-semibold shadow-2xs hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
+              title="Current Active Workspace"
+              onClick={() => setActiveView('settings')}
+            >
+              <Server className="w-3.5 h-3.5 text-[var(--primary)]" />
+              <span className="truncate max-w-[120px] md:max-w-[180px]">
+                {currentWorkspace?.name || 'Workspace'}
+              </span>
+            </div>
 
-            <button
-              onClick={() => setIsCurlModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group shadow-2xs"
-              title="Import request from cURL command string"
-            >
-              <TerminalSquare className="w-3.5 h-3.5 text-[var(--primary)] group-hover:text-white transition-colors" />
-              <span className="hidden sm:inline">Import from cURL</span>
-              <span className="sm:hidden">cURL</span>
-            </button>
-            <div className="h-4 w-px bg-[var(--border-strong)] hidden sm:block"></div>
-            <button
-              onClick={handleSyncWorkspace}
-              disabled={isWorkspaceLoading}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Synchronize workspace data"
-            >
-              <RefreshCw className={cn("w-3.5 h-3.5 text-[var(--primary)] group-hover:text-white transition-colors", isWorkspaceLoading && "animate-spin")} />
-              <span className="hidden sm:inline">Sync Workspace</span>
-              <span className="sm:hidden">Sync</span>
-            </button>
-            <div className="h-4 w-px bg-[var(--border-strong)] hidden sm:block"></div>
-            <button
-              onClick={() => {
-                setAgentMode(agentMode === 'cloud' ? 'desktop' : 'cloud');
-                addToast(agentMode === 'cloud' ? 'Switched to Desktop Agent for local requests' : 'Switched to Cloud Agent', 'success', 2000);
-              }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group shadow-2xs"
-              title={agentMode === 'cloud' ? 'Using Cloud Agent (Cannot reach localhost)' : 'Using Desktop Agent (Can reach localhost via Bridge)'}
-            >
-              {agentMode === 'cloud' ? (
-                <Cloud className="w-3.5 h-3.5 text-[var(--primary)] group-hover:text-white transition-colors" />
-              ) : (
-                <MonitorSmartphone className="w-3.5 h-3.5 text-emerald-500 group-hover:text-white transition-colors" />
-              )}
-              <span className="hidden sm:inline">{agentMode === 'cloud' ? 'Cloud Agent' : 'Desktop Agent'}</span>
-              <span className="sm:hidden">{agentMode === 'cloud' ? 'Cloud' : 'Local'}</span>
-            </button>
-            <button
-              onClick={() => setIsAgentModalOpen(true)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group shadow-2xs"
-              title="Download Desktop Agent Bridge"
-            >
-              <Download className="w-3.5 h-3.5 text-[var(--icon-color)] group-hover:text-white transition-colors" />
-            </button>
+            {/* Environment Dropdown Custom Styling */}
+            <div className="relative flex items-center">
+              <span className={cn(
+                "absolute left-2.5 w-2 h-2 rounded-full pointer-events-none z-10 transition-colors",
+                currentEnvironment ? "bg-emerald-500 animate-pulse shadow-xs" : "bg-gray-400 opacity-40"
+              )} />
+              <select 
+                className="bg-[var(--bg-hover)]/60 hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] rounded-lg pl-6 pr-7 py-1 outline-none focus:ring-1 focus:ring-[var(--primary)] transition-all appearance-none cursor-pointer shadow-2xs"
+                value={currentEnvironment?.id || ''}
+                onChange={(e) => {
+                  const env = environments.find(env => env.id === e.target.value);
+                  setCurrentEnvironment(env || null);
+                }}
+              >
+                <option value="">No Environment</option>
+                {environments.map(env => (
+                  <option key={env.id} value={env.id}>{env.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)] absolute right-2 pointer-events-none" />
+            </div>
+
+            {/* Quick Actions Group */}
+            <div className="flex items-center bg-[var(--bg-hover)]/40 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
+              <button
+                onClick={() => setIsCurlModalOpen(true)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group"
+                title="Import request from cURL command string"
+              >
+                <TerminalSquare className="w-3.5 h-3.5 text-[var(--primary)] transition-transform group-hover:scale-110" />
+                <span className="hidden sm:inline">Import cURL</span>
+              </button>
+
+              <div className="h-3.5 w-px bg-[var(--border-subtle)]" />
+
+              <button
+                onClick={handleSyncWorkspace}
+                disabled={isWorkspaceLoading}
+                className="p-1 md:px-2 py-1 rounded-md hover:bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                title="Synchronize workspace data"
+              >
+                <RefreshCw className={cn("w-3.5 h-3.5 text-[var(--primary)] transition-transform", isWorkspaceLoading && "animate-spin")} />
+                <span className="hidden md:inline">Sync</span>
+              </button>
+            </div>
+
+            {/* Agent Connection Mode Group */}
+            <div className="flex items-center bg-[var(--bg-hover)]/40 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
+              <button
+                onClick={() => {
+                  setAgentMode(agentMode === 'cloud' ? 'desktop' : 'cloud');
+                  addToast(agentMode === 'cloud' ? 'Switched to Desktop Agent for local requests' : 'Switched to Cloud Agent', 'success', 2000);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
+                title={agentMode === 'cloud' ? 'Using Cloud Agent (Cannot reach localhost)' : 'Using Desktop Agent (Can reach localhost via Bridge)'}
+              >
+                {agentMode === 'cloud' ? (
+                  <>
+                    <Cloud className="w-3.5 h-3.5 text-blue-500" />
+                    <span className="hidden sm:inline">Cloud Agent</span>
+                  </>
+                ) : (
+                  <>
+                    <MonitorSmartphone className="w-3.5 h-3.5 text-emerald-500" />
+                    <span className="hidden sm:inline">Desktop Agent</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => setIsAgentModalOpen(true)}
+                className="p-1 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                title="Download Desktop Agent Bridge"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Layout Mode Toggles */}
-            <div className="flex items-center bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-md p-0.5 shrink-0 select-none">
+
+          {/* Right Layout & Preferences Controls */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Layout Split Mode Segment */}
+            <div className="flex items-center bg-[var(--bg-hover)]/50 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
               <button
                 onClick={() => setLayoutMode('horizontal')}
                 className={cn(
-                  "p-1 rounded transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
+                  "p-1.5 rounded-md transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
                   layoutMode === 'horizontal' 
-                    ? "bg-[var(--primary)] text-white shadow-sm" 
+                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)] font-bold" 
                     : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Horizontal Split (Side by Side)"
               >
                 <Columns2 className="w-3.5 h-3.5" />
-                <span className="hidden md:inline text-[10px]">Horizontal</span>
+                <span className="hidden xl:inline text-[10px]">Horizontal</span>
               </button>
               <button
                 onClick={() => setLayoutMode('vertical')}
                 className={cn(
-                  "p-1 rounded transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
+                  "p-1.5 rounded-md transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
                   layoutMode === 'vertical' 
-                    ? "bg-[var(--primary)] text-white shadow-sm" 
+                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)] font-bold" 
                     : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Vertical Split (Stacked)"
               >
                 <Rows2 className="w-3.5 h-3.5" />
-                <span className="hidden md:inline text-[10px]">Vertical</span>
+                <span className="hidden xl:inline text-[10px]">Vertical</span>
               </button>
               <button
                 onClick={() => setLayoutMode('floating')}
                 className={cn(
-                  "p-1 rounded transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
+                  "p-1.5 rounded-md transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
                   layoutMode === 'floating' 
-                    ? "bg-[var(--primary)] text-white shadow-sm" 
+                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)] font-bold" 
                     : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Docking Workspace (Floating Windows)"
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden md:inline text-[10px]">Docking</span>
+                <span className="hidden xl:inline text-[10px]">Docking</span>
               </button>
               
-              <div className="h-3 w-px bg-[var(--border-strong)] mx-0.5" />
+              <div className="h-3.5 w-px bg-[var(--border-subtle)] mx-0.5" />
 
               <button
                 onClick={() => setResponseCollapsed(!responseCollapsed)}
                 className={cn(
-                  "p-1 rounded transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
+                  "p-1.5 rounded-md transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
                   !responseCollapsed 
                     ? "text-[var(--icon-color)] hover:text-[var(--text-primary)]" 
-                    : "bg-amber-500/20 text-amber-500 font-bold border border-amber-500/40 shadow-sm"
+                    : "bg-amber-500/15 text-amber-500 font-bold border border-amber-500/30"
                 )}
-                title={responseCollapsed ? "Unhide / Expand Response Panel" : "Hide / Collapse Response Panel"}
+                title={responseCollapsed ? "Expand Response Panel" : "Collapse Response Panel"}
               >
                 <PanelRight className="w-3.5 h-3.5" />
-                <span className="hidden lg:inline text-[10px]">{responseCollapsed ? "Show Response" : "Response"}</span>
+                <span className="hidden xl:inline text-[10px]">{responseCollapsed ? "Show Response" : "Response"}</span>
               </button>
             </div>
 
-            <div className="h-4 w-px bg-[var(--border-strong)]"></div>
-
+            {/* Theme Toggle Button */}
             <button
               onClick={() => {
                 const themes: Theme[] = ['default', 'light', 'dark'];
                 const nextIndex = (themes.indexOf(theme) + 1) % themes.length;
                 setTheme(themes[nextIndex]);
               }}
-              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md text-[var(--text-primary)] transition-all duration-300 flex items-center gap-1.5 group active:scale-95"
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg border border-[var(--border-subtle)] text-[var(--text-primary)] transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs"
               title={`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`}
             >
-              <div className="transition-transform duration-300 ease-out group-hover:rotate-12 group-active:rotate-45">
+              <div className="transition-transform duration-300 group-hover:rotate-12">
                 {theme === 'default' ? <MonitorSmartphone className="w-4 h-4 text-[var(--icon-color)]" /> : 
-                 theme === 'light' ? <Sun className="w-4 h-4 text-[var(--icon-color)]" /> : 
-                 <Moon className="w-4 h-4 text-[var(--icon-color)]" />}
+                 theme === 'light' ? <Sun className="w-4 h-4 text-amber-500" /> : 
+                 <Moon className="w-4 h-4 text-indigo-400" />}
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
+              <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline text-[var(--text-secondary)]">
                 {theme}
               </span>
             </button>
-            <div className="h-4 w-px bg-[var(--border-strong)]"></div>
-            <button 
-              onClick={() => setActiveView('settings')}
-              className={cn(
-                "flex items-center gap-2 p-1 pr-2.5 rounded-full transition-all border-2",
-                activeView === 'settings' ? "border-[var(--primary)] shadow-sm bg-[var(--bg-hover)]" : "border-transparent hover:bg-[var(--bg-hover)] hover:border-[var(--border-subtle)]"
-              )}
-              title="Profile Settings"
-            >
-              {user.photoURL ? (
-                <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-[var(--bg-hover)] flex items-center justify-center">
-                  <User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                </div>
-              )}
-              <span className="text-xs font-semibold text-[var(--text-primary)] max-w-[100px] truncate hidden sm:block">
-                {user.displayName || user.email?.split('@')[0]}
-              </span>
-            </button>
-            <button onClick={logout} className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md text-[var(--text-primary)] transition-colors" title="Logout">
-              <LogOut className="w-4 h-4" />
-            </button>
+
+            {/* User Avatar & Settings */}
+            <div className="flex items-center gap-1 border-l border-[var(--border-subtle)] pl-2">
+              <button 
+                onClick={() => setActiveView('settings')}
+                className={cn(
+                  "flex items-center gap-2 p-1 pr-2 rounded-full transition-all border",
+                  activeView === 'settings' 
+                    ? "border-[var(--primary)] shadow-xs bg-[var(--bg-hover)]" 
+                    : "border-transparent hover:bg-[var(--bg-hover)] hover:border-[var(--border-subtle)]"
+                )}
+                title="Profile Settings"
+              >
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full object-cover" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] font-bold flex items-center justify-center text-xs">
+                    {(user.displayName || user.email || 'U')[0].toUpperCase()}
+                  </div>
+                )}
+                <span className="text-xs font-semibold text-[var(--text-primary)] max-w-[90px] truncate hidden md:block">
+                  {user.displayName || user.email?.split('@')[0]}
+                </span>
+              </button>
+              <button 
+                onClick={logout} 
+                className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-lg text-[var(--text-secondary)] transition-colors" 
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </header>
         
