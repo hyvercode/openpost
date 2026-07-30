@@ -5,22 +5,22 @@ WORKDIR /app
 # Install dependencies sistem untuk Prisma
 RUN apt-get update && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
-# Copy konfigurasi package dan prisma terlebih dahulu
+# Copy konfigurasi package dan prisma terlebih dahulu (untuk caching layer)
 COPY package*.json ./
-COPY prisma.config.ts ./
 COPY prisma ./prisma/
 
-# Install semua dependencies
+# Install semua dependencies (termasuk devDependencies untuk build)
 RUN npm install
 
-# Copy SISA seluruh source code aplikasi
+# Copy SISA seluruh source code aplikasi (Ditaruh SEBELUM build)
 COPY . .
 
-# Build aplikasi (Vite / Server bundle)
+# Build aplikasi (Vite / Server bundle)z
 RUN npm run build
 
 # Hapus devDependencies untuk memperkecil ukuran image akhir
 RUN npm prune --production
+
 
 # Stage 2: Final Runner Image
 FROM node:22-slim AS runner
@@ -48,4 +48,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push && npm start"]
+CMD ["node", "dist/server.cjs"]

@@ -1,0 +1,26 @@
+services:
+  app:
+    container_name: openpost-api
+    hostname: openpost-api
+    build: .
+    ports:
+      - "7770:3000"
+    env_file:
+      - .env.prod
+    volumes:
+      - openpost_data:/app/uploads
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 2G
+    #     reservations:
+    #       memory: 256M
+
+volumes:
+  openpost_data:
+    external: true
+
+networks:
+  default:
+    name: localhost
+    external: true
