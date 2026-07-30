@@ -23,7 +23,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { Toaster } from './components/Toaster';
 import { ShareImportModal } from './components/ShareImportModal';
 import { CurlImportModal } from './components/CurlImportModal';
-import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare } from 'lucide-react';
+import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw } from 'lucide-react';
 import { Workspace, Theme, ApiCollection, RequestItem } from './types';
 import { cn } from './utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -57,6 +57,7 @@ export default function App() {
     layoutMode,
     setLayoutMode,
     addToast,
+    isWorkspaceLoading,
     setIsWorkspaceLoading,
     setActiveRequest,
     openTab
@@ -108,6 +109,27 @@ export default function App() {
     setIsCurlModalOpen(false);
     addToast(`Imported ${curlData.method} request from cURL!`, 'success');
   };
+  const handleSyncWorkspace = async () => {
+    if (!currentWorkspace) return;
+    setIsWorkspaceLoading(true);
+    try {
+      const [collectionsData, environmentsData, deploymentsData] = await Promise.all([
+        apiService.getCollections(currentWorkspace.id),
+        apiService.getEnvironments(currentWorkspace.id),
+        apiService.getDeployments(currentWorkspace.id),
+      ]);
+      setCollections(collectionsData);
+      setEnvironments(environmentsData);
+      setDeployments(deploymentsData);
+      addToast('Workspace synced successfully', 'success');
+    } catch (err) {
+      console.error("Failed to sync workspace data:", err);
+      addToast('Failed to sync workspace data', 'error');
+    } finally {
+      setIsWorkspaceLoading(false);
+    }
+  };
+
   const [publicDocId, setPublicDocId] = useState<string | null>(null);
   const [publicDocCollection, setPublicDocCollection] = useState<ApiCollection | null>(null);
   const [publicDocError, setPublicDocError] = useState<string | null>(null);
@@ -634,6 +656,17 @@ export default function App() {
               <TerminalSquare className="w-3.5 h-3.5 text-[var(--primary)] group-hover:text-white transition-colors" />
               <span className="hidden sm:inline">Import from cURL</span>
               <span className="sm:hidden">cURL</span>
+            </button>
+            <div className="h-4 w-px bg-[var(--border-strong)] hidden sm:block"></div>
+            <button
+              onClick={handleSyncWorkspace}
+              disabled={isWorkspaceLoading}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Synchronize workspace data"
+            >
+              <RefreshCw className={cn("w-3.5 h-3.5 text-[var(--primary)] group-hover:text-white transition-colors", isWorkspaceLoading && "animate-spin")} />
+              <span className="hidden sm:inline">Sync Workspace</span>
+              <span className="sm:hidden">Sync</span>
             </button>
           </div>
           <div className="flex items-center gap-3">
