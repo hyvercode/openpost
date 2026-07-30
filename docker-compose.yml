@@ -29,12 +29,12 @@ services:
       retries: 5
     volumes:
       - openpost_data:/app/uploads
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 256M
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 2G
+    #     reservations:
+    #       memory: 256M
 
 volumes:
   openpost_data:
