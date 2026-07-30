@@ -21,6 +21,16 @@ interface AppState {
   currentEnvironment: Environment | null;
   setCurrentEnvironment: (env: Environment | null) => void;
 
+  bulkRunReport: CollectionRunReport | null;
+  setBulkRunReport: (report: CollectionRunReport | null) => void;
+  isBulkRunning: boolean;
+  setIsBulkRunning: (isRunning: boolean) => void;
+  bulkRunStopRequested: boolean;
+  setBulkRunStopRequested: (stopRequested: boolean) => void;
+
+  isAgentModalOpen: boolean;
+  setIsAgentModalOpen: (open: boolean) => void;
+
   deployments: Deployment[];
   setDeployments: (deployments: Deployment[]) => void;
 
@@ -132,6 +142,8 @@ export const useStore = create<AppState>((set) => ({
   setIsBulkRunning: (isRunning) => set({ isBulkRunning: isRunning }),
   bulkRunStopRequested: false,
   setBulkRunStopRequested: (stop) => set({ bulkRunStopRequested: stop }),
+  isAgentModalOpen: false,
+  setIsAgentModalOpen: (open) => set({ isAgentModalOpen: open }),
   user: null,
   setUser: (user) => set({ user }),
   

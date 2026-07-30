@@ -65,7 +65,9 @@ export default function App() {
     isWorkspaceLoading,
     setIsWorkspaceLoading,
     setActiveRequest,
-    openTab
+    openTab,
+    isAgentModalOpen,
+    setIsAgentModalOpen
   } = useStore();
   const [loading, setLoading] = useState(true);
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
@@ -599,15 +601,25 @@ export default function App() {
 
   return (
     <div className={cn(
-      "flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] font-sans overflow-hidden",
+      "flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] font-sans overflow-hidden relative",
       theme === 'light' ? 'theme-light' : theme === 'dark' ? 'theme-dark' : 'theme-default'
     )}>
+      {/* Mobile Backdrop Overlay for Sidebar */}
+      {!sidebarCollapsed && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 lg:hidden transition-opacity"
+          onClick={() => setSidebarCollapsed(true)}
+        />
+      )}
+
       <div 
         className={cn(
-          "h-full shrink-0 overflow-hidden relative",
-          !isResizingSidebar && "transition-[width] duration-300 ease-in-out"
+          "h-full shrink-0 overflow-hidden relative z-40 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] shadow-2xl lg:shadow-none",
+          "lg:static fixed inset-y-0 left-0",
+          !isResizingSidebar && "transition-all duration-300 ease-in-out",
+          sidebarCollapsed && "max-lg:-translate-x-full"
         )}
-        style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
+        style={{ width: sidebarCollapsed ? '0px' : sidebarWidth }}
       >
         <Sidebar />
       </div>
@@ -621,19 +633,17 @@ export default function App() {
         onMouseDown={handleSidebarMouseDown}
       />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-3 md:px-4 shrink-0 bg-[var(--bg-panel)] shadow-2xs select-none gap-2 overflow-x-auto scrollbar-none">
+        <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-2.5 md:px-4 shrink-0 bg-[var(--bg-panel)] shadow-2xs select-none gap-2 overflow-x-auto scrollbar-none">
           {/* Left Context Controls */}
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
-            {sidebarCollapsed && (
-              <button 
-                onClick={() => setSidebarCollapsed(false)}
-                className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1 shadow-2xs"
-                title="Expand Sidebar"
-              >
-                <ChevronRight className="w-4 h-4" />
-                <span className="text-xs font-semibold pr-1 hidden sm:inline">Sidebar</span>
-              </button>
-            )}
+            <button 
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1 shadow-2xs cursor-pointer shrink-0"
+              title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              <ChevronRight className={cn("w-4 h-4 transition-transform", !sidebarCollapsed && "rotate-180")} />
+              <span className="text-xs font-semibold pr-1 hidden sm:inline">Sidebar</span>
+            </button>
 
             {/* Workspace Identifier */}
             <div 
@@ -1147,6 +1157,10 @@ export default function App() {
         isOpen={isCurlModalOpen} 
         onImport={handleCurlImport} 
         onCancel={() => setIsCurlModalOpen(false)} 
+      />
+      <AgentDownloadModal
+        isOpen={isAgentModalOpen}
+        onClose={() => setIsAgentModalOpen(false)}
       />
       <Toaster />
     </div>

@@ -1200,10 +1200,10 @@ if (method === 'WS') {
       )}
 
       {/* URL Bar */}
-      <div className="flex flex-col px-4 pt-4 pb-0 gap-1.5">
-        <div className="flex items-stretch gap-2">
+      <div className="flex flex-col px-3 sm:px-4 pt-3 sm:pt-4 pb-0 gap-1.5">
+        <div className="flex flex-wrap sm:flex-nowrap items-stretch gap-2">
           <div className={cn(
-            "flex bg-[var(--bg-hover)] border rounded overflow-hidden flex-1 transition-all",
+            "flex bg-[var(--bg-hover)] border rounded-lg overflow-hidden flex-1 min-w-[200px] transition-all",
             urlErrorMsg 
               ? "border-red-500/80 ring-1 ring-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.1)]" 
               : "border-[var(--border-strong)] focus-within:border-[var(--border-focus)]"
@@ -1221,7 +1221,7 @@ if (method === 'WS') {
                   setActiveTab('params');
                 }
               }}
-              className="bg-transparent text-[var(--text-put)] font-bold text-xs px-3 border-r border-[var(--border-strong)] focus:outline-none"
+              className="bg-transparent text-[var(--text-put)] font-bold text-xs px-2.5 sm:px-3 border-r border-[var(--border-strong)] focus:outline-none shrink-0 cursor-pointer"
             >
               <option value="GET">GET</option>
               <option value="POST">POST</option>
@@ -1239,14 +1239,14 @@ if (method === 'WS') {
               onValueChange={setUrl}
               onBlur={() => setUrlTouched(true)}
               placeholder={(method === 'WS' || method === 'SSE') ? (method === 'WS' ? 'Enter ws:// or wss:// URL' : 'Enter http:// or https:// URL for SSE') : 'Enter URL or paste text'}
-              className="bg-transparent flex-1 px-3 text-sm text-[var(--text-primary)] focus:outline-none"
+              className="bg-transparent flex-1 px-2.5 sm:px-3 text-xs sm:text-sm text-[var(--text-primary)] focus:outline-none min-w-0"
             />
             {url && !getUrlError(url) && (
               <button
                 onClick={handleDetectGraphQL}
                 disabled={isDetectingGql}
                 title="Auto-detect if this is a GraphQL endpoint"
-                className="flex items-center gap-1.5 text-[10px] px-3 font-semibold text-[var(--text-secondary)] hover:text-[var(--primary)] border-l border-[var(--border-strong)] transition-colors duration-150 disabled:opacity-50"
+                className="hidden md:flex items-center gap-1.5 text-[10px] px-2.5 font-semibold text-[var(--text-secondary)] hover:text-[var(--primary)] border-l border-[var(--border-strong)] transition-colors duration-150 disabled:opacity-50 shrink-0"
               >
                 {isDetectingGql ? (
                   <span className="w-3 h-3 border-2 border-[var(--primary)]/20 border-t-[var(--primary)] rounded-full animate-spin" />
@@ -1257,40 +1257,42 @@ if (method === 'WS') {
               </button>
             )}
           </div>
-          <button 
-            onClick={handleSend}
-            disabled={isRequestLoading || ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting')}
-            className={cn(
-              "text-white px-6 rounded font-bold text-sm transition-colors flex items-center justify-center gap-2",
-              (method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connected' ? "bg-red-500 hover:bg-red-600" : "bg-[var(--primary)] hover:bg-[#e65a2d]",
-              "disabled:opacity-50 disabled:cursor-not-allowed"
-            )}
-          >
-            {isRequestLoading || ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting') ? (
-              <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Play className="w-4 h-4 fill-current hidden" />
-            )}
-            {method === 'WS' 
-              ? (wsStatus[activeRequest?.id || ''] === 'connected' ? 'Disconnect' : wsStatus[activeRequest?.id || ''] === 'connecting' ? 'Connecting' : 'Connect') 
-              : 'Send'}
-          </button>
-          
-          <div className="hidden sm:flex items-center justify-center text-xs font-medium text-[var(--text-secondary)] shrink-0 px-1">
-            {saveStatus === 'Saving...' && <span className="animate-pulse">Saving...</span>}
-            {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
-            {saveStatus === 'Changed' && <span>Unsaved...</span>}
-          </div>
 
-          {/* Code Snippet Button */}
-          <button
-            onClick={() => setIsCodeModalOpen(true)}
-            title="Generate Code Snippet"
-            className="p-2.5 rounded bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold"
-          >
-            <Code2 className="w-4 h-4 text-[var(--primary)]" />
-            <span className="hidden md:inline">Code</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+            <button 
+              onClick={handleSend}
+              disabled={isRequestLoading || ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting')}
+              className={cn(
+                "text-white px-4 sm:px-6 py-2 sm:py-0 rounded-lg font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none min-h-[36px]",
+                (method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connected' ? "bg-red-500 hover:bg-red-600" : "bg-[var(--primary)] hover:bg-[#e65a2d]",
+                "disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              )}
+            >
+              {isRequestLoading || ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting') ? (
+                <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Play className="w-4 h-4 fill-current hidden" />
+              )}
+              {method === 'WS' 
+                ? (wsStatus[activeRequest?.id || ''] === 'connected' ? 'Disconnect' : wsStatus[activeRequest?.id || ''] === 'connecting' ? 'Connecting' : 'Connect') 
+                : 'Send'}
+            </button>
+            
+            <div className="hidden sm:flex items-center justify-center text-xs font-medium text-[var(--text-secondary)] shrink-0 px-1">
+              {saveStatus === 'Saving...' && <span className="animate-pulse">Saving...</span>}
+              {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
+              {saveStatus === 'Changed' && <span>Unsaved...</span>}
+            </div>
+
+            {/* Code Snippet Button */}
+            <button
+              onClick={() => setIsCodeModalOpen(true)}
+              title="Generate Code Snippet"
+              className="p-2 sm:p-2.5 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 min-h-[36px]"
+            >
+              <Code2 className="w-4 h-4 text-[var(--primary)]" />
+              <span className="hidden md:inline">Code</span>
+            </button>
 
           {/* Kebab Menu Dropdown */}
           <div className="relative shrink-0 flex items-center" ref={kebabRef}>
@@ -1366,6 +1368,7 @@ if (method === 'WS') {
             )}
           </div>
         </div>
+      </div>
 
         {urlErrorMsg && (
           <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium px-1">
