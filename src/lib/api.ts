@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useStore } from '../store/useStore';
 import { Workspace, ApiCollection, Environment, Deployment } from '../types';
 
 export const api = axios.create({
@@ -164,9 +165,13 @@ export const apiService = {
   },
 
   async executeRequest(req: any, proxyConfig?: any, forceDirect = false) {
+    const { agentMode } = useStore.getState();
+    const isDesktopAgent = agentMode === 'desktop';
+    const proxyBaseUrl = isDesktopAgent ? 'http://127.0.0.1:8765/api/proxy' : '/proxy';
+
     const url = req.url || '';
-    const isLocal = forceDirect || /localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/i.test(url);
-    
+    const isLocal = !isDesktopAgent && (forceDirect || /localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/i.test(url));
+
     if (isLocal) {
       const startTime = performance.now();
       const method = (req.method || 'GET').toUpperCase();
@@ -174,7 +179,7 @@ export const apiService = {
         if (h.enabled && h.key) acc[h.key] = h.value;
         return acc;
       }, {}) : {};
-      
+
       let bodyData = undefined;
       if (req.body) {
         if (typeof req.body === 'object') {
@@ -261,16 +266,43 @@ export const apiService = {
       }
     }
 
-    const res = await api.post('/proxy', {
-      method: req.method,
-      url: req.url,
-      headers: req.headers.reduce((acc: any, h: any) => {
-        if (h.enabled && h.key) acc[h.key] = h.value;
-        return acc;
-      }, {}),
-      body: proxyBody,
-      proxyConfig,
-    });
-    return res.data;
+    try {
+      const res = await api.post(isDesktopAgent ? 'http://127.0.0.1:8765/api/proxy' : '/proxy', {
+        method: req.method,
+        url: req.url,
+        headers: req.headers ? req.headers.reduce((acc: any, h: any) => {
+          if (h.enabled && h.key) acc[h.key] = h.value;
+          return acc;
+        }, {}) : {},
+        body: proxyBody,
+        proxyConfig,
+      }, {
+        headers: {
+          'x-target-url': req.url
+        }
+      });
+      return res.data;
+    } catch (err: any) {
+      if (isDesktopAgent) {
+         return {
+            status: 0,
+            statusText: 'Agent Bridge Not Found',
+            headers: {},
+            data: {
+              error: 'Connection to Desktop Agent Bridge Failed',
+              message: 'Make sure your local Desktop Agent Bridge is running on port 8765.',
+              troubleshooting: [
+                "Run 'npm run bridge' or start the agent executable locally.",
+                "Ensure no firewall is blocking access to 127.0.0.1:8765."
+              ]
+            },
+            timeMs: 0,
+            size: 0,
+            timings: { dns: 0, connect: 0, ssl: 0, send: 0, wait: 0, receive: 0 }
+         };
+      } else {
+         throw err;
+      }
+    }
   },
 };

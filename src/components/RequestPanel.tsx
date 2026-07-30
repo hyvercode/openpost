@@ -910,7 +910,7 @@ if (method === 'WS') {
         }
       });
 
-      const res = await api.post('/proxy', {
+      const res = await api.post(useStore.getState().agentMode === 'desktop' ? 'http://127.0.0.1:8765/api/proxy' : '/proxy', {
         method: 'POST',
         url: finalUrl,
         headers: {
@@ -959,7 +959,7 @@ if (method === 'WS') {
       });
 
       const { proxyConfig } = useStore.getState();
-      const res = await api.post('/proxy', {
+      const res = await api.post(useStore.getState().agentMode === 'desktop' ? 'http://127.0.0.1:8765/api/proxy' : '/proxy', {
         method: 'POST',
         url: finalUrl,
         headers: {

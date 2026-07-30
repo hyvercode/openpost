@@ -5,43 +5,15 @@ import {
   Folder, Settings2, Download, Printer, Filter, Clock, ChevronDown, ChevronRight, CheckSquare,
   Square, Zap, RotateCcw, Sliders, Search, StopCircle, Eye, EyeOff, FileText, Check, Layers
 } from 'lucide-react';
-import { TestSuite, TestCase, TestAssertion, RequestItem, ApiCollection, KeyValue } from '../types';
+import { TestSuite, TestCase, TestAssertion, RequestItem, ApiCollection, KeyValue, ExecutedTestStep, CollectionRunReport } from '../types';
 import { apiService } from '../lib/api';
 import { runScriptSandbox } from '../utils/sandbox';
 import { cn } from '../utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-export interface ExecutedTestStep {
-  id: string;
-  iteration: number;
-  requestId: string;
-  requestName: string;
-  method: string;
-  url: string;
-  statusCode: number;
-  statusText: string;
-  durationMs: number;
-  sizeBytes: number;
-  passed: boolean;
-  tests: Array<{ name: string; passed: boolean; error?: string }>;
-  requestInfo: { headers: Record<string, string>; body?: string };
-  responseInfo: { headers: Record<string, string>; body?: string };
-  logs: Array<{ type: string; message: string }>;
-}
 
-export interface CollectionRunReport {
-  collectionId: string;
-  collectionName: string;
-  folderName?: string;
-  startTime: string;
-  totalExecutions: number;
-  passedCount: number;
-  failedCount: number;
-  totalDurationMs: number;
-  avgLatencyMs: number;
-  passRate: number;
-  steps: ExecutedTestStep[];
-}
+
+
 
 function interpolateString(str: string, vars: KeyValue[]): string {
   if (!str) return '';

@@ -7,6 +7,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { api } from './lib/api';
 import { apiService } from './lib/api';
 import { useStore } from './store/useStore';
+import { useAgentPing } from './hooks/useAgentPing';
 import { Sidebar } from './components/Sidebar';
 import { RequestPanel } from './components/RequestPanel';
 import { ResponsePanel } from './components/ResponsePanel';
@@ -23,12 +24,14 @@ import { AuthScreen } from './components/AuthScreen';
 import { Toaster } from './components/Toaster';
 import { ShareImportModal } from './components/ShareImportModal';
 import { CurlImportModal } from './components/CurlImportModal';
-import { LogOut, MonitorSmartphone, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw } from 'lucide-react';
+import { AgentDownloadModal } from './components/AgentDownloadModal';
+import { LogOut, Cloud, MonitorSmartphone, Download, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw } from 'lucide-react';
 import { Workspace, Theme, ApiCollection, RequestItem } from './types';
 import { cn } from './utils';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function App() {
+  useAgentPing();
   const { 
     user, 
     setUser, 
@@ -56,6 +59,8 @@ export default function App() {
     setResponseCollapsed,
     layoutMode,
     setLayoutMode,
+    agentMode,
+    setAgentMode,
     addToast,
     isWorkspaceLoading,
     setIsWorkspaceLoading,
@@ -667,6 +672,30 @@ export default function App() {
               <RefreshCw className={cn("w-3.5 h-3.5 text-[var(--primary)] group-hover:text-white transition-colors", isWorkspaceLoading && "animate-spin")} />
               <span className="hidden sm:inline">Sync Workspace</span>
               <span className="sm:hidden">Sync</span>
+            </button>
+            <div className="h-4 w-px bg-[var(--border-strong)] hidden sm:block"></div>
+            <button
+              onClick={() => {
+                setAgentMode(agentMode === 'cloud' ? 'desktop' : 'cloud');
+                addToast(agentMode === 'cloud' ? 'Switched to Desktop Agent for local requests' : 'Switched to Cloud Agent', 'success', 2000);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group shadow-2xs"
+              title={agentMode === 'cloud' ? 'Using Cloud Agent (Cannot reach localhost)' : 'Using Desktop Agent (Can reach localhost via Bridge)'}
+            >
+              {agentMode === 'cloud' ? (
+                <Cloud className="w-3.5 h-3.5 text-[var(--primary)] group-hover:text-white transition-colors" />
+              ) : (
+                <MonitorSmartphone className="w-3.5 h-3.5 text-emerald-500 group-hover:text-white transition-colors" />
+              )}
+              <span className="hidden sm:inline">{agentMode === 'cloud' ? 'Cloud Agent' : 'Desktop Agent'}</span>
+              <span className="sm:hidden">{agentMode === 'cloud' ? 'Cloud' : 'Local'}</span>
+            </button>
+            <button
+              onClick={() => setIsAgentModalOpen(true)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group shadow-2xs"
+              title="Download Desktop Agent Bridge"
+            >
+              <Download className="w-3.5 h-3.5 text-[var(--icon-color)] group-hover:text-white transition-colors" />
             </button>
           </div>
           <div className="flex items-center gap-3">

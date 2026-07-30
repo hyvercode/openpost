@@ -4,6 +4,7 @@ import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, T
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
+import { runScriptSandbox } from '../utils/sandbox';
 import { ApiCollection, RequestItem, Environment } from '../types';
 import { PromptModal } from './PromptModal';
 import { ShareSettingsModal } from './ShareSettingsModal';
@@ -17,6 +18,18 @@ import { WorkspaceMembersModal } from './WorkspaceMembersModal';
 import { OpenApiImportModal } from './OpenApiImportModal';
 import { parseOpenAPISpec } from '../utils/openapiImport';
 import { HistorySidebar } from './HistorySidebar';
+
+function interpolateString(str: string, vars: any[]): string {
+  if (!str) return '';
+  let result = str;
+  vars.forEach(v => {
+    if (v.key && v.enabled !== false) {
+      const regex = new RegExp(`\\{\\{${v.key.replace(/[.*+?^${}()|[\]\\]/g, '\\export function Sidebar() {')}\\}\\}`, 'g');
+      result = result.replace(regex, v.value || '');
+    }
+  });
+  return result;
+}
 
 export function Sidebar() {
   const { 
@@ -939,6 +952,187 @@ export function Sidebar() {
     } catch (err) {
       console.error('Drag and drop error', err);
     }
+  };
+
+  
+  const handleBulkRun = async () => {
+    if (selectedRequestIds.length === 0) return;
+    
+    const requestsToRun = selectedRequestIds
+      .map(id => collections.flatMap(c => c.requests || []).find(r => r.id === id))
+      .filter(Boolean) as RequestItem[];
+      
+    if (requestsToRun.length === 0) return;
+
+    useStore.getState().setBulkRunReport(null);
+    useStore.getState().setIsBulkRunning(true);
+    useStore.getState().setBulkRunStopRequested(false);
+    useStore.getState().setActiveRequest(null);
+    useStore.getState().setActiveView('request');
+    setIsBulkEditMode(false);
+    
+    const startTime = new Date().toISOString();
+    const executedSteps = [];
+    const activeEnvVars = currentEnvironment ? [...currentEnvironment.variables] : [];
+    let runtimeVars = [...activeEnvVars];
+    
+    let passedCount = 0;
+    let failedCount = 0;
+    let totalDurationMs = 0;
+
+    for (let i = 0; i < requestsToRun.length; i++) {
+      if (useStore.getState().bulkRunStopRequested) break;
+      
+      const req = requestsToRun[i];
+      const startMs = Date.now();
+      
+      try {
+        let prepReq = JSON.parse(JSON.stringify(req));
+        
+        if (prepReq.preRequestScript && prepReq.preRequestScript.trim()) {
+          try {
+            const preResult = runScriptSandbox(prepReq.preRequestScript, {
+              envVars: runtimeVars,
+              requestInfo: {
+                url: prepReq.url,
+                method: prepReq.method,
+                headers: prepReq.headers.reduce((acc, h) => { if (h.key && h.enabled !== false) acc[h.key] = h.value; return acc; }, {}),
+              }
+            });
+            runtimeVars = preResult.envVars;
+          } catch (e) {
+            console.error("Pre-request script error:", e);
+          }
+        }
+        
+        const config = {
+          url: interpolateString(prepReq.url, runtimeVars),
+          method: prepReq.method,
+          headers: prepReq.headers.filter(h => h.key && h.enabled !== false).reduce((acc, h) => {
+            acc[interpolateString(h.key, runtimeVars)] = interpolateString(h.value, runtimeVars);
+            return acc;
+          }, {}),
+          params: prepReq.params.filter(p => p.key && p.enabled !== false).reduce((acc, p) => {
+            acc[interpolateString(p.key, runtimeVars)] = interpolateString(p.value, runtimeVars);
+            return acc;
+          }, {}),
+          data: prepReq.body?.type === 'json' || prepReq.body?.type === 'text' || prepReq.body?.type === 'xml'
+            ? interpolateString(prepReq.body?.content || '', runtimeVars)
+            : undefined
+        };
+        
+        const proxyConfig = useStore.getState().proxyConfig;
+        const useDesktopAgent = useStore.getState().agentMode === 'desktop';
+        const proxyUrl = useDesktopAgent 
+          ? 'http://127.0.0.1:8765/api/proxy'
+          : proxyConfig.enabled ? proxyConfig.url : '/api/proxy';
+
+        const res = await apiService.proxyRequest(config, proxyUrl, useDesktopAgent);
+        const duration = Date.now() - startMs;
+        totalDurationMs += duration;
+        
+        const responseData = res.data;
+        const responseStatus = res.status;
+        const responseStatusText = res.statusText || '';
+        const responseHeaders = res.headers || {};
+        
+        let tests = [];
+        let testsPassed = true;
+        
+        if (prepReq.postResponseScript && prepReq.postResponseScript.trim()) {
+          try {
+            const postResult = runScriptSandbox(prepReq.postResponseScript, {
+              envVars: runtimeVars,
+              response: {
+                data: responseData,
+                status: responseStatus,
+                statusText: responseStatusText,
+                headers: responseHeaders,
+                time: duration,
+              }
+            });
+            runtimeVars = postResult.envVars;
+            tests = postResult.tests || [];
+            testsPassed = tests.every(t => t.passed);
+          } catch (e) {
+            testsPassed = false;
+            tests.push({ name: 'Script Execution', passed: false, error: String(e) });
+          }
+        }
+        
+        const passed = (responseStatus >= 200 && responseStatus < 400) && testsPassed;
+        if (passed) passedCount++;
+        else failedCount++;
+        
+        executedSteps.push({
+          id: `bulk-${Date.now()}-${i}`,
+          iteration: 1,
+          requestId: req.id,
+          requestName: req.name,
+          method: req.method,
+          url: config.url,
+          statusCode: responseStatus,
+          statusText: responseStatusText,
+          durationMs: duration,
+          sizeBytes: JSON.stringify(responseData).length,
+          passed,
+          tests,
+          requestInfo: { headers: config.headers, body: config.data },
+          responseInfo: { headers: responseHeaders, body: typeof responseData === 'string' ? responseData : JSON.stringify(responseData, null, 2) },
+          logs: []
+        });
+        
+        useStore.getState().setBulkRunReport({
+          collectionId: 'bulk',
+          collectionName: 'Bulk Run',
+          startTime,
+          totalExecutions: executedSteps.length,
+          passedCount,
+          failedCount,
+          totalDurationMs,
+          avgLatencyMs: Math.round(totalDurationMs / executedSteps.length),
+          passRate: Math.round((passedCount / executedSteps.length) * 100),
+          steps: executedSteps
+        });
+        
+      } catch (err) {
+         const duration = Date.now() - startMs;
+         totalDurationMs += duration;
+         failedCount++;
+         executedSteps.push({
+          id: `bulk-${Date.now()}-${i}`,
+          iteration: 1,
+          requestId: req.id,
+          requestName: req.name,
+          method: req.method,
+          url: req.url,
+          statusCode: 0,
+          statusText: 'Error',
+          durationMs: duration,
+          sizeBytes: 0,
+          passed: false,
+          tests: [{ name: 'Request Execution', passed: false, error: err.message || String(err) }],
+          requestInfo: { headers: {}, body: '' },
+          responseInfo: { headers: {}, body: String(err) },
+          logs: []
+        });
+        useStore.getState().setBulkRunReport({
+          collectionId: 'bulk',
+          collectionName: 'Bulk Run',
+          startTime,
+          totalExecutions: executedSteps.length,
+          passedCount,
+          failedCount,
+          totalDurationMs,
+          avgLatencyMs: Math.round(totalDurationMs / executedSteps.length),
+          passRate: Math.round((passedCount / executedSteps.length) * 100),
+          steps: executedSteps
+        });
+      }
+    }
+    
+    useStore.getState().setIsBulkRunning(false);
+    setSelectedRequestIds([]);
   };
 
   const handleBulkDelete = () => {
