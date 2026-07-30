@@ -48,3 +48,5 @@
      Done
  22. Streamlined Header Bar action buttons to compact icon-only controls with descriptive hover tooltips.
      Done
+ 23. Moved Desktop Agent modal state (isAgentModalOpen, setIsAgentModalOpen) to global Zustand store for universal accessibility across components.
+     Done

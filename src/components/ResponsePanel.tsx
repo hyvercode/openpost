@@ -787,8 +787,8 @@ export function ResponsePanel() {
       transition={{ duration: 0.2 }}
       className="flex flex-col h-full bg-[var(--bg-input)] border-l border-[var(--border-subtle)] shrink-0 min-w-0"
     >
-      <div className="h-10 border-b border-[var(--border-subtle)] flex items-center justify-between px-4 bg-[var(--bg-surface)] shrink-0">
-        <div className="flex gap-4 h-full items-end"> 
+      <div className="h-10 border-b border-[var(--border-subtle)] flex items-center justify-between px-3 sm:px-4 bg-[var(--bg-surface)] shrink-0 gap-2">
+        <div className="flex gap-4 h-full items-end overflow-x-auto scrollbar-none shrink"> 
            <div 
              className={cn("text-xs font-medium pb-2 cursor-pointer", activeTab === 'body' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
              onClick={() => setActiveTab('body')}

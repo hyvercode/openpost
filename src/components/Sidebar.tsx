@@ -37,6 +37,7 @@ export function Sidebar() {
     setCollections,
     environments, 
     setEnvironments,
+    currentEnvironment,
     deployments,
     setDeployments,
     activeRequest, 
@@ -1027,7 +1028,7 @@ export function Sidebar() {
           ? 'http://127.0.0.1:8765/api/proxy'
           : proxyConfig.enabled ? proxyConfig.url : '/api/proxy';
 
-        const res = await apiService.proxyRequest(config, proxyUrl, useDesktopAgent);
+        const res = await apiService.executeRequest(config, proxyConfig);
         const duration = Date.now() - startMs;
         totalDurationMs += duration;
         
@@ -1036,7 +1037,7 @@ export function Sidebar() {
         const responseStatusText = res.statusText || '';
         const responseHeaders = res.headers || {};
         
-        let tests = [];
+        let tests: any[] = [];
         let testsPassed = true;
         
         if (prepReq.postResponseScript && prepReq.postResponseScript.trim()) {
@@ -1048,11 +1049,11 @@ export function Sidebar() {
                 status: responseStatus,
                 statusText: responseStatusText,
                 headers: responseHeaders,
-                time: duration,
+                timeMs: duration,
               }
             });
             runtimeVars = postResult.envVars;
-            tests = postResult.tests || [];
+            tests = postResult.testResults || [];
             testsPassed = tests.every(t => t.passed);
           } catch (e) {
             testsPassed = false;
@@ -1601,8 +1602,7 @@ export function Sidebar() {
 
   return (
     <div 
-      className="bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] flex flex-col h-full shrink-0"
-      style={{ width: sidebarWidth }}
+      className="bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] flex flex-col h-full w-full overflow-hidden"
     >
       <div className="p-4 border-b border-[var(--border-subtle)] flex flex-col gap-2 relative">
         <div className="flex items-center justify-between">
