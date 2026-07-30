@@ -168,6 +168,43 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
     res.json({ status: "ok" });
   });
 
+  // Serve desktop agent binary/script downloads directly with attachment disposition
+  app.get("/downloads/:filename", (req, res) => {
+    const filename = req.params.filename;
+    
+    // Check public/downloads/
+    let filePath = path.join(process.cwd(), "public", "downloads", filename);
+    
+    // Fallback to agent/desktop-agent.js if requesting JS script or if file not found in public/downloads
+    if (!fs.existsSync(filePath)) {
+      if (filename.includes("js") || filename.includes("node")) {
+        filePath = path.join(process.cwd(), "agent", "desktop-agent.js");
+      }
+    }
+
+    if (fs.existsSync(filePath)) {
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      if (filename.endsWith('.exe')) {
+        res.setHeader('Content-Type', 'application/vnd.microsoft.portable-executable');
+      } else if (filename.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      } else {
+        res.setHeader('Content-Type', 'application/octet-stream');
+      }
+      return res.sendFile(filePath);
+    }
+    
+    // Fallback script if binary not found
+    const fallbackScript = path.join(process.cwd(), "agent", "desktop-agent.js");
+    if (fs.existsSync(fallbackScript)) {
+      res.setHeader('Content-Disposition', `attachment; filename="desktop-agent.js"`);
+      res.setHeader('Content-Type', 'application/javascript');
+      return res.sendFile(fallbackScript);
+    }
+
+    return res.status(404).json({ error: "Agent file not found" });
+  });
+
   // The proxy endpoint - Rate limited to 60 req/min per user
   app.all("/api/proxy", requireAuth, rateLimiter(60), async (req, res) => {
     const startTime = performance.now();
