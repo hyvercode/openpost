@@ -41,9 +41,10 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and scripts
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY scripts ./scripts/
 
 # Copy node_modules from deps (includes production Prisma client)
 COPY --from=deps /app/node_modules ./node_modules
