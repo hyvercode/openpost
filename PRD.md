@@ -44,3 +44,5 @@
      Done
  20. Redesigned Header Bar UI/UX with modern grouped toolbars, custom environment status indicator, and streamlined layout controls.
      Done
+ 21. Fixed Desktop Agent file download route (/downloads/:filename) with attachment headers and added Node.js script download & quick-run copy option.
+     Done
