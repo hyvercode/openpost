@@ -673,11 +673,10 @@ export default function App() {
             <div className="flex items-center bg-[var(--bg-hover)]/40 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
               <button
                 onClick={() => setIsCurlModalOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer group"
+                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-all cursor-pointer group flex items-center justify-center"
                 title="Import request from cURL command string"
               >
-                <TerminalSquare className="w-3.5 h-3.5 text-[var(--primary)] transition-transform group-hover:scale-110" />
-                <span className="hidden sm:inline">Import cURL</span>
+                <TerminalSquare className="w-4 h-4 text-[var(--primary)] transition-transform group-hover:scale-110" />
               </button>
 
               <div className="h-3.5 w-px bg-[var(--border-subtle)]" />
@@ -685,11 +684,10 @@ export default function App() {
               <button
                 onClick={handleSyncWorkspace}
                 disabled={isWorkspaceLoading}
-                className="p-1 md:px-2 py-1 rounded-md hover:bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                title="Synchronize workspace data"
+                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                title="Synchronize Workspace Data"
               >
-                <RefreshCw className={cn("w-3.5 h-3.5 text-[var(--primary)] transition-transform", isWorkspaceLoading && "animate-spin")} />
-                <span className="hidden md:inline">Sync</span>
+                <RefreshCw className={cn("w-4 h-4 text-[var(--primary)] transition-transform", isWorkspaceLoading && "animate-spin")} />
               </button>
             </div>
 
@@ -700,27 +698,21 @@ export default function App() {
                   setAgentMode(agentMode === 'cloud' ? 'desktop' : 'cloud');
                   addToast(agentMode === 'cloud' ? 'Switched to Desktop Agent for local requests' : 'Switched to Cloud Agent', 'success', 2000);
                 }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-[var(--bg-hover)] text-xs font-semibold text-[var(--text-primary)] transition-all cursor-pointer"
-                title={agentMode === 'cloud' ? 'Using Cloud Agent (Cannot reach localhost)' : 'Using Desktop Agent (Can reach localhost via Bridge)'}
+                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-all cursor-pointer flex items-center justify-center"
+                title={agentMode === 'cloud' ? 'Current Mode: Cloud Agent (Click to switch to Desktop Agent)' : 'Current Mode: Desktop Agent (Click to switch to Cloud Agent)'}
               >
                 {agentMode === 'cloud' ? (
-                  <>
-                    <Cloud className="w-3.5 h-3.5 text-blue-500" />
-                    <span className="hidden sm:inline">Cloud Agent</span>
-                  </>
+                  <Cloud className="w-4 h-4 text-blue-500" />
                 ) : (
-                  <>
-                    <MonitorSmartphone className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="hidden sm:inline">Desktop Agent</span>
-                  </>
+                  <MonitorSmartphone className="w-4 h-4 text-emerald-500" />
                 )}
               </button>
               <button
                 onClick={() => setIsAgentModalOpen(true)}
-                className="p-1 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
-                title="Download Desktop Agent Bridge"
+                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center justify-center"
+                title="Download Desktop Agent Bridge & Instructions"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -732,41 +724,38 @@ export default function App() {
               <button
                 onClick={() => setLayoutMode('horizontal')}
                 className={cn(
-                  "p-1.5 rounded-md transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
+                  "p-1.5 rounded-md transition-all flex items-center justify-center",
                   layoutMode === 'horizontal' 
-                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)] font-bold" 
+                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)]" 
                     : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
-                title="Horizontal Split (Side by Side)"
+                title="Horizontal Split View (Side by Side)"
               >
-                <Columns2 className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline text-[10px]">Horizontal</span>
+                <Columns2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setLayoutMode('vertical')}
                 className={cn(
-                  "p-1.5 rounded-md transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
+                  "p-1.5 rounded-md transition-all flex items-center justify-center",
                   layoutMode === 'vertical' 
-                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)] font-bold" 
+                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)]" 
                     : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
-                title="Vertical Split (Stacked)"
+                title="Vertical Split View (Stacked)"
               >
-                <Rows2 className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline text-[10px]">Vertical</span>
+                <Rows2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setLayoutMode('floating')}
                 className={cn(
-                  "p-1.5 rounded-md transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
+                  "p-1.5 rounded-md transition-all flex items-center justify-center",
                   layoutMode === 'floating' 
-                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)] font-bold" 
+                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)]" 
                     : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Docking Workspace (Floating Windows)"
               >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline text-[10px]">Docking</span>
+                <LayoutGrid className="w-4 h-4" />
               </button>
               
               <div className="h-3.5 w-px bg-[var(--border-subtle)] mx-0.5" />
@@ -774,15 +763,14 @@ export default function App() {
               <button
                 onClick={() => setResponseCollapsed(!responseCollapsed)}
                 className={cn(
-                  "p-1.5 rounded-md transition-all text-xs font-semibold flex items-center gap-1.5 px-2",
+                  "p-1.5 rounded-md transition-all flex items-center justify-center",
                   !responseCollapsed 
                     ? "text-[var(--icon-color)] hover:text-[var(--text-primary)]" 
-                    : "bg-amber-500/15 text-amber-500 font-bold border border-amber-500/30"
+                    : "bg-amber-500/15 text-amber-500 border border-amber-500/30"
                 )}
                 title={responseCollapsed ? "Expand Response Panel" : "Collapse Response Panel"}
               >
-                <PanelRight className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline text-[10px]">{responseCollapsed ? "Show Response" : "Response"}</span>
+                <PanelRight className="w-4 h-4" />
               </button>
             </div>
 

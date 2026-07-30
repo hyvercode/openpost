@@ -46,3 +46,5 @@
      Done
  21. Fixed Desktop Agent file download route (/downloads/:filename) with attachment headers and added Node.js script download & quick-run copy option.
      Done
+ 22. Streamlined Header Bar action buttons to compact icon-only controls with descriptive hover tooltips.
+     Done
