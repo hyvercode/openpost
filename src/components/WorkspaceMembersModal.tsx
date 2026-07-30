@@ -19,6 +19,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('MEMBER');
   const [isInviting, setIsInviting] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && workspaceId) {
@@ -90,6 +91,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
   };
 
   const handleResendInvitation = async (invitation: any) => {
+    setResendingId(invitation.id);
     try {
       const updated = await apiService.resendInvitation(invitation.id);
       const inviteLink = `${window.location.origin}${window.location.pathname}?invitation=${updated.token}`;
@@ -110,6 +112,8 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
     } catch (e) {
       console.error("Failed to resend:", e);
       addToast('Failed to resend invitation', 'error');
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -158,34 +162,34 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)]">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Manage Workspace Members</h2>
-          <button onClick={onClose} className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded-lg">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-[var(--text-primary)]">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
+          <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">Manage Workspace Members</h2>
+          <button onClick={onClose} className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded-lg cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-5 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto">
           {/* Invite Section */}
           <div className="space-y-3">
-            <h3 className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider">Invite new member</h3>
-            <form onSubmit={handleInvite} className="flex gap-2">
-              <div className="relative flex-1">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
+            <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Invite new member</h3>
+            <form onSubmit={handleInvite} className="flex flex-wrap sm:flex-nowrap gap-2">
+              <div className="relative flex-1 min-w-[200px]">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                 <input
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="Enter email address"
-                  className="w-full bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg py-2 pl-10 pr-4 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/50 focus:border-[var(--brand-primary)] transition-all"
+                  className="w-full bg-[var(--bg-hover)]/40 border border-[var(--border-strong)] rounded-lg py-2 pl-10 pr-4 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50 focus:border-[var(--primary)] transition-all"
                 />
               </div>
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/50 transition-all"
+                className="bg-[var(--bg-hover)]/40 border border-[var(--border-strong)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50 cursor-pointer transition-all"
               >
                 <option value="MEMBER">Member</option>
                 <option value="ADMIN">Admin</option>
@@ -193,50 +197,64 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
               <button
                 type="submit"
                 disabled={isInviting || !inviteEmail}
-                className="bg-[var(--brand-primary)] hover:bg-[var(--brand-hover)] disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                className="bg-[var(--primary)] hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 min-w-[100px]"
               >
-                {isInviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                Invite
+                {isInviting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                    <span>Inviting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 shrink-0" />
+                    <span>Invite</span>
+                  </>
+                )}
               </button>
             </form>
           </div>
 
           {/* Members List */}
           <div className="space-y-3">
-            <h3 className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider">Current Members</h3>
-            <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-secondary)]">
+            <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Current Members</h3>
+            <div className="border border-[var(--border-strong)] rounded-xl overflow-hidden bg-[var(--bg-hover)]/20">
               {loading ? (
-                <div className="p-8 flex justify-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-[var(--text-tertiary)]" />
+                <div className="p-8 flex items-center justify-center gap-2 text-sm text-[var(--text-secondary)]">
+                  <Loader2 className="w-5 h-5 animate-spin text-[var(--primary)]" />
+                  <span>Loading members...</span>
                 </div>
               ) : members.length === 0 ? (
-                <div className="p-8 text-center text-[var(--text-tertiary)] text-sm">
+                <div className="p-8 text-center text-[var(--text-secondary)] text-sm">
                   No members found in this workspace.
                 </div>
               ) : (
                 <div className="divide-y divide-[var(--border-subtle)]">
                   {members.map((member) => (
-                    <div key={member.userId} className="p-4 flex items-center justify-between hover:bg-[var(--bg-primary)] transition-colors group">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-secondary)] flex items-center justify-center text-white font-bold shadow-lg shrink-0 overflow-hidden">
+                    <div key={member.userId} className="p-3.5 flex items-center justify-between hover:bg-[var(--bg-hover)]/50 transition-colors group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-full bg-[var(--primary)]/20 border border-[var(--primary)]/40 flex items-center justify-center text-[var(--primary)] font-bold shadow-xs shrink-0 overflow-hidden text-sm">
                            {member.user?.photoURL ? (
                              <img src={member.user.photoURL} alt="" className="w-full h-full object-cover" />
                            ) : (
                              (member.user?.displayName || member.user?.email || '?').charAt(0).toUpperCase()
                            )}
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-[var(--text-primary)]">
-                            {member.user?.displayName || 'Unnamed User'}
-                            {member.userId === user?.uid && <span className="ml-2 text-[10px] font-normal px-1.5 py-0.5 bg-[var(--bg-tertiary)] rounded-full text-[var(--text-secondary)]">You</span>}
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-1.5 truncate">
+                            <span className="truncate">{member.user?.displayName || 'Unnamed User'}</span>
+                            {member.userId === user?.uid && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.2 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-full text-[var(--text-secondary)] shrink-0">
+                                You
+                              </span>
+                            )}
                           </p>
-                          <p className="text-xs text-[var(--text-tertiary)]">{member.user?.email}</p>
+                          <p className="text-xs text-[var(--text-secondary)] truncate">{member.user?.email}</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1 text-xs font-medium text-[var(--text-secondary)] bg-[var(--bg-tertiary)] px-2 py-1 rounded-full uppercase tracking-tight">
-                          <Shield className="w-3 h-3" />
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-1 text-[11px] font-semibold text-[var(--text-secondary)] bg-[var(--bg-hover)] border border-[var(--border-subtle)] px-2 py-0.5 rounded-full uppercase tracking-tight">
+                          <Shield className="w-3 h-3 text-[var(--primary)]" />
                           {member.role}
                         </div>
                         
@@ -245,7 +263,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
                           onClick={() => handleToggleStatus(member)}
                           disabled={member.role === 'OWNER'}
                           className={cn(
-                            "flex items-center gap-2 text-xs font-medium px-2 py-1 rounded-lg transition-all",
+                            "flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-lg transition-all cursor-pointer",
                             member.status === 'ACTIVE' 
                               ? "text-emerald-500 hover:bg-emerald-500/10" 
                               : "text-rose-500 hover:bg-rose-500/10",
@@ -254,14 +272,14 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
                           title={member.status === 'ACTIVE' ? "Access Allowed (Click to Disallow)" : "Access Disallowed (Click to Allow)"}
                         >
                           {member.status === 'ACTIVE' ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
-                          <span className="w-14 text-center">{member.status === 'ACTIVE' ? 'ALLOWED' : 'BLOCKED'}</span>
+                          <span className="w-14 text-center hidden sm:inline">{member.status === 'ACTIVE' ? 'ALLOWED' : 'BLOCKED'}</span>
                         </button>
 
                         <button
                           onClick={() => handleRemoveMember(member)}
                           disabled={member.role === 'OWNER'}
                           className={cn(
-                            "p-2 text-[var(--text-secondary)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all",
+                            "p-1.5 text-[var(--text-secondary)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer",
                             member.role === 'OWNER' && "opacity-0 cursor-default group-hover:opacity-0"
                           )}
                           title="Remove Member"
@@ -279,44 +297,50 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
           {/* Pending Invitations */}
           {(pendingInvitations.length > 0 || invitationsLoading) && (
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-[var(--text-secondary)] uppercase tracking-wider">Pending Invitations</h3>
-              <div className="border border-[var(--border-subtle)] rounded-xl overflow-hidden bg-[var(--bg-secondary)]">
+              <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Pending Invitations</h3>
+              <div className="border border-[var(--border-strong)] rounded-xl overflow-hidden bg-[var(--bg-hover)]/20">
                 {invitationsLoading ? (
-                  <div className="p-8 flex justify-center">
-                    <Loader2 className="w-6 h-6 animate-spin text-[var(--text-tertiary)]" />
+                  <div className="p-8 flex items-center justify-center gap-2 text-sm text-[var(--text-secondary)]">
+                    <Loader2 className="w-5 h-5 animate-spin text-[var(--primary)]" />
+                    <span>Loading invitations...</span>
                   </div>
                 ) : (
                   <div className="divide-y divide-[var(--border-subtle)]">
                     {pendingInvitations.map((invitation) => (
-                      <div key={invitation.id} className="p-4 flex items-center justify-between hover:bg-[var(--bg-primary)] transition-colors group">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[var(--text-secondary)] border border-dashed border-[var(--border-strong)] shrink-0">
-                            <Mail className="w-5 h-5" />
+                      <div key={invitation.id} className="p-3.5 flex items-center justify-between hover:bg-[var(--bg-hover)]/50 transition-colors group">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-[var(--bg-hover)] flex items-center justify-center text-[var(--text-secondary)] border border-dashed border-[var(--border-strong)] shrink-0">
+                            <Mail className="w-4 h-4" />
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold text-[var(--text-primary)]">{invitation.email}</p>
-                            <p className="text-[10px] text-[var(--text-tertiary)]">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{invitation.email}</p>
+                            <p className="text-[10px] text-[var(--text-secondary)]">
                               Expires: {new Date(invitation.expiresAt).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          <div className="text-[10px] font-medium text-[var(--text-secondary)] bg-[var(--bg-tertiary)] px-2 py-0.5 rounded-full uppercase tracking-tight">
+                        <div className="flex items-center gap-2 shrink-0">
+                          <div className="text-[10px] font-semibold text-[var(--text-secondary)] bg-[var(--bg-hover)] border border-[var(--border-subtle)] px-2 py-0.5 rounded-full uppercase tracking-tight">
                             {invitation.role}
                           </div>
                           
                           <button
                             onClick={() => handleResendInvitation(invitation)}
-                            className="p-2 text-[var(--text-secondary)] hover:text-[var(--brand-primary)] hover:bg-[var(--brand-primary)]/10 rounded-lg transition-all"
+                            disabled={resendingId === invitation.id}
+                            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded-lg transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center"
                             title="Resend & Copy Link"
                           >
-                            <RefreshCcw className="w-4 h-4" />
+                            {resendingId === invitation.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-[var(--primary)]" />
+                            ) : (
+                              <RefreshCcw className="w-4 h-4" />
+                            )}
                           </button>
 
                           <button
                             onClick={() => handleCancelInvitation(invitation)}
-                            className="p-2 text-[var(--text-secondary)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all"
+                            className="p-1.5 text-[var(--text-secondary)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer"
                             title="Cancel Invitation"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -331,10 +355,10 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
           )}
         </div>
         
-        <div className="p-4 bg-[var(--bg-secondary)] border-t border-[var(--border-subtle)] flex justify-end">
+        <div className="p-4 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-[var(--text-primary)] bg-[var(--bg-hover)] hover:bg-[var(--bg-hover)]/80 border border-[var(--border-subtle)] rounded-lg transition-colors cursor-pointer"
           >
             Close
           </button>
