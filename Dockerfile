@@ -20,6 +20,8 @@ RUN npx prisma generate
 COPY . .
 
 # Build the application (Vite + Server bundle)
+RUN npm run build:agent
+# Build the application (Vite + Server bundle)
 RUN npm run build
 
 # Production Dependencies Stage

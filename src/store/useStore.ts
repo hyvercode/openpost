@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage, ProxyConfig, CookieItem } from "../types";
+import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage, ProxyConfig, CookieItem, CollectionRunReport } from "../types";
 
 interface AppState {
   user: User | null;
@@ -69,6 +69,8 @@ interface AppState {
   setResponseCollapsed: (collapsed: boolean) => void;
 
   layoutMode: 'horizontal' | 'vertical' | 'floating';
+  agentMode: 'cloud' | 'desktop';
+  setAgentMode: (mode: 'cloud' | 'desktop') => void;
   setLayoutMode: (mode: 'horizontal' | 'vertical' | 'floating') => void;
 
   isBottomDrawerOpen: boolean;
@@ -124,6 +126,12 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set) => ({
+  bulkRunReport: null,
+  setBulkRunReport: (report) => set({ bulkRunReport: report }),
+  isBulkRunning: false,
+  setIsBulkRunning: (isRunning) => set({ isBulkRunning: isRunning }),
+  bulkRunStopRequested: false,
+  setBulkRunStopRequested: (stop) => set({ bulkRunStopRequested: stop }),
   user: null,
   setUser: (user) => set({ user }),
   
@@ -245,6 +253,11 @@ export const useStore = create<AppState>((set) => ({
   },
 
   layoutMode: (localStorage.getItem('layoutMode') as 'horizontal' | 'vertical' | 'floating') || 'horizontal',
+  agentMode: (localStorage.getItem('agentMode') as 'cloud' | 'desktop') || 'cloud',
+  setAgentMode: (agentMode) => {
+    localStorage.setItem('agentMode', agentMode);
+    set({ agentMode });
+  },
   setLayoutMode: (layoutMode) => {
     localStorage.setItem('layoutMode', layoutMode);
     set({ layoutMode });

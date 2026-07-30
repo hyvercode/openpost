@@ -30,3 +30,15 @@
      Done
  13. Integrated GraphQL Schema Explorer, Visual Query Builder, and Live Query Validation within RequestPanel.
      Done
+ 14. Desktop Agent Bridge and SSRF implemented
+     Done
+ 15. Desktop Agent binaries built
+     Done
+ 16. Implemented automatic ping mechanism to detect and switch to Desktop Agent Bridge
+     Done
+ 17. Updated Dockerfile
+     Done
+ 18. Implemented multiple request selection and sequential running with aggregate results in Response Panel.
+     Done
+ 19. Added visual progress indicator and success/failure summary bar for sequential request batch runner.
+     Done

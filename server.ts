@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 import express from "express";
+import ip from "ip";
+import dns from "dns/promises";
 import cors from "cors";
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -178,6 +180,20 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       const targetUrl = (req.headers["x-target-url"] as string) || req.body?.url;
       if (!targetUrl) {
         return res.status(400).json({ error: "Missing x-target-url header or url in request body" });
+      }
+
+      // SSRF Protection
+      try {
+        const urlObj = new URL(targetUrl);
+        const resolved = await dns.lookup(urlObj.hostname);
+        if (ip.isPrivate(resolved.address) || ip.isLoopback(resolved.address)) {
+          return res.status(403).json({ 
+            error: "SSRF Protection: Access to internal or local networks is blocked.",
+            suggestion: "To test local APIs, please use the Desktop Agent Bridge."
+          });
+        }
+      } catch (err) {
+        return res.status(400).json({ error: "Invalid URL or DNS resolution failed: " + err.message });
       }
 
       const isBodyConfig = req.body && req.body.url && req.body.method;

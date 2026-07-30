@@ -517,7 +517,7 @@ export function ResponsePanel() {
     activeRequest, 
     wsStatus, 
     wsMessages, 
-    clearWsMessages, 
+    clearWsMessages, bulkRunReport, isBulkRunning, 
     theme,
     setActiveRequest,
     collections,
