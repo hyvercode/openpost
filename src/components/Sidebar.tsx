@@ -16,6 +16,7 @@ import { TestRunnerSidebar } from './TestRunnerSidebar';
 import { WorkspaceMembersModal } from './WorkspaceMembersModal';
 import { OpenApiImportModal } from './OpenApiImportModal';
 import { parseOpenAPISpec } from '../utils/openapiImport';
+import { HistorySidebar } from './HistorySidebar';
 
 export function Sidebar() {
   const { 
@@ -2203,118 +2204,7 @@ export function Sidebar() {
             )}
           </div>
         ) : activeTab === 'history' ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between px-2 py-1.5 group">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Request History</span>
-              {filteredHistory.length > 0 && (
-                <button 
-                  onClick={() => {
-                    setConfirmModal({
-                      isOpen: true,
-                      title: 'Clear History',
-                      message: 'Are you sure you want to clear your entire request history for this workspace?',
-                      onConfirm: () => {
-                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
-                        clearHistory(currentWorkspace?.id || 'default');
-                        addToast('History cleared', 'success');
-                      }
-                    });
-                  }}
-                  className="text-[10px] text-red-500 hover:text-red-400 font-semibold px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
-                  title="Clear Workspace History"
-                >
-                  Clear All
-                </button>
-              )}
-            </div>
-            
-            {isWorkspaceLoading ? (
-              renderHistorySkeleton()
-            ) : (
-              <div className="flex flex-col gap-2 max-h-[calc(100vh-250px)] overflow-y-auto pr-1">
-                {filteredHistory.map((item) => {
-                const isSuccess = item.responseStatus && item.responseStatus < 400;
-                const statusColor = item.responseStatus === 0 
-                  ? 'text-gray-400 border-gray-500/30 bg-gray-500/10'
-                  : isSuccess 
-                    ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10' 
-                    : 'text-red-500 border-red-500/30 bg-red-500/10';
-                    
-                const methodColor = item.method === 'GET' ? 'text-blue-400'
-                  : item.method === 'POST' ? 'text-emerald-400'
-                  : item.method === 'PUT' ? 'text-amber-400'
-                  : item.method === 'DELETE' ? 'text-red-400'
-                  : 'text-purple-400';
-
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => handleHistoryItemClick(item)}
-                    className="flex flex-col gap-1.5 p-2 rounded border border-[var(--border-subtle)] hover:border-[var(--border-strong)] bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer group/hist relative"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                        <span className={cn("text-[10px] font-bold font-mono px-1.5 py-0.5 rounded border shrink-0", statusColor)}>
-                          {item.responseStatus || 'ERR'}
-                        </span>
-                        <span className={cn("text-[10px] font-mono font-bold shrink-0", methodColor)}>
-                          {item.method}
-                        </span>
-                        <span className="text-xs font-medium text-[var(--text-primary)] truncate" title={item.name}>
-                          {item.name}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-1 opacity-0 group-hover/hist:opacity-100 transition-opacity shrink-0">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleHistoryItemClick(item, true);
-                          }}
-                          className="p-1 rounded text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 transition-colors"
-                          title="Re-run Request"
-                        >
-                          <Play className="w-3 h-3 fill-emerald-500/20" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeHistoryItem(item.id);
-                            addToast('History item removed', 'success', 2000);
-                          }}
-                          className="p-1 rounded text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                          title="Remove from history"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="text-[10px] text-[var(--text-secondary)] font-mono truncate px-1">
-                      {item.url}
-                    </div>
-
-                    <div className="flex items-center justify-between text-[9px] text-[var(--text-secondary)] px-1 pt-1 border-t border-[var(--border-subtle)]/50">
-                      <span>{item.timestamp}</span>
-                      {item.timeMs !== undefined && item.timeMs > 0 && (
-                        <span>{item.timeMs} ms</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {filteredHistory.length === 0 && (
-                <div className="text-center p-8 text-xs text-[var(--text-secondary)] flex flex-col items-center gap-2">
-                  <History className="w-8 h-8 text-[var(--border-strong)]" />
-                  <span>
-                    {searchQuery ? "No history matches your search." : "No past requests. Execute a request to see it here!"}
-                  </span>
-                </div>
-              )}
-              </div>
-            )}
-          </div>
+          <HistorySidebar searchQuery={searchQuery} />
         ) : activeTab === 'tests' ? (
           <TestRunnerSidebar searchQuery={searchQuery} />
         ) : null}
