@@ -436,12 +436,20 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         res.setHeader("Content-Type", "application/json");
       }
 
-      res.status(Number(mockRes.status) || 200);
-      try {
-        const parsedBody = JSON.parse(mockRes.body);
-        res.json(parsedBody);
-      } catch (e) {
-        res.send(mockRes.body);
+      const sendResponse = () => {
+        res.status(Number(mockRes.status) || 200);
+        try {
+          const parsedBody = JSON.parse(mockRes.body);
+          res.json(parsedBody);
+        } catch (e) {
+          res.send(mockRes.body);
+        }
+      };
+
+      if (mockConfig.latencyMs && mockConfig.latencyMs > 0) {
+        setTimeout(sendResponse, mockConfig.latencyMs);
+      } else {
+        sendResponse();
       }
     } catch (err: any) {
       console.error("Mock API Router Error:", err);
