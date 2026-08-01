@@ -2,24 +2,23 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv/config');
 
+let url = process.env.DATABASE_URL || '';
 let provider = process.env.DB_PROVIDER;
 
-if (!provider) {
-  const url = process.env.DATABASE_URL || '';
-  if (url.startsWith('postgres') || url.startsWith('postgresql')) {
-    provider = 'postgresql';
-  } else if (url.startsWith('mysql')) {
-    provider = 'mysql';
-  } else if (url.startsWith('mongodb')) {
-    provider = 'mongodb';
-  } else if (url.startsWith('sqlserver')) {
-    provider = 'sqlserver';
-  } else {
-    provider = 'sqlite';
-  }
+// Prioritize protocol detection from DATABASE_URL if DATABASE_URL is provided
+if (url.startsWith('postgres://') || url.startsWith('postgresql://')) {
+  provider = 'postgresql';
+} else if (url.startsWith('mysql://') || url.startsWith('mariadb://')) {
+  provider = 'mysql';
+} else if (url.startsWith('mongodb://') || url.startsWith('mongodb+srv://')) {
+  provider = 'mongodb';
+} else if (url.startsWith('file:') || url.startsWith('sqlite:')) {
+  provider = 'sqlite';
+} else if (!provider) {
+  provider = 'sqlite';
 }
 
-console.log(`Setting up Prisma for provider: ${provider}`);
+console.log(`Setting up Prisma for provider: ${provider} (DATABASE_URL protocol: ${url.split(':')[0] || 'none'})`);
 
 const templatePath = path.join(process.cwd(), 'prisma', 'schema.template.prisma');
 const outPath = path.join(process.cwd(), 'prisma', 'schema.prisma');

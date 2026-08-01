@@ -13,8 +13,10 @@ npx prisma generate
 # Check if we should run migrations
 if [ "$SKIP_MIGRATIONS" != "true" ]; then
   if [ -n "$DATABASE_URL" ]; then
-    echo "Syncing database schema..."
-    if echo "$DATABASE_URL" | grep -q "postgres"; then
+    echo "Syncing database schema for DATABASE_URL: $DATABASE_URL"
+    if echo "$DATABASE_URL" | grep -q -E "postgres|postgresql"; then
+      npx prisma db push --accept-data-loss || npx prisma migrate deploy
+    elif echo "$DATABASE_URL" | grep -q -E "mysql|mariadb"; then
       npx prisma db push --accept-data-loss || npx prisma migrate deploy
     else
       # For SQLite or others during dev/local testing
