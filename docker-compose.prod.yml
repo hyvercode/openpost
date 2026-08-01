@@ -2,11 +2,23 @@ services:
   app:
     container_name: openpost-api
     hostname: openpost-api
+    restart: unless-stopped
     build: .
     ports:
-      - "7770:3000"
-    env_file:
-      - .env.prod
+      - "7777:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:Hyvercode@123!@postgres:5432/openpost?schema=public
+      - NODE_ENV=production
+      - GEMINI_API_KEY=AIzaSyAP3n2AxyBVUwzbsiKsB1Kdc1Imks4-4wM
+      - API_ONLY=false
+      - SMTP_HOST=smtp.hostinger.com
+      - SMTP_PORT=465
+      - SMTP_USER=noreply@hyvercode.com
+      - SMTP_PASS=Oktober!990
+      - SMTP_FROM=noreply@hyvercode.com
+      - APP_URL="https://openpost.hyvercode.com"
+      - DB_PROVIDER="postgresql"
+
     # deploy:
     #   resources:
     #     limits:
