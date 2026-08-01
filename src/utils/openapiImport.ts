@@ -198,7 +198,7 @@ export function parseOpenAPISpec(
         });
 
         // Request Body
-        let bodyType: 'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded' | 'graphql' = 'none';
+        let bodyType: 'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded' | 'graphql' | 'protobuf' = 'none';
         let bodyContent = '';
 
         if (op.requestBody && op.requestBody.content) {

@@ -13,7 +13,7 @@ interface CodeSnippetModalProps {
     url: string;
     headers: KeyValue[];
     params: KeyValue[];
-    bodyType: 'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded' | 'graphql';
+    bodyType: 'none' | 'raw' | 'form-data' | 'x-www-form-urlencoded' | 'graphql' | 'protobuf';
     bodyContent: string;
     bodyFormData: KeyValue[];
     gqlVariables?: string;

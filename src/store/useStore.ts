@@ -59,8 +59,8 @@ interface AppState {
   activeRequest: RequestItem | null;
   setActiveRequest: (request: RequestItem | null) => void;
   
-  activeTab: 'params' | 'auth' | 'headers' | 'body' | 'scripts' | 'mock' | 'ws_messages' | 'graphql';
-  setActiveTab: (tab: 'params' | 'auth' | 'headers' | 'body' | 'scripts' | 'mock' | 'ws_messages' | 'graphql') => void;
+  activeTab: 'params' | 'auth' | 'headers' | 'body' | 'scripts' | 'mock' | 'ws_messages' | 'graphql' | 'comments';
+  setActiveTab: (tab: 'params' | 'auth' | 'headers' | 'body' | 'scripts' | 'mock' | 'ws_messages' | 'graphql' | 'comments') => void;
   
   currentRequestConfig: any;
   setCurrentRequestConfig: (config: any) => void;
