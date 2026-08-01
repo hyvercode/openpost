@@ -91,10 +91,15 @@ export interface RequestItem {
   params: KeyValue[];
   folderId?: string | null;
   body: {
-    type: "none" | "raw" | "form-data" | "x-www-form-urlencoded" | "graphql";
+    type: "none" | "raw" | "form-data" | "x-www-form-urlencoded" | "graphql" | "protobuf";
     content: string; // for raw or graphql query
     variables?: string; // for graphql variables
     formData?: KeyValue[]; // for form-data or x-www-form-urlencoded
+  };
+  grpcConfig?: {
+    protoFileContent?: string;
+    serviceName?: string;
+    methodName?: string;
   };
   mockResponse?: {
     status: number;

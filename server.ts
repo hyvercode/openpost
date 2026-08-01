@@ -18,6 +18,7 @@ import environmentRoutes from './server/src/routes/environment.routes';
 import deploymentRoutes from './server/src/routes/deployment.routes';
 import userRoutes from './server/src/routes/user.routes';
 import authRoutes from './server/src/routes/auth.routes';
+import commentRoutes from './server/src/routes/comment.routes';
 import { prisma } from './server/src/db';
 import { requireAuth } from './server/src/middleware/auth';
 import { rateLimiter } from './server/src/middleware/rateLimiter';
@@ -40,6 +41,7 @@ async function startServer() {
   app.use('/api/environments', environmentRoutes);
   app.use('/api/deployments', deploymentRoutes);
   app.use('/api/users', userRoutes);
+  app.use('/api/comments', commentRoutes);
 
   app.post("/api/generate-code", async (req, res) => {
     try {
@@ -244,9 +246,18 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       delete headers["x-target-url"];
       delete headers["content-length"]; // Let axios recalculate
       
-      const data = isBodyConfig 
+      let data = isBodyConfig 
         ? req.body.body 
         : (req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined);
+      
+      let isGrpcRequest = false;
+      if (headers["x-grpc-protobuf-base64"] === "true") {
+        isGrpcRequest = true;
+        if (typeof data === "string") {
+          data = Buffer.from(data, "base64");
+        }
+        delete headers["x-grpc-protobuf-base64"];
+      }
       
       const proxyConfig = req.body?.proxyConfig;
       let httpsAgent = undefined;
@@ -281,6 +292,10 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         proxy: false, // Disable axios default proxy handling when using custom agents
       };
 
+      if (isGrpcRequest) {
+        config.responseType = 'arraybuffer';
+      }
+
       // Use axios but with a custom agent to get timings if we want to stay with axios
       // Or just keep using axios and provide total time, while estimating others.
       // To satisfy the requirement for "DNS lookup time" and "connection time" 
@@ -305,13 +320,16 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       });
       
       const responseData = response.data;
-      const size = typeof responseData === 'string' ? Buffer.byteLength(responseData) : JSON.stringify(responseData).length;
+      const isBufferResponse = Buffer.isBuffer(responseData) || responseData instanceof ArrayBuffer;
+      const dataToSend = isBufferResponse ? Buffer.from(responseData).toString("base64") : responseData;
+      const size = isBufferResponse ? Buffer.from(responseData).length : (typeof responseData === 'string' ? Buffer.byteLength(responseData) : JSON.stringify(responseData).length);
       
       res.json({
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
-        data: responseData,
+        data: dataToSend,
+        isBase64: isBufferResponse,
         timeMs: Math.round(totalTime),
         size: size,
         timings: {

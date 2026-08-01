@@ -61,3 +61,9 @@
 
  28. Added subtle layout transitions for the Request/Response panels when switching between horizontal and vertical split modes to improve the UI feel.
      Done
+ 29. Implemented Protobuf File Upload for gRPC, allowing users to upload .proto files, select services/methods, and automatically encode/decode JSON payloads into gRPC binaries.
+     Done
+ 30. Added Native Desktop App support (Electron) by embedding the Express backend and disabling webSecurity for native cross-origin requests, along with electron-builder configuration for packaging.
+     Done
+ 31. Implemented real-time Comments functionality for requests, allowing team members to discuss directly inside the API editor using a new Comments tab.
+     Done
