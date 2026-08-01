@@ -4,6 +4,7 @@ services:
     hostname: openpost-api
     restart: unless-stopped
     build: .
+    dockerfile: Dockerfile.prod
     ports:
       - "7777:3000"
     environment:
@@ -19,12 +20,12 @@ services:
       - APP_URL="https://openpost.hyvercode.com"
       - DB_PROVIDER="postgresql"
 
-    # deploy:
-    #   resources:
-    #     limits:
-    #       memory: 2G
-    #     reservations:
-    #       memory: 256M
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 256M
 
 networks:
   default:
