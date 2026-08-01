@@ -54,3 +54,6 @@
      Done
  25. Enhanced Manage Workspace Members modal with a solid opaque background container and added loading state spinners when sending and resending invitations.
      Done
+ 26. Fixed Docker deployment database connection handling by auto-detecting DATABASE_URL protocol in setup-prisma, updating Prisma driver adapter pools in server/src/db.ts, and updating docker-entrypoint.sh.
+     Done
+
