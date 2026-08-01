@@ -56,4 +56,8 @@
      Done
  26. Fixed Docker deployment database connection handling by auto-detecting DATABASE_URL protocol in setup-prisma, updating Prisma driver adapter pools in server/src/db.ts, and updating docker-entrypoint.sh.
      Done
+ 27. Implemented a feature to define mock server responses for endpoints, allowing developers to test frontend integrations before the actual backend is ready.
+     Done
 
+ 28. Added subtle layout transitions for the Request/Response panels when switching between horizontal and vertical split modes to improve the UI feel.
+     Done

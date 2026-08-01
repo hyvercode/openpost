@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { ApiCollection, MockConfig } from '../types';
-import { Server, Shield, Zap, Copy, Check, Globe, AlertCircle, Save, ToggleLeft, ToggleRight, Info, Lock, Key } from 'lucide-react';
+import { Server, Shield, Zap, Copy, Check, Globe, AlertCircle, Save, ToggleLeft, ToggleRight, Info, Lock, Key, Clock } from 'lucide-react';
 import { cn } from '../utils';
 import { apiService } from '../lib/api';
 
@@ -196,6 +196,42 @@ export function MockSettings({ collection }: MockSettingsProps) {
                   Rate limiting helps protect your mock endpoints from excessive traffic. If the limit is reached, users will receive a 429 Too Many Requests response.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Latency Simulation */}
+          <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-500/10 rounded flex items-center justify-center">
+                  <Clock className="w-4 h-4 text-blue-400" />
+                </div>
+                <h4 className="text-xs font-bold uppercase tracking-wider">Simulated Latency</h4>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Delay Response By</label>
+                  <span className="text-xs font-bold text-blue-500 font-mono">{config.latencyMs || 0} ms</span>
+                </div>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="5000" 
+                  step="50"
+                  value={config.latencyMs || 0}
+                  onChange={(e) => setConfig({
+                    ...config,
+                    latencyMs: parseInt(e.target.value)
+                  })}
+                  className="w-full h-1.5 bg-[var(--bg-hover)] rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+              </div>
+              <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+                Add artificial delay to mock endpoints to simulate network latency and test your frontend's loading states.
+              </p>
             </div>
           </div>
 

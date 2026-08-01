@@ -126,6 +126,7 @@ export interface Toast {
 
 export interface MockConfig {
   enabled: boolean;
+  latencyMs?: number;
   rateLimit: {
     enabled: boolean;
     requestsPerMinute: number;

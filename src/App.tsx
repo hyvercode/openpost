@@ -858,16 +858,24 @@ export default function App() {
         <main ref={mainRef} className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
           {activeView === 'request' ? (
             <>
-              {layoutMode === 'horizontal' && (
-                <>
+              {layoutMode !== 'floating' && (
+                <div 
+                  className={cn(
+                    "flex-1 flex min-h-0 overflow-hidden w-full h-full",
+                    layoutMode === 'vertical' ? "flex-col" : "flex-row"
+                  )}
+                >
                   <div 
                     className={cn(
-                      "flex flex-col min-h-0 border-r border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative",
-                      !isResizingPanels && "transition-[width] duration-300 ease-in-out"
+                      "flex flex-col min-h-0 shadow-[var(--shadow-panel)] z-10 relative",
+                      (!isResizingPanels && !isResizingPanelsVertical) && "transition-all duration-300 ease-in-out",
+                      layoutMode === 'horizontal' ? "border-r border-[var(--border-subtle)]" : "border-b border-[var(--border-subtle)]"
                     )}
                     style={{ 
-                      width: responseCollapsed ? '100%' : `${requestPanelWidth}%`, 
-                      minWidth: responseCollapsed ? '0px' : '20%' 
+                      width: layoutMode === 'horizontal' ? (responseCollapsed ? '100%' : `${requestPanelWidth}%`) : '100%', 
+                      height: layoutMode === 'vertical' ? (responseCollapsed ? '100%' : `${requestPanelHeight}%`) : '100%',
+                      minWidth: layoutMode === 'horizontal' && !responseCollapsed ? '20%' : '0px',
+                      minHeight: layoutMode === 'vertical' && !responseCollapsed ? '15%' : '0px'
                     }}
                   >
                     <RequestPanel />
@@ -875,12 +883,15 @@ export default function App() {
                   
                   <div 
                     className={cn(
-                      "relative flex items-center justify-center select-none shrink-0 transition-all z-30 group flex",
-                      isResizingPanels ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)] hover:bg-[var(--primary)]",
-                      !responseCollapsed && "cursor-col-resize"
+                      "relative flex items-center justify-center select-none shrink-0 transition-colors z-30 group",
+                      (layoutMode === 'horizontal' ? isResizingPanels : isResizingPanelsVertical) ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)] hover:bg-[var(--primary)]",
+                      !responseCollapsed && (layoutMode === 'horizontal' ? "cursor-col-resize" : "cursor-row-resize")
                     )}
-                    style={{ width: responseCollapsed ? '0px' : '4px' }}
-                    onMouseDown={!responseCollapsed ? handlePanelMouseDown : undefined}
+                    style={{ 
+                      width: layoutMode === 'horizontal' ? (responseCollapsed ? '0px' : '4px') : '100%',
+                      height: layoutMode === 'vertical' ? (responseCollapsed ? '0px' : '4px') : '100%'
+                    }}
+                    onMouseDown={!responseCollapsed ? (layoutMode === 'horizontal' ? handlePanelMouseDown : handleVerticalPanelMouseDown) : undefined}
                     onDoubleClick={() => setResponseCollapsed(!responseCollapsed)}
                   >
                     <button
@@ -890,15 +901,18 @@ export default function App() {
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
                       className={cn(
-                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto h-9 w-4 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md",
-                        responseCollapsed ? "right-1 top-1/2 -translate-y-1/2" : ""
+                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md",
+                        layoutMode === 'horizontal' ? "h-9 w-4" : "h-4 w-9",
+                        responseCollapsed 
+                          ? (layoutMode === 'horizontal' ? "right-1 top-1/2 -translate-y-1/2" : "bottom-1 left-1/2 -translate-x-1/2") 
+                          : ""
                       )}
                       title={responseCollapsed ? "Expand Response Panel" : "Collapse Response Panel"}
                     >
-                      {responseCollapsed ? (
-                        <ChevronLeft className="w-3.5 h-3.5" />
+                      {layoutMode === 'horizontal' ? (
+                        responseCollapsed ? <ChevronLeft className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />
                       ) : (
-                        <ChevronRight className="w-3.5 h-3.5" />
+                        responseCollapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />
                       )}
                     </button>
                   </div>
@@ -906,71 +920,14 @@ export default function App() {
                   <div 
                     className={cn(
                       "flex flex-col min-h-0 shadow-[var(--shadow-panel)] z-10 relative overflow-hidden",
-                      !isResizingPanels && "transition-[width] duration-300 ease-in-out"
+                      (!isResizingPanels && !isResizingPanelsVertical) && "transition-all duration-300 ease-in-out",
+                      layoutMode === 'horizontal' ? "" : "border-t border-[var(--border-subtle)]"
                     )}
                     style={{ 
-                      width: responseCollapsed ? '0%' : `${100 - requestPanelWidth}%`, 
-                      minWidth: responseCollapsed ? '0px' : '20%' 
-                    }}
-                  >
-                    <ResponsePanel />
-                  </div>
-                </>
-              )}
-
-              {layoutMode === 'vertical' && (
-                <div className="flex-1 flex flex-col min-h-0 overflow-hidden w-full h-full">
-                  <div 
-                    className={cn(
-                      "flex flex-col min-h-0 border-b border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative overflow-hidden",
-                      !isResizingPanelsVertical && "transition-[height] duration-300 ease-in-out"
-                    )}
-                    style={{ 
-                      height: responseCollapsed ? '100%' : `${requestPanelHeight}%`, 
-                      minHeight: responseCollapsed ? '0px' : '15%' 
-                    }}
-                  >
-                    <RequestPanel />
-                  </div>
-                  
-                  <div 
-                    className={cn(
-                      "relative flex items-center justify-center select-none shrink-0 transition-all z-30 group flex",
-                      isResizingPanelsVertical ? "bg-[var(--primary)]" : "bg-[var(--border-subtle)] hover:bg-[var(--primary)]",
-                      !responseCollapsed && "cursor-row-resize"
-                    )}
-                    style={{ height: responseCollapsed ? '0px' : '4px' }}
-                    onMouseDown={!responseCollapsed ? handleVerticalPanelMouseDown : undefined}
-                    onDoubleClick={() => setResponseCollapsed(!responseCollapsed)}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setResponseCollapsed(!responseCollapsed);
-                      }}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      className={cn(
-                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto h-4 w-9 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md",
-                        responseCollapsed ? "bottom-1 left-1/2 -translate-x-1/2" : ""
-                      )}
-                      title={responseCollapsed ? "Expand Response Panel" : "Collapse Response Panel"}
-                    >
-                      {responseCollapsed ? (
-                        <ChevronUp className="w-3.5 h-3.5" />
-                      ) : (
-                        <ChevronDown className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  </div>
-
-                  <div 
-                    className={cn(
-                      "flex flex-col min-h-0 border-t border-[var(--border-subtle)] shadow-[var(--shadow-panel)] z-10 relative overflow-hidden",
-                      !isResizingPanelsVertical && "transition-[height] duration-300 ease-in-out"
-                    )}
-                    style={{ 
-                      height: responseCollapsed ? '0%' : `${100 - requestPanelHeight}%`, 
-                      minHeight: responseCollapsed ? '0px' : '15%' 
+                      width: layoutMode === 'horizontal' ? (responseCollapsed ? '0%' : `${100 - requestPanelWidth}%`) : '100%', 
+                      height: layoutMode === 'vertical' ? (responseCollapsed ? '0%' : `${100 - requestPanelHeight}%`) : '100%',
+                      minWidth: layoutMode === 'horizontal' && !responseCollapsed ? '20%' : '0px',
+                      minHeight: layoutMode === 'vertical' && !responseCollapsed ? '15%' : '0px'
                     }}
                   >
                     <ResponsePanel />
