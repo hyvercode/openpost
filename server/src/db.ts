@@ -4,7 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import pg from 'pg';
 
-const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
+const databaseUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/openpost';
 
 function createPrismaClient(): PrismaClient {
   if (databaseUrl.startsWith('file:') || databaseUrl.startsWith('sqlite:')) {

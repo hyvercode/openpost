@@ -67,3 +67,7 @@
      Done
  31. Implemented real-time Comments functionality for requests, allowing team members to discuss directly inside the API editor using a new Comments tab.
      Done
+ 33. Set default database provider to PostgreSQL in scripts/setup-prisma.cjs, server/src/db.ts, and .env.example.
+     Done
+ 34. Added Data-Driven Testing (CSV/JSON Import untuk Runner) allowing Automated API Testing to receive input files and execute requests repetitively using data from the file.
+     Done
