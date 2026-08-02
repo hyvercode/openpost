@@ -75,3 +75,5 @@
      Done
  36. Create a new 'Mock Server' management view that lists created mock responses, allowing users to toggle them on/off, edit the JSON response content, and delete existing mocks.
      Done
+ 37. Updated Dockerfile to set default database provider to PostgreSQL via ENV DB_PROVIDER=postgresql.
+     Done
