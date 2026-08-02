@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+const fs = require('fs');
+
+const content = `import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { ApiCollection, MockConfig, RequestItem } from '../types';
 import { Server, Shield, Zap, Copy, Check, Globe, AlertCircle, Save, ToggleLeft, ToggleRight, Info, Lock, Key, Clock, ChevronDown, ChevronUp, Trash2, Edit } from 'lucide-react';
@@ -21,7 +23,7 @@ function MockRouteItem({ req, collection, onSave }: { req: RequestItem; collecti
   const getPathFromUrl = (urlStr: string) => {
     try {
       if (!urlStr) return "/";
-      let cleaned = urlStr.replace(/\{\{[^}]+\}\}/g, "");
+      let cleaned = urlStr.replace(/\\{\\{[^}]+\\}\\}/g, "");
       if (!cleaned.startsWith("http") && !cleaned.startsWith("/")) cleaned = "/" + cleaned;
       const u = new URL(cleaned, "http://dummy.com");
       return u.pathname;
@@ -220,7 +222,7 @@ export function MockSettings({ collection }: MockSettingsProps) {
   });
 
   const handleCopyUrl = () => {
-    const mockUrl = `${window.location.origin}/mock/collection/${collection.id}`;
+    const mockUrl = \`\${window.location.origin}/mock/collection/\${collection.id}\`;
     navigator.clipboard.writeText(mockUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -484,3 +486,5 @@ function ArrowRight(props: any) {
     <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
   );
 }
+`
+fs.writeFileSync('src/components/MockSettings.tsx', content);

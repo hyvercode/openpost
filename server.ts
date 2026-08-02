@@ -440,6 +440,12 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         });
       }
 
+      if (matchingRequest.mockResponse && matchingRequest.mockResponse.enabled === false) {
+        return res.status(403).json({
+          error: `Mock route for [${req.method}] "${subpath}" is currently disabled.`
+        });
+      }
+
       const mockRes = matchingRequest.mockResponse || {
         status: 200,
         headers: [{ key: "Content-Type", value: "application/json", enabled: true }],
@@ -561,6 +567,12 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
             version: deployment.version
           },
           availableRoutes: requests.map((r: any) => `[${r.method}] ${getPathFromUrl(r.url)}`)
+        });
+      }
+
+      if (matchingRequest.mockResponse && matchingRequest.mockResponse.enabled === false) {
+        return res.status(403).json({
+          error: `Mock route for [${req.method}] "${subpath}" is currently disabled.`
         });
       }
 
