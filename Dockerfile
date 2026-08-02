@@ -58,6 +58,7 @@ RUN chmod +x docker-entrypoint.sh
 
 # Set environment variables
 ENV NODE_ENV=production
+ENV DB_PROVIDER=postgresql
 ENV PORT=3000
 
 # Expose the application port
