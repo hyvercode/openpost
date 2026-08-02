@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import Papa from 'papaparse';
 import { useStore } from '../store/useStore';
 import { 
   Play, Plus, Trash2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Activity, BarChart2,
@@ -71,6 +72,8 @@ export function TestRunnerPanel() {
   const [iterations, setIterations] = useState<number>(1);
   const [delayMs, setDelayMs] = useState<number>(100);
   const [stopOnError, setStopOnError] = useState<boolean>(false);
+  const [dataFile, setDataFile] = useState<File | null>(null);
+  const [dataFileRows, setDataFileRows] = useState<any[]>([]);
   
   const [disabledRequestIds, setDisabledRequestIds] = useState<Set<string>>(new Set());
 
@@ -132,6 +135,43 @@ export function TestRunnerPanel() {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDataFile(file);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (file.name.endsWith('.json')) {
+        try {
+          const json = JSON.parse(content);
+          if (Array.isArray(json)) {
+            setDataFileRows(json);
+            setIterations(json.length);
+          } else {
+            addToast('JSON file must contain an array of objects.', 'warning');
+          }
+        } catch (err) {
+          addToast('Failed to parse JSON file.', 'error');
+        }
+      } else if (file.name.endsWith('.csv')) {
+        Papa.parse(content, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            setDataFileRows(results.data);
+            setIterations(results.data.length);
+          },
+          error: (error) => {
+            addToast(`Failed to parse CSV: ${error.message}`, 'error');
+          }
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
   // Run Collection Sequentially
   const handleRunCollection = async () => {
     if (selectedRequestsToRun.length === 0) {
@@ -170,6 +210,22 @@ export function TestRunnerPanel() {
 
     for (let iter = 1; iter <= iterations; iter++) {
       if (stopRequestedRef.current) break;
+
+      // Inject data file variables for this iteration
+      if (dataFileRows && dataFileRows.length > 0) {
+        const rowIdx = iter - 1;
+        const rowData = dataFileRows[rowIdx % dataFileRows.length];
+        if (rowData && typeof rowData === 'object') {
+          Object.entries(rowData).forEach(([key, value]) => {
+            const existingIdx = runtimeVars.findIndex(v => v.key === key);
+            if (existingIdx !== -1) {
+              runtimeVars[existingIdx] = { ...runtimeVars[existingIdx], value: String(value) };
+            } else {
+              runtimeVars.push({ key, value: String(value), enabled: true });
+            }
+          });
+        }
+      }
 
       for (let i = 0; i < selectedRequestsToRun.length; i++) {
         if (stopRequestedRef.current) break;
@@ -533,6 +589,21 @@ export function TestRunnerPanel() {
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block">
                 Runner Options
               </span>
+
+              <div className="flex flex-col gap-2 mb-2">
+                <span className="text-xs text-[var(--text-primary)] font-medium">Data File (CSV/JSON)</span>
+                <input
+                  type="file"
+                  accept=".csv,.json"
+                  onChange={handleFileUpload}
+                  className="w-full text-xs text-[var(--text-primary)] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-[var(--bg-hover)] file:text-[var(--text-primary)] hover:file:bg-[var(--bg-active)]"
+                />
+                {dataFile && (
+                  <span className="text-[10px] text-[var(--text-secondary)]">
+                    Loaded {dataFileRows.length} rows from {dataFile.name}
+                  </span>
+                )}
+              </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-xs text-[var(--text-primary)] font-medium">Iterations</span>
