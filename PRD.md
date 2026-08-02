@@ -71,3 +71,7 @@
      Done
  34. Added Data-Driven Testing (CSV/JSON Import untuk Runner) allowing Automated API Testing to receive input files and execute requests repetitively using data from the file.
      Done
+ 35. Implement an API Mocking feature that allows users to create mock responses for specific paths. Store these mocks in the database so that when a request is sent to a mocked URL, the app returns the defined JSON response instead of performing a live network call.
+     Done
+ 36. Create a new 'Mock Server' management view that lists created mock responses, allowing users to toggle them on/off, edit the JSON response content, and delete existing mocks.
+     Done

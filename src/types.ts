@@ -101,7 +101,7 @@ export interface RequestItem {
     serviceName?: string;
     methodName?: string;
   };
-  mockResponse?: {
+  mockResponse?: { enabled?: boolean;
     status: number;
     headers: KeyValue[];
     body: string;
