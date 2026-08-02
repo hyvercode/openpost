@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - "7000:3000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/openpost?schema=public
       - DB_PROVIDER=postgresql
