@@ -4,7 +4,6 @@ services:
     hostname: openpost-api
     restart: unless-stopped
     build: .
-    dockerfile: Dockerfile.prod
     ports:
       - "7777:3000"
     environment:
