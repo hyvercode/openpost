@@ -34,6 +34,7 @@ export const SettingsView: React.FC = () => {
   } = useStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'workspace' | 'team' | 'security' | 'proxy'>('profile');
   const [isSaving, setIsSaving] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [invitations, setInvitations] = useState<any[]>([]);
   const [isLoadingTeam, setIsLoadingTeam] = useState(false);
@@ -160,6 +161,19 @@ export const SettingsView: React.FC = () => {
       loadTeam();
     } catch (error: any) {
       addToast(error.response?.data?.error || 'Failed to remove member', 'error');
+    }
+  };
+
+    const handleResendInvitation = async (invitationId: string) => {
+    setResendingId(invitationId);
+    try {
+      await apiService.resendInvitation(invitationId);
+      addToast('Invitation resent successfully', 'success');
+      loadTeam();
+    } catch (error: any) {
+      addToast(error.response?.data?.error || 'Failed to resend invitation', 'error');
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -563,9 +577,18 @@ export const SettingsView: React.FC = () => {
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-orange-500 border border-orange-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">Pending</span>
+                              <button
+                                onClick={() => handleResendInvitation(inv.id)}
+                                disabled={resendingId === inv.id}
+                                className="text-[var(--text-secondary)] hover:text-[var(--primary)] p-1 transition-colors disabled:opacity-50"
+                                title="Resend Invitation"
+                              >
+                                <RotateCcw className={cn("w-3.5 h-3.5", resendingId === inv.id && "animate-spin text-[var(--primary)]")} />
+                              </button>
                               <button 
                                 onClick={() => handleCancelInvitation(inv.id)}
-                                className="text-[var(--text-secondary)] hover:text-red-500 p-1 transition-colors"
+                                disabled={resendingId === inv.id}
+                                className="text-[var(--text-secondary)] hover:text-red-500 p-1 transition-colors disabled:opacity-50"
                                 title="Cancel Invitation"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -651,10 +674,19 @@ export const SettingsView: React.FC = () => {
                       <button 
                         type="submit"
                         disabled={isSaving || !inviteEmail}
-                        className="bg-[var(--primary)] text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all"
+                        className="bg-[var(--primary)] text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all min-w-[100px] justify-center"
                       >
-                        <Plus className="w-4 h-4" />
-                        Invite
+                        {isSaving ? (
+                          <>
+                            <RotateCcw className="w-4 h-4 animate-spin" />
+                            Inviting...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4" />
+                            Invite
+                          </>
+                        )}
                       </button>
                     </div>
                   </form>
