@@ -51,6 +51,8 @@ COPY --from=deps /app/node_modules ./node_modules
 
 # Copy built assets and server bundle from builder
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/agent ./agent
 
 # Copy startup script
 COPY docker-entrypoint.sh ./
