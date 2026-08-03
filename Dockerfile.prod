@@ -42,6 +42,7 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
 
 # Buat direktori data untuk SQLite dan uploads
 RUN mkdir -p /app/data /app/uploads && chmod -R 777 /app/data /app/uploads
