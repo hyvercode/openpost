@@ -77,3 +77,5 @@
      Done
  37. Updated Dockerfile to set default database provider to PostgreSQL via ENV DB_PROVIDER=postgresql.
      Done
+ 38. Fixed Docker deployment missing files for /downloads/desktop-agent by copying public and agent directories into the production image.
+     Done
