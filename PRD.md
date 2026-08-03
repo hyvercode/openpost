@@ -79,3 +79,7 @@
      Done
  38. Fixed Docker deployment missing files for /downloads/desktop-agent by copying public and agent directories into the production image.
      Done
+ 39. Added a 'Copy JSON Path' feature to the JSON viewer in the ResponsePanel, allowing users to right-click a JSON key/value or object/array and copy its path (e.g., $.data.user.id) to their clipboard.
+     Done
+ 40. Fixed the Team & Members page to actually fetch and display members and pending invitations from the backend instead of using mock data.
+     Done

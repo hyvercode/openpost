@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../lib/api';
 import { User, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff, Palette, Sun, Moon, Check, RotateCcw, Sparkles } from 'lucide-react';
@@ -34,6 +34,33 @@ export const SettingsView: React.FC = () => {
   } = useStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'workspace' | 'team' | 'security' | 'proxy'>('profile');
   const [isSaving, setIsSaving] = useState(false);
+  const [members, setMembers] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [isLoadingTeam, setIsLoadingTeam] = useState(false);
+  
+  useEffect(() => {
+    if (activeTab === 'team' && currentWorkspace) {
+      loadTeam();
+    }
+  }, [activeTab, currentWorkspace]);
+
+  const loadTeam = async () => {
+    if (!currentWorkspace) return;
+    setIsLoadingTeam(true);
+    try {
+      const [m, i] = await Promise.all([
+        apiService.getMembers(currentWorkspace.id),
+        apiService.getPendingInvitations(currentWorkspace.id)
+      ]);
+      setMembers(m);
+      setInvitations(i);
+    } catch (error) {
+      console.error('Failed to load team data', error);
+    } finally {
+      setIsLoadingTeam(false);
+    }
+  };
+
 
   // Proxy State
   const [proxyEnabled, setProxyEnabled] = useState(proxyConfig.enabled);
@@ -117,10 +144,32 @@ export const SettingsView: React.FC = () => {
       await apiService.inviteMember(currentWorkspace.id, inviteEmail, 'MEMBER');
       addToast(`Invitation email sent to ${inviteEmail}!`, 'success');
       setInviteEmail('');
+      loadTeam();
     } catch (error: any) {
       addToast(error.response?.data?.error || 'Failed to send invitation', 'error');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!currentWorkspace) return;
+    try {
+      await apiService.removeMember(currentWorkspace.id, userId);
+      addToast('Member removed', 'success');
+      loadTeam();
+    } catch (error: any) {
+      addToast(error.response?.data?.error || 'Failed to remove member', 'error');
+    }
+  };
+
+  const handleCancelInvitation = async (invitationId: string) => {
+    try {
+      await apiService.cancelInvitation(invitationId);
+      addToast('Invitation cancelled', 'success');
+      loadTeam();
+    } catch (error: any) {
+      addToast(error.response?.data?.error || 'Failed to cancel invitation', 'error');
     }
   };
 
@@ -493,8 +542,40 @@ export const SettingsView: React.FC = () => {
                       <span className="bg-[var(--primary)] text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
                         GET
                       </span>
+
                     </div>
                   </div>
+
+                  {invitations.length > 0 && (
+                    <div className="space-y-4 pt-6 border-t border-[var(--border-subtle)]">
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)]">Pending Invitations</h3>
+                      <div className="space-y-2">
+                        {invitations.map((inv, i) => (
+                          <div key={inv.id || i} className="flex items-center justify-between p-3 bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)]">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-500 font-bold text-xs">
+                                <Mail className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium">{inv.email}</span>
+                                <span className="text-[10px] text-[var(--text-secondary)] block">Invited as {inv.role}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-orange-500 border border-orange-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">Pending</span>
+                              <button 
+                                onClick={() => handleCancelInvitation(inv.id)}
+                                className="text-[var(--text-secondary)] hover:text-red-500 p-1 transition-colors"
+                                title="Cancel Invitation"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -595,23 +676,32 @@ export const SettingsView: React.FC = () => {
                         <span className="text-[10px] border border-blue-500/30 text-blue-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">Owner</span>
                       </div>
 
-                      {/* Mock Members */}
-                      {currentWorkspace?.members?.map((member, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)]">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gray-500/20 flex items-center justify-center text-gray-500 font-bold text-xs">
-                              {member.charAt(0).toUpperCase()}
+                      {isLoadingTeam ? (
+                        <div className="text-sm text-[var(--text-secondary)] p-4 text-center">Loading team members...</div>
+                      ) : (
+                        <>
+                          {members.filter(m => m.user?.uid !== user?.uid).map((member, i) => (
+                            <div key={member.id || i} className="flex items-center justify-between p-3 bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)]">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-gray-500/20 flex items-center justify-center text-gray-500 font-bold text-xs">
+                                  {(member.user?.displayName || member.user?.email || 'U').charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <span className="text-sm font-medium">{member.user?.displayName || member.user?.email}</span>
+                                  <span className="text-[10px] text-[var(--text-secondary)] block">{member.role}</span>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => handleRemoveMember(member.user?.uid)}
+                                className="text-[var(--text-secondary)] hover:text-red-500 p-1 transition-colors"
+                                title="Remove Member"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
-                            <div>
-                              <span className="text-sm font-medium">{member}</span>
-                              <span className="text-[10px] text-[var(--text-secondary)] block">Member</span>
-                            </div>
-                          </div>
-                          <button className="text-[var(--text-secondary)] hover:text-red-500 p-1">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
+                          ))}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

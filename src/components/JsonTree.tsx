@@ -1,19 +1,36 @@
 import React, { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '../utils';
+import { useStore } from '../store/useStore';
 
 interface JsonTreeProps {
   data: any;
   name?: string;
   isLast?: boolean;
   initiallyExpanded?: boolean;
+  path?: string;
 }
 
-export const JsonTree: React.FC<JsonTreeProps> = ({ data, name, isLast = true, initiallyExpanded = false }) => {
+export const JsonTree: React.FC<JsonTreeProps> = ({ data, name, isLast = true, initiallyExpanded = false, path = '$' }) => {
   const [expanded, setExpanded] = useState(initiallyExpanded);
-
+  const { addToast } = useStore();
+  
   const isObject = typeof data === 'object' && data !== null;
   const isArray = Array.isArray(data);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(path);
+    addToast(`Copied JSON path: ${path}`, 'success', 2000);
+  };
+
+  const getChildPath = (key: string) => {
+    if (isArray) return `${path}[${key}]`;
+    const isIdentifier = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+    if (isIdentifier.test(key)) return `${path}.${key}`;
+    return `${path}["${key}"]`;
+  };
 
   if (!isObject) {
     const renderValue = () => {
@@ -33,7 +50,11 @@ export const JsonTree: React.FC<JsonTreeProps> = ({ data, name, isLast = true, i
     };
 
     return (
-      <div className="font-mono text-xs leading-5">
+      <div 
+        className="font-mono text-xs leading-5 cursor-context-menu hover:bg-[var(--bg-hover)] rounded -ml-4 pl-4"
+        onContextMenu={handleContextMenu}
+        title={`Right-click to copy JSON path: ${path}`}
+      >
         {name && <span className="text-[var(--text-primary)] mr-1">"{name}":</span>}
         {renderValue()}
         {!isLast && <span className="text-[var(--text-secondary)]">,</span>}
@@ -49,6 +70,8 @@ export const JsonTree: React.FC<JsonTreeProps> = ({ data, name, isLast = true, i
       <div 
         className="flex items-center cursor-pointer hover:bg-[var(--bg-hover)] rounded -ml-4 pl-4 py-0.5 select-none json-tree-node"
         onClick={() => !isEmpty && setExpanded(!expanded)}
+        onContextMenu={handleContextMenu}
+        title={`Right-click to copy JSON path: ${path}`}
       >
         <span className="w-4 h-4 inline-flex items-center justify-center shrink-0 -ml-4">
           {!isEmpty && (
@@ -74,6 +97,7 @@ export const JsonTree: React.FC<JsonTreeProps> = ({ data, name, isLast = true, i
               data={data[key as keyof typeof data]}
               isLast={index === keys.length - 1}
               initiallyExpanded={false}
+              path={getChildPath(key)}
             />
           ))}
         </div>
