@@ -83,3 +83,5 @@
      Done
  40. Fixed the Team & Members page to actually fetch and display members and pending invitations from the backend instead of using mock data.
      Done
+ 41. Added a loading indicator to the 'Invite Member' button and the 'Resend Invitation' button on the Team & Collaboration settings page.
+     Done
