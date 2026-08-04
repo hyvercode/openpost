@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2, CheckSquare, Square, X, Check, Cookie, FileCode, Cloud } from 'lucide-react';
+import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2, CheckSquare, Square, X, Check, Cookie, FileCode, Cloud, FilePlus, FolderPlus } from 'lucide-react';
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
@@ -18,6 +18,7 @@ import { WorkspaceMembersModal } from './WorkspaceMembersModal';
 import { OpenApiImportModal } from './OpenApiImportModal';
 import { parseOpenAPISpec } from '../utils/openapiImport';
 import { HistorySidebar } from './HistorySidebar';
+import { exportWorkspaceJSON, exportSingleCollectionJSON, exportAllPostmanJSON } from '../utils/exportUtils';
 
 function interpolateString(str: string, vars: any[]): string {
   if (!str) return '';
@@ -61,7 +62,13 @@ export function Sidebar() {
     selectedRequestIds,
     setSelectedRequestIds,
     toggleRequestSelection,
-    isWorkspaceLoading
+    isWorkspaceLoading,
+    draftRequests,
+    createStandaloneRequest,
+    setIsSaveToCollectionModalOpen,
+    setRequestToSaveModal,
+    removeDraftRequest,
+    closeTab
   } = useStore();
   const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments' | 'history' | 'tests' | 'cookies'>('collections');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -537,6 +544,49 @@ export function Sidebar() {
           const state = useStore.getState();
           state.setEnvironments([...state.environments, ...importedEnvs]);
           
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          return;
+        }
+
+        // Single Collection Export Import
+        if (parsedData.type === 'apitester_collection_export' && parsedData.collection) {
+          const collection = parsedData.collection;
+          const newCollectionId = uuidv4();
+          const idMap = new Map<string, string>();
+
+          const newFolders = (collection.folders || []).map((f: any) => {
+            const newFolderId = uuidv4();
+            idMap.set(f.id, newFolderId);
+            return { ...f, id: newFolderId };
+          });
+
+          newFolders.forEach((f: any) => {
+            if (f.parentId && idMap.has(f.parentId)) {
+              f.parentId = idMap.get(f.parentId);
+            }
+          });
+
+          const newRequests = (collection.requests || []).map((r: any) => ({
+            ...r,
+            id: uuidv4(),
+            collectionId: newCollectionId,
+            workspaceId: currentWorkspace.id,
+            folderId: (r.folderId && idMap.has(r.folderId)) ? idMap.get(r.folderId) : r.folderId
+          }));
+
+          const { shareVisibility, mockVisibility, docVisibility, ...restCollection } = collection;
+          const newCollection = {
+            ...restCollection,
+            id: newCollectionId,
+            workspaceId: currentWorkspace.id,
+            folders: newFolders,
+            requests: newRequests
+          };
+
+          const created = await apiService.createCollection(newCollection);
+          const state = useStore.getState();
+          state.setCollections([...state.collections, created]);
+          addToast(`Collection "${created.name}" imported successfully!`, 'success', 3000);
           if (fileInputRef.current) fileInputRef.current.value = '';
           return;
         }
@@ -1884,6 +1934,13 @@ export function Sidebar() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Collections</span>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button 
+                  onClick={() => createStandaloneRequest()}
+                  className="p-1 rounded text-[var(--icon-color)] hover:text-[var(--primary)] transition-colors"
+                  title="New Standalone Request (Ctrl+N)"
+                >
+                  <FilePlus className="w-4 h-4" />
+                </button>
+                <button 
                   onClick={() => setIsBulkEditMode(!isBulkEditMode)}
                   className={cn(
                     "p-1 rounded transition-colors",
@@ -1902,6 +1959,82 @@ export function Sidebar() {
                 </button>
               </div>
             </div>
+
+            {/* Standalone / Unsaved Draft Requests */}
+            {draftRequests.length > 0 && (
+              <div className="mb-3 px-1">
+                <div className="flex items-center justify-between px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-500 bg-amber-500/10 rounded-lg border border-amber-500/20 mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    Drafts ({draftRequests.length})
+                  </span>
+                  <button
+                    onClick={() => createStandaloneRequest()}
+                    className="hover:text-amber-400 p-0.5 rounded cursor-pointer"
+                    title="New Standalone Request"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="space-y-1">
+                  {draftRequests.map(draft => (
+                    <div
+                      key={draft.id}
+                      onClick={() => {
+                        openTab({ id: draft.id, type: 'request', name: draft.name, method: draft.method });
+                        setActiveRequest(draft);
+                        setActiveView('request');
+                      }}
+                      className={cn(
+                        "flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer group transition-all border",
+                        activeRequest?.id === draft.id
+                          ? "bg-[var(--bg-hover)] text-[var(--text-primary)] font-semibold border-[var(--border-strong)]"
+                          : "bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] border-[var(--border-subtle)]"
+                      )}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className={cn(
+                          "text-[10px] font-bold shrink-0",
+                          draft.method === 'GET' ? "text-[var(--text-get)]" :
+                          draft.method === 'POST' ? "text-[var(--text-post)]" :
+                          draft.method === 'PUT' ? "text-[var(--text-put)]" :
+                          draft.method === 'DELETE' ? "text-[var(--text-delete)]" : "text-[var(--text-secondary)]"
+                        )}>
+                          {draft.method}
+                        </span>
+                        <span className="truncate">{draft.name || 'Untitled Request'}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRequestToSaveModal(draft);
+                            setIsSaveToCollectionModalOpen(true);
+                          }}
+                          className="p-1 hover:text-[var(--primary)] text-[var(--text-secondary)] rounded cursor-pointer"
+                          title="Save to Collection"
+                        >
+                          <FolderPlus className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeDraftRequest(draft.id);
+                            closeTab(draft.id);
+                          }}
+                          className="p-1 hover:text-red-500 text-[var(--text-secondary)] rounded cursor-pointer"
+                          title="Discard Draft"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {isWorkspaceLoading ? (
               renderCollectionsSkeleton()
             ) : (
@@ -2094,6 +2227,17 @@ export function Sidebar() {
                             </button>
                             <div className="h-px bg-[var(--border-subtle)] my-1" />
                             <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Export Data & Docs</div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                exportSingleCollectionJSON(collection);
+                                setActiveDropdown(null);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <FileCode className="w-4 h-4 text-[var(--primary)] shrink-0" />
+                              <span>Collection JSON (Backup)</span>
+                            </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { v4 as uuidv4 } from "uuid";
 import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage, ProxyConfig, CookieItem, CollectionRunReport } from "../types";
 
 interface AppState {
@@ -30,8 +31,25 @@ interface AppState {
 
   isAgentModalOpen: boolean;
   setIsAgentModalOpen: (open: boolean) => void;
+  isHelpModalOpen: boolean;
+  setIsHelpModalOpen: (open: boolean) => void;
   isQuickSearchOpen: boolean;
   setIsQuickSearchOpen: (open: boolean) => void;
+  isQuickEnvModalOpen: boolean;
+  setIsQuickEnvModalOpen: (open: boolean) => void;
+  isKeyboardShortcutsModalOpen: boolean;
+  setIsKeyboardShortcutsModalOpen: (open: boolean) => void;
+  isSaveToCollectionModalOpen: boolean;
+  setIsSaveToCollectionModalOpen: (open: boolean) => void;
+  requestToSaveModal: RequestItem | null;
+  setRequestToSaveModal: (request: RequestItem | null) => void;
+
+  draftRequests: RequestItem[];
+  setDraftRequests: (drafts: RequestItem[]) => void;
+  addDraftRequest: (request: RequestItem) => void;
+  updateDraftRequest: (request: RequestItem) => void;
+  removeDraftRequest: (id: string) => void;
+  createStandaloneRequest: () => RequestItem;
 
   deployments: Deployment[];
   setDeployments: (deployments: Deployment[]) => void;
@@ -146,8 +164,76 @@ export const useStore = create<AppState>((set) => ({
   setBulkRunStopRequested: (stop) => set({ bulkRunStopRequested: stop }),
   isAgentModalOpen: false,
   setIsAgentModalOpen: (open) => set({ isAgentModalOpen: open }),
+  isHelpModalOpen: false,
+  setIsHelpModalOpen: (open) => set({ isHelpModalOpen: open }),
   isQuickSearchOpen: false,
   setIsQuickSearchOpen: (open) => set({ isQuickSearchOpen: open }),
+  isQuickEnvModalOpen: false,
+  setIsQuickEnvModalOpen: (open) => set({ isQuickEnvModalOpen: open }),
+  isKeyboardShortcutsModalOpen: false,
+  setIsKeyboardShortcutsModalOpen: (open) => set({ isKeyboardShortcutsModalOpen: open }),
+  isSaveToCollectionModalOpen: false,
+  setIsSaveToCollectionModalOpen: (open) => set({ isSaveToCollectionModalOpen: open }),
+  requestToSaveModal: null,
+  setRequestToSaveModal: (requestToSaveModal) => set({ requestToSaveModal }),
+
+  draftRequests: (() => {
+    try {
+      const saved = localStorage.getItem('draft_requests');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  setDraftRequests: (draftRequests) => {
+    try { localStorage.setItem('draft_requests', JSON.stringify(draftRequests)); } catch {}
+    set({ draftRequests });
+  },
+  addDraftRequest: (req) => set((state) => {
+    const updated = [...state.draftRequests.filter(d => d.id !== req.id), req];
+    try { localStorage.setItem('draft_requests', JSON.stringify(updated)); } catch {}
+    return { draftRequests: updated };
+  }),
+  updateDraftRequest: (req) => set((state) => {
+    const updated = state.draftRequests.map(d => d.id === req.id ? req : d);
+    try { localStorage.setItem('draft_requests', JSON.stringify(updated)); } catch {}
+    return { draftRequests: updated };
+  }),
+  removeDraftRequest: (id) => set((state) => {
+    const updated = state.draftRequests.filter(d => d.id !== id);
+    try { localStorage.setItem('draft_requests', JSON.stringify(updated)); } catch {}
+    return { draftRequests: updated };
+  }),
+  createStandaloneRequest: () => {
+    const state = useStore.getState();
+    const newReq: RequestItem = {
+      id: uuidv4(),
+      collectionId: '',
+      workspaceId: state.currentWorkspace?.id || '',
+      name: 'Untitled Request',
+      method: 'GET',
+      url: '',
+      headers: [
+        { id: uuidv4(), key: 'Accept', value: 'application/json', enabled: true },
+        { id: uuidv4(), key: '', value: '', enabled: true }
+      ],
+      params: [{ id: uuidv4(), key: '', value: '', enabled: true }],
+      body: {
+        type: 'none',
+        content: ''
+      }
+    };
+    state.addDraftRequest(newReq);
+    state.openTab({
+      id: newReq.id,
+      type: 'request',
+      name: newReq.name,
+      method: newReq.method
+    });
+    state.setActiveRequest(newReq);
+    state.setActiveView('request');
+    return newReq;
+  },
   user: null,
   setUser: (user) => set({ user }),
   

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { cn } from '../utils';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Settings2, Plus } from 'lucide-react';
 import { getActiveGraphQLTheme, highlightGraphQLCode, GraphQLThemeConfig } from '../utils/graphqlTheme';
 
 interface AutocompleteInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
@@ -21,7 +21,7 @@ export function AutocompleteInput({
   suggestions,
   ...props
 }: AutocompleteInputProps) {
-  const { environments } = useStore();
+  const { environments, setIsQuickEnvModalOpen } = useStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const [query, setQuery] = useState('');
   const [startIndex, setStartIndex] = useState(-1);
@@ -272,42 +272,57 @@ export function AutocompleteInput({
         >
           
           {dropdownMode === 'env' ? (
-            environments.length === 0 ? (
-              <div className="px-3 py-2 text-[10px] text-[var(--text-secondary)] italic flex items-center gap-2">
-                <AlertCircle className="w-3 h-3" />
-                No environments available
-              </div>
-            ) : filteredVars.length === 0 ? (
-              <div className="px-3 py-2 text-[10px] text-[var(--text-secondary)] italic">
-                {query ? `No variables matching "${query}"` : 'No variables in environments'}
-              </div>
-            ) : (
-              <div className="max-h-60 overflow-y-auto py-1">
-                {filteredVars.map((v, idx) => (
-                  <div
-                    key={v.id}
-                    className={cn(
-                      "flex items-center justify-between px-3 py-1.5 cursor-pointer text-xs transition-colors",
-                      idx === activeIndex 
-                        ? "bg-[var(--primary)]/10 text-[var(--primary)] font-semibold" 
-                        : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-                    )}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      selectVariable(v.key);
-                    }}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="w-2 h-2 rounded-full bg-[var(--primary)]/30" />
-                      <span className="font-mono truncate">{v.key}</span>
+            <>
+              {environments.length === 0 ? (
+                <div className="px-3 py-2 text-[10px] text-[var(--text-secondary)] italic flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" />
+                  No environments available
+                </div>
+              ) : filteredVars.length === 0 ? (
+                <div className="px-3 py-2 text-[10px] text-[var(--text-secondary)] italic">
+                  {query ? `No variables matching "${query}"` : 'No variables in environments'}
+                </div>
+              ) : (
+                <div className="max-h-60 overflow-y-auto py-1">
+                  {filteredVars.map((v, idx) => (
+                    <div
+                      key={v.id}
+                      className={cn(
+                        "flex items-center justify-between px-3 py-1.5 cursor-pointer text-xs transition-colors",
+                        idx === activeIndex 
+                          ? "bg-[var(--primary)]/10 text-[var(--primary)] font-semibold" 
+                          : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                      )}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectVariable(v.key);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span className="w-2 h-2 rounded-full bg-[var(--primary)]/30" />
+                        <span className="font-mono truncate">{v.key}</span>
+                      </div>
+                      <span className="text-[10px] text-[var(--text-secondary)] font-mono truncate max-w-[150px] opacity-60">
+                        {v.isSecret || v.type === 'secret' ? '••••••••' : v.value}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-[var(--text-secondary)] font-mono truncate max-w-[150px] opacity-60">
-                      {v.isSecret || v.type === 'secret' ? '••••••••' : v.value}
-                    </span>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+              <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 flex items-center justify-between text-[10px]">
+                <span className="text-[var(--text-secondary)]">Env Variables</span>
+                <button 
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setShowDropdown(false);
+                    setIsQuickEnvModalOpen(true);
+                  }} 
+                  className="text-[var(--primary)] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Settings2 className="w-3 h-3" /> Manage Variables
+                </button>
               </div>
-            )
+            </>
           ) : (
             filteredSuggestions.length === 0 ? (
               <div className="px-3 py-2 text-[10px] text-[var(--text-secondary)] italic">
@@ -354,7 +369,7 @@ export function AutocompleteTextarea({
   isGraphQL = false,
   ...props
 }: AutocompleteTextareaProps) {
-  const { environments } = useStore();
+  const { environments, setIsQuickEnvModalOpen } = useStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const [query, setQuery] = useState('');
   const [startIndex, setStartIndex] = useState(-1);
@@ -643,6 +658,21 @@ export function AutocompleteTextarea({
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+          {mode === 'env' && (
+            <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 flex items-center justify-between text-[10px]">
+              <span className="text-[var(--text-secondary)]">Env Variables ({"{{...}}"})</span>
+              <button 
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setShowDropdown(false);
+                  setIsQuickEnvModalOpen(true);
+                }} 
+                className="text-[var(--primary)] hover:underline font-bold flex items-center gap-1"
+              >
+                <Settings2 className="w-3 h-3" /> Manage Variables
+              </button>
             </div>
           )}
         </div>,

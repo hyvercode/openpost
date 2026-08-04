@@ -1,10 +1,23 @@
 import React from 'react';
 import { useStore } from '../store/useStore';
-import { X } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { cn } from '../utils';
 
 export function TabBar() {
-  const { openTabs, activeTabId, setActiveTabId, closeTab, activeView, setActiveView, setActiveRequest, setEditingEnvironment, collections, environments } = useStore();
+  const {
+    openTabs,
+    activeTabId,
+    setActiveTabId,
+    closeTab,
+    activeView,
+    setActiveView,
+    setActiveRequest,
+    setEditingEnvironment,
+    collections,
+    environments,
+    draftRequests,
+    createStandaloneRequest
+  } = useStore();
 
   const isTabActive = (tab: typeof openTabs[0]) => {
     if (activeTabId !== tab.id) return false;
@@ -19,7 +32,8 @@ export function TabBar() {
   const handleTabClick = (tab: { id: string; type: any }) => {
     setActiveTabId(tab.id);
     if (tab.type === 'request') {
-      const request = collections.flatMap(c => c.requests).find(r => r.id === tab.id);
+      const request = collections.flatMap(c => c.requests).find(r => r.id === tab.id)
+        || draftRequests.find(r => r.id === tab.id);
       if (request) {
         setActiveRequest(request);
         setActiveView('request');
@@ -42,8 +56,6 @@ export function TabBar() {
   const handleClose = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     closeTab(id);
-    // State logic is handled in the store, but we need to update active component based on new activeTabId
-    // Actually, it's easier to just handle it here to keep store simple
     const newTabs = openTabs.filter(t => t.id !== id);
     if (newTabs.length === 0) {
       setActiveView('empty');
@@ -53,40 +65,52 @@ export function TabBar() {
     }
   };
 
-  if (openTabs.length === 0) return null;
-
   return (
     <div className="flex items-center bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] overflow-x-auto no-scrollbar shrink-0 h-9">
-      {openTabs.map(tab => (
-        <div 
-          key={tab.id}
-          onClick={() => handleTabClick(tab)}
-          className={cn(
-            "flex items-center gap-2 px-3 py-2 border-r border-[var(--border-subtle)] max-w-[200px] cursor-pointer group text-xs",
-            isTabActive(tab) ? "bg-[var(--bg-panel)] text-[var(--text-primary)] border-t-2 border-t-[var(--primary)]" : "bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-panel)]"
-          )}
-        >
-          {tab.type === 'request' && tab.method && (
-             <span className={cn(
-              "font-bold text-[10px]",
-              tab.method === 'GET' ? "text-[var(--text-get)]" :
-              tab.method === 'POST' ? "text-[var(--text-post)]" :
-              tab.method === 'PUT' ? "text-[var(--text-put)]" :
-              tab.method === 'DELETE' ? "text-[var(--text-delete)]" : "text-[var(--text-secondary)]"
-            )}>{tab.method}</span>
-          )}
-          <span className="truncate flex-1">{tab.name}</span>
-          <button 
-            onClick={(e) => handleClose(e, tab.id)}
+      {openTabs.map(tab => {
+        const isDraft = tab.type === 'request' && draftRequests.some(d => d.id === tab.id);
+        return (
+          <div 
+            key={tab.id}
+            onClick={() => handleTabClick(tab)}
             className={cn(
-              "p-0.5 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity",
-              isTabActive(tab) ? "opacity-100 hover:bg-[var(--border-strong)]" : "hover:bg-[var(--border-strong)]"
+              "flex items-center gap-2 px-3 py-2 border-r border-[var(--border-subtle)] max-w-[200px] cursor-pointer group text-xs shrink-0",
+              isTabActive(tab) ? "bg-[var(--bg-panel)] text-[var(--text-primary)] border-t-2 border-t-[var(--primary)]" : "bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-panel)]"
             )}
           >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      ))}
+            {tab.type === 'request' && tab.method && (
+              <span className={cn(
+                "font-bold text-[10px]",
+                tab.method === 'GET' ? "text-[var(--text-get)]" :
+                tab.method === 'POST' ? "text-[var(--text-post)]" :
+                tab.method === 'PUT' ? "text-[var(--text-put)]" :
+                tab.method === 'DELETE' ? "text-[var(--text-delete)]" : "text-[var(--text-secondary)]"
+              )}>{tab.method}</span>
+            )}
+            <span className="truncate flex-1">{tab.name}</span>
+            {isDraft && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Unsaved Draft Request" />
+            )}
+            <button 
+              onClick={(e) => handleClose(e, tab.id)}
+              className={cn(
+                "p-0.5 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity ml-0.5",
+                isTabActive(tab) ? "opacity-100 hover:bg-[var(--border-strong)]" : "hover:bg-[var(--border-strong)]"
+              )}
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        );
+      })}
+
+      <button
+        onClick={() => createStandaloneRequest()}
+        className="px-2.5 h-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--primary)] hover:bg-[var(--bg-hover)] border-r border-[var(--border-subtle)] transition-colors cursor-pointer shrink-0"
+        title="New Standalone Request (Ctrl + N)"
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
     </div>
   );
 }
