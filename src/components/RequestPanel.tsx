@@ -1142,6 +1142,21 @@ if (method === 'WS') {
   };
 
   const COMMON_HEADERS = ["Accept","Accept-Charset","Accept-Encoding","Accept-Language","Authorization","Cache-Control","Connection","Content-Length","Content-Type","Cookie","Date","Expect","Forwarded","From","Host","If-Match","If-Modified-Since","If-None-Match","If-Range","If-Unmodified-Since","Max-Forwards","Origin","Pragma","Proxy-Authorization","Range","Referer","TE","Upgrade","User-Agent","Via","Warning"];
+  const COMMON_HEADER_VALUES: Record<string, string[]> = {
+    "Content-Type": ["application/json", "application/x-www-form-urlencoded", "multipart/form-data", "text/html", "text/plain", "application/xml", "application/javascript"],
+    "Accept": ["application/json", "text/html", "text/plain", "application/xml", "*/*"],
+    "Authorization": ["Bearer ", "Basic "],
+    "Cache-Control": ["no-cache", "no-store", "max-age=0", "max-age=3600"],
+    "Connection": ["keep-alive", "close"]
+  };
+  
+  const getHeaderValueSuggestions = (key: string) => {
+    // try to match case-insensitive
+    const normalizedKey = key.trim().toLowerCase();
+    const match = Object.keys(COMMON_HEADER_VALUES).find(k => k.toLowerCase() === normalizedKey);
+    return match ? COMMON_HEADER_VALUES[match] : undefined;
+  };
+
   const renderKeyValueEditor = (type: 'headers' | 'params' | 'mockHeaders') => {
     const items = type === 'headers' ? headers : type === 'params' ? params : mockHeaders;
     
@@ -1222,6 +1237,7 @@ if (method === 'WS') {
                     type="text"
                     placeholder="Value"
                     value={item.value || ''}
+                    suggestions={(type === 'headers' || type === 'mockHeaders') ? getHeaderValueSuggestions(item.key) : undefined}
                     onValueChange={(val) => handleKeyValueChange(type, item.id, 'value', val)}
                     className="w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors"
                   />
@@ -1254,6 +1270,39 @@ if (method === 'WS') {
       </div>
     );
   };
+
+
+  if (!activeRequest) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-[var(--bg-panel)] relative text-center px-4">
+        <div className="w-20 h-20 bg-[var(--bg-hover)] rounded-full flex items-center justify-center mb-6 shadow-sm border border-[var(--border-subtle)]">
+          <TerminalSquare className="w-10 h-10 text-[var(--primary)] opacity-80" />
+        </div>
+        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">No Request Selected</h2>
+        <p className="text-sm text-[var(--text-secondary)] max-w-md mb-8 leading-relaxed">
+          Select a request from the sidebar, or create a new one to start testing your APIs. You can also import existing collections.
+        </p>
+        <div className="flex gap-4">
+          <button
+            onClick={() => useStore.getState().setModal({ isOpen: true, title: 'New Request', type: 'request' })}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white rounded-lg text-sm font-bold shadow-md shadow-[var(--primary)]/20 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            Create Request
+          </button>
+          <button
+            onClick={() => setIsCurlModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] rounded-lg text-sm font-bold hover:bg-[var(--bg-surface)] hover:border-[var(--text-secondary)] transition-all"
+          >
+            <Code2 className="w-4 h-4" />
+            Import cURL
+          </button>
+        </div>
+        
+        {isCurlModalOpen && <CurlImportModal isOpen={isCurlModalOpen} onClose={() => setIsCurlModalOpen(false)} onImport={handleCurlImport} />}
+      </div>
+    );
+  }
 
   return (
     <motion.div 

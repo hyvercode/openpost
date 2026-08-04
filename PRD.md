@@ -85,3 +85,7 @@
      Done
  41. Added a loading indicator to the 'Invite Member' button and the 'Resend Invitation' button on the Team & Collaboration settings page.
      Done
+ 42. Added HTTP request header value suggestions with common content types (like application/json) and other frequent headers.
+     Done
+ 43. Enhanced Empty States & Onboarding: Added visually appealing empty states for the Request Panel, Collections, Environments, and Mock Servers, providing clear actions for users to get started (e.g., Create Request, Import cURL, Create Collection, Import OpenAPI).
+     Done
