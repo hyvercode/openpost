@@ -50,6 +50,7 @@
     "express": "^4.21.2",
     "firebase": "^12.16.0",
     "https-proxy-agent": "^9.1.0",
+    "idb-keyval": "^6.3.0",
     "ipaddr.js": "^2.5.0",
     "js-yaml": "^5.2.2",
     "jsonwebtoken": "^9.0.3",

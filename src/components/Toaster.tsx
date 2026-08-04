@@ -33,21 +33,40 @@ export function Toaster() {
               {toast.type === 'info' && <Info className="w-5 h-5 text-[var(--primary)]" />}
             </div>
             
-            <div className="flex-1">
-              <p className="text-sm font-medium text-[var(--text-primary)]">
+            <div className="flex-1 flex flex-col gap-1.5">
+              {toast.title && (
+                <p className="text-sm font-semibold text-[var(--text-primary)]">
+                  {toast.title}
+                </p>
+              )}
+              <p className="text-sm font-medium text-[var(--text-secondary)]">
                 {toast.message}
               </p>
+              {toast.action && (
+                <button
+                  onClick={() => {
+                    toast.action?.onClick();
+                    removeToast(toast.id);
+                  }}
+                  className="mt-1 w-fit text-xs font-semibold px-3 py-1.5 rounded-md bg-[var(--bg-primary)] border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-colors text-[var(--text-primary)] cursor-pointer"
+                >
+                  {toast.action.label}
+                </button>
+              )}
             </div>
 
             <button
-              onClick={() => removeToast(toast.id)}
+              onClick={() => {
+                if (toast.onDismiss) toast.onDismiss();
+                removeToast(toast.id);
+              }}
               className="shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors p-1 rounded-lg hover:bg-[var(--bg-hover)]"
             >
               <X className="w-4 h-4" />
             </button>
             
             {/* Progress bar for auto-dismiss */}
-            {toast.duration && (
+            {toast.duration !== undefined && toast.duration > 0 && (
               <motion.div
                 initial={{ scaleX: 1 }}
                 animate={{ scaleX: 0 }}

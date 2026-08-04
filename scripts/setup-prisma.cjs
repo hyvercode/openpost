@@ -13,7 +13,7 @@ if (url.startsWith('postgres://') || url.startsWith('postgresql://')) {
 } else if (url.startsWith('mongodb://') || url.startsWith('mongodb+srv://')) {
   provider = 'mongodb';
 } else if (url.startsWith('file:') || url.startsWith('sqlite:')) {
-  provider = 'postgresql';
+  provider = 'sqlite';
 } else if (!provider) {
   provider = 'postgresql';
 }

@@ -122,11 +122,26 @@ export interface RequestItem {
   };
 }
 
+export interface SyncLog {
+  id: string;
+  method: string;
+  url: string;
+  status: 'pending' | 'synced' | 'failed';
+  timestamp: number;
+  error?: string;
+}
+
 export interface Toast {
   id: string;
+  title?: string;
   message: string;
   type: 'success' | 'error' | 'info' | 'warning';
   duration?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+  onDismiss?: () => void;
 }
 
 export interface MockConfig {

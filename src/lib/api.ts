@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useStore } from '../store/useStore';
 import { Workspace, ApiCollection, Environment, Deployment } from '../types';
+import { syncEngine } from './syncEngine';
 
 export const api = axios.create({
   baseURL: ((import.meta as any).env?.VITE_API_URL || '') + '/api',
@@ -11,8 +12,61 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
+  // If offline and trying to fetch (GET), reject early
+  if (!navigator.onLine && config.method?.toLowerCase() === 'get' && !config.url?.includes('/proxy')) {
+    return Promise.reject(new Error('Network Error'));
+  }
+  
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    const isNetworkError = error.message === 'Network Error' || error.code === 'ERR_NETWORK';
+    
+    // If it's a sync task itself that failed, just throw so processQueue handles it
+    if (error.config && error.config.headers && error.config.headers['x-sync-task']) {
+      return Promise.reject(error);
+    }
+    
+    if (isNetworkError && error.config) {
+      const method = error.config.method?.toLowerCase();
+      // If it's a mutative request (create/update/delete)
+      if (['post', 'put', 'patch', 'delete'].includes(method || '')) {
+        // Skip proxy requests from being queued
+        if (error.config.url?.includes('/proxy') || error.config.url?.includes('/auth')) {
+          return Promise.reject(error);
+        }
+        
+        console.log('[Offline] Queueing request:', method, error.config.url);
+        
+        let data = {};
+        if (error.config.data) {
+          try {
+            data = JSON.parse(error.config.data);
+          } catch {
+            data = error.config.data;
+          }
+        }
+        
+        syncEngine.enqueue(method!, error.config.url!, data);
+        
+        // Return a mocked successful response
+        return Promise.resolve({
+          status: method === 'post' ? 201 : 200,
+          data: data, // Echo back data to satisfy frontend optimistic updates
+          config: error.config
+        });
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 export const apiService = {
   // Users
