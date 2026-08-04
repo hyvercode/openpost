@@ -89,3 +89,7 @@
      Done
  43. Enhanced Empty States & Onboarding: Added visually appealing empty states for the Request Panel, Collections, Environments, and Mock Servers, providing clear actions for users to get started (e.g., Create Request, Import cURL, Create Collection, Import OpenAPI).
      Done
+ 44. User Documentation & Help Section: Created interactive HelpGuideModal in UI (accessible via header Help button) and updated README.md with comprehensive user guides for Scripting Sandbox (pm.*), Mock Servers, GraphQL Studio, Automated Runner, Desktop Agent Bridge, and OpenAPI import/export.
+     Done
+ 45. Workspace & Collection JSON Export / Backup: Added options to export (download) entire workspace data or individual collections to JSON files (OpenPost & Postman formats), plus restore capability via drag & drop or file import.
+     Done

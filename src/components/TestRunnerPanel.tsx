@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Papa from 'papaparse';
 import { useStore } from '../store/useStore';
@@ -221,7 +222,7 @@ export function TestRunnerPanel() {
             if (existingIdx !== -1) {
               runtimeVars[existingIdx] = { ...runtimeVars[existingIdx], value: String(value) };
             } else {
-              runtimeVars.push({ key, value: String(value), enabled: true });
+              runtimeVars.push({ id: uuidv4(), key, value: String(value), enabled: true });
             }
           });
         }

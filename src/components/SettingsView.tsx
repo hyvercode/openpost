@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../lib/api';
-import { User, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff, Palette, Sun, Moon, Check, RotateCcw, Sparkles } from 'lucide-react';
+import { User, Download, BookOpen, FileCode, Folder, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff, Palette, Sun, Moon, Check, RotateCcw, Sparkles } from 'lucide-react';
 import { cn } from '../utils';
+import { exportWorkspaceJSON, exportAllPostmanJSON } from '../utils/exportUtils';
 
 const COLOR_PRESETS = [
   { name: 'Ubuntu Orange', value: '#DD4814' },
@@ -23,7 +24,9 @@ export const SettingsView: React.FC = () => {
     setUser, 
     workspaces, 
     currentWorkspace, 
-    setCurrentWorkspace, 
+    setCurrentWorkspace,
+    collections,
+    environments, 
     addToast, 
     proxyConfig, 
     setProxyConfig,
@@ -647,6 +650,46 @@ export const SettingsView: React.FC = () => {
                           )}
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Data Export & Workspace Backup Section */}
+                  <div className="space-y-4 pt-6 border-t border-[var(--border-subtle)]">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                      <Download className="w-4 h-4 text-[var(--primary)]" />
+                      Data Export & Workspace Backup
+                    </h3>
+                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                      Download a full JSON backup of your current workspace including all collections, folders, requests, and environment variables.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (currentWorkspace) {
+                            exportWorkspaceJSON(currentWorkspace.id, collections, environments, currentWorkspace.name);
+                            addToast('Workspace backup exported successfully as JSON', 'success', 2500);
+                          }
+                        }}
+                        className="flex items-center justify-center gap-2.5 p-3 bg-[var(--primary)] text-white rounded-lg text-xs font-bold hover:opacity-90 transition-all shadow-sm cursor-pointer"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export Workspace (JSON Backup)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (currentWorkspace) {
+                            exportAllPostmanJSON(collections, currentWorkspace.name);
+                            addToast('Postman collection v2.1 exported', 'success', 2500);
+                          }
+                        }}
+                        className="flex items-center justify-center gap-2.5 p-3 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] rounded-lg text-xs font-bold hover:bg-[var(--bg-surface)] transition-all cursor-pointer"
+                      >
+                        <BookOpen className="w-4 h-4 text-amber-500" />
+                        Export Collections (Postman v2.1)
+                      </button>
                     </div>
                   </div>
                 </div>

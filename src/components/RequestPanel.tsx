@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
-import { Play, Plus, Trash2, Save, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap, MoreVertical, Code2, Upload } from 'lucide-react';
-import { KeyValue, RequestAuth } from '../types';
+import { Play, Plus, Trash2, Save, Sliders, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap, MoreVertical, Code2, Upload, FolderPlus } from 'lucide-react';
+import { KeyValue, RequestAuth, RequestItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService, api } from '../lib/api';
 import { CurlImportModal } from './CurlImportModal';
@@ -23,6 +23,9 @@ import { CommentsTab } from './CommentsTab';
 
 export function RequestPanel() {
   const { 
+    collections,
+    setCollections,
+    currentWorkspace,
     activeRequest, 
     setActiveRequest, 
     activeTab, 
@@ -40,7 +43,12 @@ export function RequestPanel() {
     wsStatus,
     wsMessages,
     addWsMessage,
-    clearWsMessages
+    clearWsMessages,
+    setIsQuickEnvModalOpen,
+    setIsSaveToCollectionModalOpen,
+    setRequestToSaveModal,
+    updateDraftRequest,
+    removeDraftRequest
   } = useStore();
   
   // Local state for the active request to allow editing without saving immediately
@@ -1062,6 +1070,30 @@ if (method === 'WS') {
     if (!activeRequest) return;
     setSaveStatus('Saving...');
     try {
+      if (!activeRequest.collectionId) {
+        setSaveStatus('');
+        const draftReq: RequestItem = {
+          ...activeRequest,
+          url,
+          method,
+          headers,
+          params,
+          body: {
+            type: bodyType,
+            content: bodyContent,
+            variables: gqlVariables,
+            formData: bodyFormData
+          },
+          preRequestScript,
+          postResponseScript,
+          auth: authConfig,
+        };
+        updateDraftRequest(draftReq);
+        setRequestToSaveModal(draftReq);
+        setIsSaveToCollectionModalOpen(true);
+        return;
+      }
+
       const collection = useStore.getState().collections.find(c => c.id === activeRequest.collectionId);
       if (!collection) {
         setSaveStatus('');
@@ -1111,6 +1143,17 @@ if (method === 'WS') {
       addToast('Failed to save request', 'error');
     }
   };
+
+  useEffect(() => {
+    const onSendReq = () => handleSend();
+    const onSaveReq = () => handleSaveRequest();
+    window.addEventListener('app:send-request', onSendReq);
+    window.addEventListener('app:save-request', onSaveReq);
+    return () => {
+      window.removeEventListener('app:send-request', onSendReq);
+      window.removeEventListener('app:save-request', onSaveReq);
+    };
+  }, [handleSend, handleSaveRequest]);
 
   const handleKeyValueChange = (
     type: 'headers' | 'params' | 'mockHeaders',
@@ -1284,7 +1327,36 @@ if (method === 'WS') {
         </p>
         <div className="flex gap-4">
           <button
-            onClick={() => useStore.getState().setModal({ isOpen: true, title: 'New Request', type: 'request' })}
+            onClick={async () => {
+              let collection = collections[0];
+              if (!collection && currentWorkspace) {
+                collection = await apiService.createCollection({
+                  name: 'New Collection',
+                  workspaceId: currentWorkspace.id,
+                  folders: [],
+                  requests: []
+                });
+                setCollections([...collections, collection]);
+              }
+              if (collection && currentWorkspace) {
+                const newRequest: RequestItem = {
+                  id: uuidv4(),
+                  collectionId: collection.id,
+                  workspaceId: currentWorkspace.id,
+                  name: 'New Request',
+                  method: 'GET',
+                  url: 'https://jsonplaceholder.typicode.com/todos/1',
+                  headers: [],
+                  params: [],
+                  body: { type: 'none', content: '' }
+                };
+                const updated = [...(collection.requests || []), newRequest];
+                await apiService.updateCollection(collection.id, { requests: updated });
+                setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updated } : c));
+                setActiveRequest(newRequest);
+                addToast('New request created', 'success', 2000);
+              }
+            }}
             className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white rounded-lg text-sm font-bold shadow-md shadow-[var(--primary)]/20 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
             <Plus className="w-4 h-4" />
@@ -1299,7 +1371,7 @@ if (method === 'WS') {
           </button>
         </div>
         
-        {isCurlModalOpen && <CurlImportModal isOpen={isCurlModalOpen} onClose={() => setIsCurlModalOpen(false)} onImport={handleCurlImport} />}
+        {isCurlModalOpen && <CurlImportModal isOpen={isCurlModalOpen} onCancel={() => setIsCurlModalOpen(false)} onImport={handleCurlImport} />}
       </div>
     );
   }
@@ -1412,6 +1484,43 @@ if (method === 'WS') {
             >
               <Code2 className="w-4 h-4 text-[var(--primary)]" />
               <span className="hidden md:inline">Code</span>
+            </button>
+
+            {/* Save / Move to Collection Button */}
+            <button
+              onClick={() => {
+                if (!activeRequest) return;
+                const currentReq: RequestItem = {
+                  ...activeRequest,
+                  url,
+                  method,
+                  headers,
+                  params,
+                  body: {
+                    type: bodyType,
+                    content: bodyContent,
+                    variables: gqlVariables,
+                    formData: bodyFormData
+                  },
+                  preRequestScript,
+                  postResponseScript,
+                  auth: authConfig,
+                };
+                setRequestToSaveModal(currentReq);
+                setIsSaveToCollectionModalOpen(true);
+              }}
+              title={activeRequest?.collectionId ? "Move request to another collection" : "Save standalone request into a collection"}
+              className={cn(
+                "p-2 sm:px-3 sm:py-2 rounded-lg border transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 min-h-[36px]",
+                activeRequest?.collectionId
+                  ? "bg-[var(--bg-hover)] border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+              )}
+            >
+              <FolderPlus className="w-4 h-4" />
+              <span className="hidden md:inline">
+                {activeRequest?.collectionId ? 'Move' : 'Save to Collection'}
+              </span>
             </button>
 
           {/* Kebab Menu Dropdown */}
@@ -1535,8 +1644,9 @@ if (method === 'WS') {
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-6 mt-4 border-b border-[var(--border-subtle)] px-4 shrink-0 overflow-x-auto no-scrollbar">
+      {/* Tabs Header Bar with Seamless Env Connection */}
+      <div className="flex items-center justify-between mt-4 border-b border-[var(--border-subtle)] px-4 shrink-0 overflow-x-auto no-scrollbar">
+        <div className="flex gap-6">
         {(method === 'WS' || method === 'SSE' ? ['ws_messages', 'params', 'headers', 'auth', 'scripts', 'comments'] as const : (method === 'GQL' ? ['graphql', 'params', 'headers', 'auth', 'scripts', 'comments'] as const : ['params', 'auth', 'headers', 'body', 'scripts', 'mock', 'comments'] as const)).map(tab => {
           const hasTabError = (() => {
             if (tab === 'headers') return hasInvalidHeaders;
@@ -1569,6 +1679,28 @@ if (method === 'WS') {
             </button>
           );
         })}
+        </div>
+
+        {/* Environment Quick Link Indicator */}
+        <div className="hidden sm:flex items-center gap-2 pb-2 shrink-0 ml-4">
+          <button
+            onClick={() => setIsQuickEnvModalOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-[var(--bg-hover)] hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--primary)] border border-[var(--border-subtle)] transition-colors shadow-2xs group cursor-pointer"
+            title="Manage Environment Variables connected seamlessly to this request"
+          >
+            <span className={cn(
+              "w-2 h-2 rounded-full shrink-0",
+              currentEnvironment ? "bg-emerald-500 animate-pulse" : "bg-gray-400 opacity-40"
+            )} />
+            <span className="font-mono text-[10px] text-[var(--text-primary)] font-semibold truncate max-w-[110px]">
+              {currentEnvironment ? currentEnvironment.name : 'No Env'}
+            </span>
+            <span className="text-[9px] text-[var(--text-secondary)]">
+              ({currentEnvironment?.variables?.filter(v => v.key && v.enabled !== false).length || 0} vars)
+            </span>
+            <Sliders className="w-3 h-3 ml-0.5 text-[var(--primary)] group-hover:rotate-45 transition-transform" />
+          </button>
+        </div>
       </div>
 
       {/* Tab Content */}

@@ -26,13 +26,19 @@ import { ShareImportModal } from './components/ShareImportModal';
 import { CurlImportModal } from './components/CurlImportModal';
 import { AgentDownloadModal } from './components/AgentDownloadModal';
 import { QuickSearchModal } from './components/QuickSearchModal';
-import { LogOut, Cloud, MonitorSmartphone, Download, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw, Search } from 'lucide-react';
+import { HelpGuideModal } from './components/HelpGuideModal';
+import { QuickEnvironmentModal } from './components/QuickEnvironmentModal';
+import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { SaveToCollectionModal } from './components/SaveToCollectionModal';
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
+import { LogOut, Eye, Keyboard, Cloud, MonitorSmartphone, Download, HelpCircle, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw, Search } from 'lucide-react';
 import { Workspace, Theme, ApiCollection, RequestItem } from './types';
 import { cn } from './utils';
 import { v4 as uuidv4 } from 'uuid';
 
 export default function App() {
   useAgentPing();
+  useGlobalShortcuts();
   const { 
     user, 
     setUser, 
@@ -69,7 +75,10 @@ export default function App() {
     openTab,
     isAgentModalOpen,
     setIsAgentModalOpen,
-    setIsQuickSearchOpen
+    setIsQuickSearchOpen,
+    setIsHelpModalOpen,
+    setIsQuickEnvModalOpen,
+    setIsKeyboardShortcutsModalOpen
   } = useStore();
   const [loading, setLoading] = useState(true);
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
@@ -680,6 +689,13 @@ export default function App() {
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)] absolute right-2 pointer-events-none" />
             </div>
+            <button
+              onClick={() => setIsQuickEnvModalOpen(true)}
+              className="p-1.5 rounded-lg bg-[var(--bg-hover)]/60 hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--primary)] transition-all shadow-2xs shrink-0"
+              title="Quick Manage Environment Variables"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
 
             {/* Quick Search Workspace Trigger */}
             <button
@@ -738,6 +754,21 @@ export default function App() {
                 title="Download Desktop Agent Bridge & Instructions"
               >
                 <Download className="w-4 h-4" />
+              </button>
+              <div className="h-3.5 w-px bg-[var(--border-subtle)]" />
+              <button
+                onClick={() => setIsKeyboardShortcutsModalOpen(true)}
+                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--primary)] transition-all flex items-center justify-center"
+                title="Keyboard Shortcuts & Hotkeys (Ctrl + /)"
+              >
+                <Keyboard className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setIsHelpModalOpen(true)}
+                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--primary)] transition-all flex items-center justify-center"
+                title="Open Documentation & Feature Guide (F1)"
+              >
+                <HelpCircle className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1135,6 +1166,10 @@ export default function App() {
         onClose={() => setIsAgentModalOpen(false)}
       />
       <QuickSearchModal />
+      <HelpGuideModal />
+      <QuickEnvironmentModal />
+      <KeyboardShortcutsModal />
+      <SaveToCollectionModal />
       <Toaster />
     </div>
   );
