@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 import express from "express";
-import ip from "ip";
+import ipaddr from "ipaddr.js";
 import dns from "dns/promises";
 import cors from "cors";
 import axios from "axios";
@@ -9,6 +9,8 @@ import { HttpsProxyAgent } from "https-proxy-agent";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import path from "path";
 import fs from "fs";
+import http from "http";
+import https from "https";
 import { GoogleGenAI } from "@google/genai";
 
 // New Prisma Routes
@@ -222,16 +224,31 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       }
 
       // SSRF Protection
+      let targetIp: string = "";
+      let urlObj: URL;
       try {
-        const urlObj = new URL(targetUrl);
+        urlObj = new URL(targetUrl);
         const resolved = await dns.lookup(urlObj.hostname);
-        if (ip.isPrivate(resolved.address) || ip.isLoopback(resolved.address)) {
-          return res.status(403).json({ 
-            error: "SSRF Protection: Access to internal or local networks is blocked.",
-            suggestion: "To test local APIs, please use the Desktop Agent Bridge."
-          });
+        targetIp = resolved.address;
+        
+        let parsedIp;
+        try {
+          parsedIp = ipaddr.parse(targetIp);
+        } catch (e) {
+          try { parsedIp = ipaddr.process(targetIp); } catch(e) {}
         }
-      } catch (err) {
+        
+        if (parsedIp) {
+           const range = parsedIp.range();
+           const isPrivate = range === 'private' || range === 'loopback' || range === 'linkLocal' || range === 'uniqueLocal' || range === 'ipv4Mapped' || range === 'multicast' || range === 'broadcast';
+           if (isPrivate) {
+             return res.status(403).json({ 
+               error: "SSRF Protection: Access to internal or local networks is blocked.",
+               suggestion: "To test local APIs, please use the Desktop Agent Bridge."
+             });
+           }
+        }
+      } catch (err: any) {
         return res.status(400).json({ error: "Invalid URL or DNS resolution failed: " + err.message });
       }
 
@@ -265,20 +282,32 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
 
       if (proxyConfig && proxyConfig.enabled && proxyConfig.url) {
         const proxyUrl = proxyConfig.url.includes('://') ? proxyConfig.url : `${proxyConfig.protocol}://${proxyConfig.url}`;
-        const urlObj = new URL(proxyUrl);
+        const pUrlObj = new URL(proxyUrl);
         
         if (proxyConfig.useAuth && proxyConfig.username) {
-          urlObj.username = proxyConfig.username;
-          urlObj.password = proxyConfig.password || '';
+          pUrlObj.username = proxyConfig.username;
+          pUrlObj.password = proxyConfig.password || '';
         }
 
         if (proxyConfig.protocol === 'socks5') {
-          httpsAgent = new SocksProxyAgent(urlObj.toString());
-          httpAgent = new SocksProxyAgent(urlObj.toString());
+          httpsAgent = new SocksProxyAgent(pUrlObj.toString());
+          httpAgent = new SocksProxyAgent(pUrlObj.toString());
         } else {
-          httpsAgent = new HttpsProxyAgent(urlObj.toString());
-          httpAgent = new HttpsProxyAgent(urlObj.toString());
+          httpsAgent = new HttpsProxyAgent(pUrlObj.toString());
+          httpAgent = new HttpsProxyAgent(pUrlObj.toString());
         }
+      } else {
+        // TOCTOU Prevention: Use the resolved IP instead of looking up again
+        const customLookup = (hostname: string, options: any, callback: any) => {
+          if (urlObj && hostname === urlObj.hostname && targetIp) {
+            callback(null, targetIp, ipaddr.parse(targetIp).kind() === 'ipv6' ? 6 : 4);
+          } else {
+            // fallback
+            require('dns').lookup(hostname, options, callback);
+          }
+        };
+        httpAgent = new http.Agent({ lookup: customLookup });
+        httpsAgent = new https.Agent({ lookup: customLookup });
       }
       
       const config: any = {
