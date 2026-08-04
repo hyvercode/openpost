@@ -30,11 +30,14 @@ import { HelpGuideModal } from './components/HelpGuideModal';
 import { QuickEnvironmentModal } from './components/QuickEnvironmentModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { SaveToCollectionModal } from './components/SaveToCollectionModal';
+import { ConflictResolutionModal } from './components/ConflictResolutionModal';
+import { SyncLogModal } from './components/SyncLogModal';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
-import { LogOut, Eye, Keyboard, Cloud, MonitorSmartphone, Download, HelpCircle, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw, Search } from 'lucide-react';
+import { LogOut, Eye, Keyboard, Cloud, CloudOff, RefreshCcw, MonitorSmartphone, Download, HelpCircle, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw, Search } from 'lucide-react';
 import { Workspace, Theme, ApiCollection, RequestItem } from './types';
 import { cn } from './utils';
 import { v4 as uuidv4 } from 'uuid';
+import { syncEngine } from './lib/syncEngine';
 
 export default function App() {
   useAgentPing();
@@ -78,10 +81,66 @@ export default function App() {
     setIsQuickSearchOpen,
     setIsHelpModalOpen,
     setIsQuickEnvModalOpen,
-    setIsKeyboardShortcutsModalOpen
+    setIsKeyboardShortcutsModalOpen,
+    setIsSyncLogModalOpen
   } = useStore();
   const [loading, setLoading] = useState(true);
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
+  const [syncQueueCount, setSyncQueueCount] = useState(0);
+  const [syncedCount, setSyncedCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    syncEngine.init();
+
+    const handleSyncUpdate = (e: any) => setSyncQueueCount(e.detail);
+    const handleSyncStarted = () => {
+      setIsSyncing(true);
+      addToast('Pushing offline changes to cloud', 'info', 3000, { title: 'Syncing...' });
+    };
+    const handleSyncFinished = (e: any) => {
+      setIsSyncing(false);
+      if (e.detail.remaining === 0) {
+        addToast('All offline changes synced successfully', 'success', 3000, { title: 'Sync Complete' });
+      }
+    };
+    const handleLogUpdate = (e: any) => {
+      const logs = e.detail;
+      setSyncedCount(logs.filter((l: any) => l.status === 'synced').length);
+    };
+    const handleOnline = () => {
+      setIsOffline(false);
+      addToast('Connection restored.', 'success', 3000, { title: 'Back Online' });
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      addToast('Changes will be saved locally and synced later.', 'warning', 3000, { title: 'You are offline' });
+    };
+
+    window.addEventListener('sync-queue-updated', handleSyncUpdate);
+    window.addEventListener('sync-started', handleSyncStarted);
+    window.addEventListener('sync-finished', handleSyncFinished);
+    window.addEventListener('sync-log-updated', handleLogUpdate);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    syncEngine.getQueue().then(queue => {
+      setSyncQueueCount(queue.length);
+    });
+    syncEngine.getLogs().then(logs => {
+      setSyncedCount(logs.filter(l => l.status === 'synced').length);
+    });
+
+    return () => {
+      window.removeEventListener('sync-queue-updated', handleSyncUpdate);
+      window.removeEventListener('sync-started', handleSyncStarted);
+      window.removeEventListener('sync-finished', handleSyncFinished);
+      window.removeEventListener('sync-log-updated', handleLogUpdate);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleCurlImport = (curlData: { method: string; url: string; headers: Array<{ key: string; value: string }>; body: string }) => {
     const newReqId = `curl_${uuidv4().slice(0, 8)}`;
@@ -734,6 +793,27 @@ export default function App() {
 
             {/* Agent Connection Mode Group */}
             <div className="flex items-center bg-[var(--bg-hover)]/40 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
+              {isOffline && (
+                <div 
+                  className="px-2 py-1 text-xs font-medium rounded-md bg-orange-500/10 text-orange-500 flex items-center gap-1.5"
+                  title="Offline Mode. Changes are saved locally."
+                >
+                  <CloudOff className="w-3.5 h-3.5" />
+                  <span>Offline</span>
+                </div>
+              )}
+              {!isOffline && syncQueueCount > 0 && (
+                <button 
+                  onClick={() => syncEngine.processQueue()}
+                  disabled={isSyncing}
+                  className="px-2 py-1 text-xs font-medium rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="Click to sync local changes to cloud"
+                >
+                  <RefreshCcw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
+                  <span>{syncQueueCount} pending</span>
+                </button>
+              )}
+              <div className="h-3.5 w-px bg-[var(--border-subtle)] mx-1" />
               <button
                 onClick={() => {
                   setAgentMode(agentMode === 'cloud' ? 'desktop' : 'cloud');
@@ -1143,15 +1223,39 @@ export default function App() {
         {/* Bottom Status Bar */}
         <footer className="h-6 bg-[var(--border-strong)] text-[var(--text-primary)] text-[10px] px-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <span>Real-time Sync Active</span>
-            </div>
+            <button 
+              onClick={() => setIsSyncLogModalOpen(true)}
+              className="flex items-center gap-2 hover:text-[var(--primary)] transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5">
+                {isSyncing ? (
+                  <RefreshCcw className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                ) : syncQueueCount > 0 ? (
+                  <CloudOff className="w-3.5 h-3.5 text-amber-500" />
+                ) : (
+                  <Cloud className="w-3.5 h-3.5 text-emerald-500" />
+                )}
+                <span>Sync Status:</span>
+              </div>
+              <div className="flex items-center gap-2 font-medium">
+                <span className="text-emerald-500">{syncedCount} Synced</span>
+                <span className="text-[var(--text-secondary)]">/</span>
+                <span className={syncQueueCount > 0 ? "text-amber-500" : "text-[var(--text-secondary)]"}>
+                  {syncQueueCount} Pending
+                </span>
+              </div>
+            </button>
+            <div className="w-px h-3 bg-[var(--border-subtle)]" />
             <span>v1.0.0 Desktop</span>
           </div>
           <div className="flex items-center gap-4">
-            <span>Online</span>
+            <div className="flex items-center gap-1.5">
+              <span className={isOffline ? "text-amber-500" : "text-emerald-500"}>
+                {isOffline ? 'Offline' : 'Online'}
+              </span>
+              <div className={cn("w-2 h-2 rounded-full", isOffline ? "bg-amber-500" : "bg-emerald-500")}></div>
+            </div>
             <span>UTF-8</span>
-            <div className="w-3 h-3 rounded-full bg-blue-400"></div>
           </div>
         </footer>
       </div>
@@ -1170,6 +1274,8 @@ export default function App() {
       <QuickEnvironmentModal />
       <KeyboardShortcutsModal />
       <SaveToCollectionModal />
+      <ConflictResolutionModal />
+      <SyncLogModal />
       <Toaster />
     </div>
   );

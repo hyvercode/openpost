@@ -31,6 +31,12 @@ interface AppState {
 
   isAgentModalOpen: boolean;
   setIsAgentModalOpen: (open: boolean) => void;
+  isConflictModalOpen: boolean;
+  setIsConflictModalOpen: (open: boolean) => void;
+  isSyncLogModalOpen: boolean;
+  setIsSyncLogModalOpen: (open: boolean) => void;
+  conflictData: any;
+  setConflictData: (data: any) => void;
   isHelpModalOpen: boolean;
   setIsHelpModalOpen: (open: boolean) => void;
   isQuickSearchOpen: boolean;
@@ -123,7 +129,7 @@ interface AppState {
   isWorkspaceLoading: boolean;
   setIsWorkspaceLoading: (isLoading: boolean) => void;
   toasts: Toast[];
-  addToast: (message: string, type: Toast['type'], duration?: number) => void;
+  addToast: (message: string, type: Toast['type'], duration?: number, options?: { title?: string, action?: { label: string, onClick: () => void }, onDismiss?: () => void }) => void;
   removeToast: (id: string) => void;
   history: HistoryItem[];
   setHistory: (history: HistoryItem[]) => void;
@@ -164,6 +170,12 @@ export const useStore = create<AppState>((set) => ({
   setBulkRunStopRequested: (stop) => set({ bulkRunStopRequested: stop }),
   isAgentModalOpen: false,
   setIsAgentModalOpen: (open) => set({ isAgentModalOpen: open }),
+  isConflictModalOpen: false,
+  setIsConflictModalOpen: (open) => set({ isConflictModalOpen: open }),
+  isSyncLogModalOpen: false,
+  setIsSyncLogModalOpen: (open) => set({ isSyncLogModalOpen: open }),
+  conflictData: null,
+  setConflictData: (data) => set({ conflictData: data }),
   isHelpModalOpen: false,
   setIsHelpModalOpen: (open) => set({ isHelpModalOpen: open }),
   isQuickSearchOpen: false,
@@ -427,16 +439,18 @@ export const useStore = create<AppState>((set) => ({
   isWorkspaceLoading: false,
   setIsWorkspaceLoading: (isWorkspaceLoading) => set({ isWorkspaceLoading }),
   toasts: [],
-  addToast: (message, type, duration = 3000) => {
+  addToast: (message, type, duration = 3000, options) => {
     const id = Math.random().toString(36).substr(2, 9);
     set((state) => ({
-      toasts: [...state.toasts, { id, message, type, duration }]
+      toasts: [...state.toasts, { id, message, type, duration, title: options?.title, action: options?.action, onDismiss: options?.onDismiss }]
     }));
-    setTimeout(() => {
-      set((state) => ({
-        toasts: state.toasts.filter((t) => t.id !== id)
-      }));
-    }, duration);
+    if (duration > 0) {
+      setTimeout(() => {
+        set((state) => ({
+          toasts: state.toasts.filter((t) => t.id !== id)
+        }));
+      }, duration);
+    }
   },
   removeToast: (id) => set((state) => ({
     toasts: state.toasts.filter((t) => t.id !== id)
