@@ -8,8 +8,22 @@ const url = require('url');
 const PORT = 8765;
 
 const server = http.createServer((req, res) => {
+  // Only allow specific trusted origins to use this bridge
+  const origin = req.headers.origin;
+  const isTrustedOrigin = origin && (
+    origin.startsWith('http://localhost:') || 
+    origin.startsWith('http://127.0.0.1:') || 
+    origin.endsWith('.run.app')
+  );
+
+  if (!isTrustedOrigin && origin) {
+    res.writeHead(403);
+    res.end(JSON.stringify({ error: 'Origin not allowed for security reasons.' }));
+    return;
+  }
+
   // Add CORS headers for the web app to communicate with the bridge
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', isTrustedOrigin ? origin : '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-target-url, Authorization');
 
