@@ -41,6 +41,8 @@ interface AppState {
   setIsHelpModalOpen: (open: boolean) => void;
   isDocsModalOpen: boolean;
   setIsDocsModalOpen: (open: boolean) => void;
+  isDocsPageOpen: boolean;
+  setIsDocsPageOpen: (open: boolean) => void;
   isQuickSearchOpen: boolean;
   setIsQuickSearchOpen: (open: boolean) => void;
   isQuickEnvModalOpen: boolean;
@@ -182,7 +184,9 @@ export const useStore = create<AppState>((set) => ({
   isHelpModalOpen: false,
   setIsHelpModalOpen: (open) => set({ isHelpModalOpen: open }),
   isDocsModalOpen: false,
-  setIsDocsModalOpen: (open) => set({ isDocsModalOpen: open }),
+  setIsDocsModalOpen: (open) => set({ isDocsModalOpen: open, isDocsPageOpen: open }),
+  isDocsPageOpen: false,
+  setIsDocsPageOpen: (open) => set({ isDocsPageOpen: open, isDocsModalOpen: open }),
   isQuickSearchOpen: false,
   setIsQuickSearchOpen: (open) => set({ isQuickSearchOpen: open }),
   isQuickEnvModalOpen: false,

@@ -38,7 +38,8 @@ import { Theme } from '../types';
 import { api } from '../lib/api';
 import { GoogleAuthModal } from './GoogleAuthModal';
 import { DesktopDownloadModal } from './DesktopDownloadModal';
-import { DeveloperDocsModal } from './DeveloperDocsModal';
+import { DeveloperDocsPage } from './DeveloperDocsPage';
+import { isDesktopEnvironment } from '../utils/platform';
 import { LANDING_I18N, Language } from '../utils/landingI18n';
 
 export function AuthScreen() {
@@ -47,8 +48,35 @@ export function AuthScreen() {
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password' | 'email-confirmation-pending'>('login');
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
-  const [showDocsModal, setShowDocsModal] = useState(false);
+  const [showDocsPage, setShowDocsPage] = useState(false);
   const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
+  const isDesktop = isDesktopEnvironment();
+
+  // Listen to #docs hash
+  useEffect(() => {
+    const handleHash = () => {
+      if (typeof window !== 'undefined' && window.location.hash === '#docs') {
+        setShowDocsPage(true);
+      }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  const openDocs = () => {
+    setShowDocsPage(true);
+    if (typeof window !== 'undefined') {
+      window.location.hash = 'docs';
+    }
+  };
+
+  const closeDocs = () => {
+    setShowDocsPage(false);
+    if (typeof window !== 'undefined' && window.location.hash === '#docs') {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  };
 
   // Language state
   const [language, setLanguage] = useState<Language>(() => {
@@ -245,6 +273,453 @@ export function AuthScreen() {
     }
   };
 
+  const renderAuthCard = () => (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition-colors duration-200"
+    >
+      {/* Auth Mode Header / Tabs */}
+      {authMode === 'login' || authMode === 'register' ? (
+        <div className="flex border-b border-[var(--border-subtle)] mb-6 pb-2">
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('login');
+              setError(null);
+              setSuccess(null);
+            }}
+            className={`flex-1 pb-2.5 text-center text-sm font-bold transition-colors relative cursor-pointer ${
+              authMode === 'login' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {t.auth.signIn}
+            {authMode === 'login' && (
+              <motion.div 
+                layoutId="activeTabUnderline"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--primary)]" 
+              />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAuthMode('register');
+              setError(null);
+              setSuccess(null);
+            }}
+            className={`flex-1 pb-2.5 text-center text-sm font-bold transition-colors relative cursor-pointer ${
+              authMode === 'register' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {t.auth.createAccount}
+            {authMode === 'register' && (
+              <motion.div 
+                layoutId="activeTabUnderline"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--primary)]" 
+              />
+            )}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between mb-6 pb-3 border-b border-[var(--border-subtle)]">
+          <h2 className="text-base font-bold text-[var(--text-primary)]">
+            {authMode === 'forgot-password' && (language === 'id' ? 'Lupa Kata Sandi' : 'Reset Password')}
+            {authMode === 'reset-password' && (language === 'id' ? 'Atur Kata Sandi Baru' : 'Set New Password')}
+            {authMode === 'email-confirmation-pending' && (language === 'id' ? 'Konfirmasi Email' : 'Email Confirmation')}
+          </h2>
+          <button
+            type="button"
+            onClick={() => setAuthMode('login')}
+            className="text-xs text-[var(--primary)] hover:underline font-semibold cursor-pointer"
+          >
+            {language === 'id' ? 'Kembali ke Masuk' : 'Back to Sign In'}
+          </button>
+        </div>
+      )}
+
+      {/* Error Message Banner */}
+      {error && (
+        <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-start gap-2.5">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span className="leading-snug">{error}</span>
+        </div>
+      )}
+
+      {/* Success Message Banner */}
+      {success && (
+        <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs flex items-start gap-2.5">
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          <span className="leading-snug">{success}</span>
+        </div>
+      )}
+
+      {/* Email Confirmation Pending Mode */}
+      {authMode === 'email-confirmation-pending' ? (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-[var(--bg-input)] border border-[var(--border-subtle)] text-center space-y-3">
+            <div className="w-10 h-10 bg-amber-500/15 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+              <Send className="w-5 h-5" />
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              {language === 'id' ? 'Tautan konfirmasi telah dikirimkan ke ' : 'We sent a confirmation link to '}
+              <strong className="text-[var(--text-primary)]">{registeredEmail || email}</strong>.
+            </p>
+          </div>
+
+          {verificationDevLink && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs">
+              <div className="font-bold text-amber-500 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{language === 'id' ? 'Tautan Pengujian:' : 'Development Test Link:'}</span>
+              </div>
+              <a 
+                href={verificationDevLink}
+                className="block p-2 bg-black/40 rounded border border-white/5 text-[var(--primary)] hover:underline font-mono text-[11px] break-all"
+              >
+                {verificationDevLink}
+              </a>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => handleResendVerification(registeredEmail || email)}
+              disabled={loading}
+              className="flex-1 h-10 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-[var(--border-subtle)] cursor-pointer"
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              <span>{language === 'id' ? 'Kirim Ulang' : 'Resend Email'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuthMode('login')}
+              className="flex-1 h-10 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+            >
+              {language === 'id' ? 'Kembali' : 'Back to Sign In'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Regular Form */
+        <form onSubmit={handleAuthSubmit} className="space-y-4">
+          {/* Email Address */}
+          {(authMode === 'login' || authMode === 'register' || authMode === 'forgot-password') && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                {t.auth.emailAddress}
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-secondary)]">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <input 
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Password */}
+          {(authMode === 'login' || authMode === 'register' || authMode === 'reset-password') && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                  {t.auth.password}
+                </label>
+                {authMode === 'login' && (
+                  <button 
+                    type="button"
+                    onClick={() => setAuthMode('forgot-password')}
+                    className="text-[11px] text-[var(--primary)] hover:underline font-medium cursor-pointer"
+                  >
+                    {t.auth.forgotPassword}
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-secondary)]">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input 
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Confirm Password */}
+          {(authMode === 'register' || authMode === 'reset-password') && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                {t.auth.confirmPassword}
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-secondary)]">
+                  <Lock className="w-4 h-4" />
+                </div>
+                <input 
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Primary Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-[var(--primary)]/25 active:scale-95 cursor-pointer mt-2"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <span>
+                {authMode === 'login' && t.auth.signInBtn}
+                {authMode === 'register' && t.auth.createAccountBtn}
+                {authMode === 'forgot-password' && t.auth.sendResetBtn}
+                {authMode === 'reset-password' && t.auth.saveNewPasswordBtn}
+              </span>
+            )}
+          </button>
+
+          {/* Google Auth Option */}
+          {(authMode === 'login' || authMode === 'register') && (
+            <div className="space-y-3 pt-1">
+              {/* Divider */}
+              <div className="relative flex items-center justify-center my-2">
+                <div className="border-t border-[var(--border-subtle)] w-full" />
+                <span className="bg-[var(--bg-surface)] px-2.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] absolute">
+                  {t.auth.or}
+                </span>
+              </div>
+
+              {/* Google Auth Button */}
+              <button
+                type="button"
+                onClick={() => setShowGoogleModal(true)}
+                className="w-full h-11 bg-white hover:bg-zinc-100 text-zinc-900 rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 cursor-pointer border border-zinc-200 group"
+              >
+                <svg className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <span>
+                  {authMode === 'login' ? t.auth.signInWithGoogle : t.auth.signUpWithGoogle}
+                </span>
+              </button>
+            </div>
+          )}
+        </form>
+      )}
+
+      {/* Quick Switcher Footer */}
+      <div className="mt-6 pt-4 border-t border-[var(--border-subtle)] text-center text-xs text-[var(--text-secondary)]">
+        {authMode === 'login' && (
+          <div>
+            {t.auth.noAccount}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('register');
+                setError(null);
+                setSuccess(null);
+              }}
+              className="text-[var(--primary)] hover:underline font-bold transition-colors ml-1 cursor-pointer"
+            >
+              {t.auth.createAccount}
+            </button>
+          </div>
+        )}
+        {authMode === 'register' && (
+          <div>
+            {t.auth.alreadyHaveAccount}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('login');
+                setError(null);
+                setSuccess(null);
+              }}
+              className="text-[var(--primary)] hover:underline font-bold transition-colors ml-1 cursor-pointer"
+            >
+              {t.auth.signIn}
+            </button>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+
+  // Dedicated Developer Documentation Page
+  if (showDocsPage) {
+    return (
+      <DeveloperDocsPage 
+        onBack={closeDocs}
+        language={language}
+        onLanguageChange={handleLanguageChange}
+      />
+    );
+  }
+
+  // Standalone Desktop Build View (Bypasses mini landing page completely!)
+  if (isDesktop) {
+    return (
+      <div className={`min-h-screen font-sans flex flex-col justify-between transition-colors duration-300 ${
+        theme === 'light' ? 'theme-light bg-[var(--bg-base)] text-[var(--text-primary)]' : 
+        theme === 'dark' ? 'theme-dark bg-[var(--bg-base)] text-[var(--text-primary)]' : 
+        'theme-default bg-[var(--bg-base)] text-[var(--text-primary)]'
+      }`}>
+        {/* Background Gradient & Ambient Glow */}
+        <div className={`fixed inset-0 pointer-events-none -z-10 transition-opacity duration-500 ${
+          theme === 'light' 
+            ? 'bg-gradient-to-br from-slate-50 via-zinc-100 to-amber-50/20' 
+            : theme === 'dark' 
+            ? 'bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617]' 
+            : 'bg-gradient-to-br from-[#200017] via-[#3B0A29] to-[#14000E]'
+        }`} />
+        
+        <div className={`fixed top-0 left-1/2 -translate-x-1/2 w-[900px] h-[450px] blur-3xl -z-10 pointer-events-none transition-opacity duration-500 ${
+          theme === 'light'
+            ? 'bg-gradient-to-b from-[#DD4814]/10 to-transparent'
+            : 'bg-gradient-to-b from-[#E95420]/15 to-transparent'
+        }`} />
+
+        {/* Minimal Desktop Top Bar */}
+        <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/85 backdrop-blur-md transition-colors duration-200">
+          <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shadow-md shadow-[var(--primary)]/25">
+                <Server className="w-3.5 h-3.5" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-bold text-base tracking-tight text-[var(--text-primary)]">OpenPost</span>
+                <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                  Desktop v1.0.0
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={openDocs}
+                className="px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] flex items-center gap-1.5 transition-all cursor-pointer"
+                title={language === 'id' ? 'Buka Dokumentasi Developer' : 'Open Developer Docs'}
+              >
+                <BookOpen className="w-3.5 h-3.5 text-[var(--primary)]" />
+                <span>{t.nav.docs}</span>
+              </button>
+
+              {/* Language Switcher */}
+              <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => handleLanguageChange('id')}
+                  className={`px-2 py-0.5 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                    language === 'id' 
+                      ? 'bg-[var(--primary)] text-white shadow-xs' 
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                  title="Bahasa Indonesia"
+                >
+                  <span>ID</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleLanguageChange('en')}
+                  className={`px-2 py-0.5 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                    language === 'en' 
+                      ? 'bg-[var(--primary)] text-white shadow-xs' 
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
+                  title="English"
+                >
+                  <span>EN</span>
+                </button>
+              </div>
+
+              {/* Theme Switcher */}
+              <button
+                type="button"
+                onClick={cycleTheme}
+                className="p-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                title={`Theme: ${theme.toUpperCase()}`}
+              >
+                {theme === 'light' ? (
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                ) : theme === 'dark' ? (
+                  <Moon className="w-3.5 h-3.5 text-sky-400" />
+                ) : (
+                  <MonitorSmartphone className="w-3.5 h-3.5 text-[var(--primary)]" />
+                )}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* Centered Desktop Login Main */}
+        <main className="flex-1 flex flex-col items-center justify-center p-6 my-auto">
+          <div className="w-full max-w-md mx-auto space-y-4">
+            {renderAuthCard()}
+
+            <div className="text-center text-[11px] text-[var(--text-secondary)] flex items-center justify-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span>
+                {language === 'id' 
+                  ? 'Klien Desktop Mandiri · Penyimpanan SQLite Lokal · Zero CORS' 
+                  : 'Standalone Desktop Client · Embedded SQLite Engine · Zero CORS'}
+              </span>
+            </div>
+          </div>
+        </main>
+
+        <footer className="w-full py-4 text-center text-xs text-[var(--text-secondary)] border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/50">
+          OpenPost Desktop · {new Date().getFullYear()} · Apache-2.0
+        </footer>
+
+        {/* Modals */}
+        <GoogleAuthModal
+          isOpen={showGoogleModal}
+          onClose={() => setShowGoogleModal(false)}
+          mode={authMode === 'register' ? 'register' : 'login'}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen font-sans flex flex-col transition-colors duration-300 ${
       theme === 'light' ? 'theme-light bg-[var(--bg-base)] text-[var(--text-primary)]' : 
@@ -316,7 +791,7 @@ export function AuthScreen() {
 
             <button
               type="button"
-              onClick={() => setShowDocsModal(true)}
+              onClick={openDocs}
               className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1 cursor-pointer"
             >
               <BookOpen className="w-3.5 h-3.5 text-[var(--primary)]" />
@@ -526,313 +1001,7 @@ export function AuthScreen() {
 
         {/* Right Column: Modern Minimalist Auth Card */}
         <div id="auth-card" className="lg:col-span-5 w-full max-w-md mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition-colors duration-200"
-          >
-            {/* Auth Mode Header / Tabs */}
-            {authMode === 'login' || authMode === 'register' ? (
-              <div className="flex border-b border-[var(--border-subtle)] mb-6 pb-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('login');
-                    setError(null);
-                    setSuccess(null);
-                  }}
-                  className={`flex-1 pb-2.5 text-center text-sm font-bold transition-colors relative cursor-pointer ${
-                    authMode === 'login' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {t.auth.signIn}
-                  {authMode === 'login' && (
-                    <motion.div 
-                      layoutId="activeTabUnderline"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--primary)]" 
-                    />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('register');
-                    setError(null);
-                    setSuccess(null);
-                  }}
-                  className={`flex-1 pb-2.5 text-center text-sm font-bold transition-colors relative cursor-pointer ${
-                    authMode === 'register' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {t.auth.createAccount}
-                  {authMode === 'register' && (
-                    <motion.div 
-                      layoutId="activeTabUnderline"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--primary)]" 
-                    />
-                  )}
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between mb-6 pb-3 border-b border-[var(--border-subtle)]">
-                <h2 className="text-base font-bold text-[var(--text-primary)]">
-                  {authMode === 'forgot-password' && (language === 'id' ? 'Lupa Kata Sandi' : 'Reset Password')}
-                  {authMode === 'reset-password' && (language === 'id' ? 'Atur Kata Sandi Baru' : 'Set New Password')}
-                  {authMode === 'email-confirmation-pending' && (language === 'id' ? 'Konfirmasi Email' : 'Email Confirmation')}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setAuthMode('login')}
-                  className="text-xs text-[var(--primary)] hover:underline font-semibold"
-                >
-                  {language === 'id' ? 'Kembali ke Masuk' : 'Back to Sign In'}
-                </button>
-              </div>
-            )}
-
-            {/* Error Message Banner */}
-            {error && (
-              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="leading-snug">{error}</span>
-              </div>
-            )}
-
-            {/* Success Message Banner */}
-            {success && (
-              <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs flex items-start gap-2.5">
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                <span className="leading-snug">{success}</span>
-              </div>
-            )}
-
-            {/* Email Confirmation Pending Mode */}
-            {authMode === 'email-confirmation-pending' ? (
-              <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-[var(--bg-input)] border border-[var(--border-subtle)] text-center space-y-3">
-                  <div className="w-10 h-10 bg-amber-500/15 text-amber-500 rounded-full flex items-center justify-center mx-auto">
-                    <Send className="w-5 h-5" />
-                  </div>
-                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                    {language === 'id' ? 'Tautan konfirmasi telah dikirimkan ke ' : 'We sent a confirmation link to '}
-                    <strong className="text-[var(--text-primary)]">{registeredEmail || email}</strong>.
-                  </p>
-                </div>
-
-                {verificationDevLink && (
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs">
-                    <div className="font-bold text-amber-500 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>{language === 'id' ? 'Tautan Pengujian:' : 'Development Test Link:'}</span>
-                    </div>
-                    <a 
-                      href={verificationDevLink}
-                      className="block p-2 bg-black/40 rounded border border-white/5 text-[var(--primary)] hover:underline font-mono text-[11px] break-all"
-                    >
-                      {verificationDevLink}
-                    </a>
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => handleResendVerification(registeredEmail || email)}
-                    disabled={loading}
-                    className="flex-1 h-10 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-[var(--border-subtle)] cursor-pointer"
-                  >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                    <span>{language === 'id' ? 'Kirim Ulang' : 'Resend Email'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAuthMode('login')}
-                    className="flex-1 h-10 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
-                  >
-                    {language === 'id' ? 'Kembali' : 'Back to Sign In'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* Regular Form */
-              <form onSubmit={handleAuthSubmit} className="space-y-4">
-                {/* Email Address */}
-                {(authMode === 'login' || authMode === 'register' || authMode === 'forgot-password') && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                      {t.auth.emailAddress}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-secondary)]">
-                        <Mail className="w-4 h-4" />
-                      </div>
-                      <input 
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@company.com"
-                        className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Password */}
-                {(authMode === 'login' || authMode === 'register' || authMode === 'reset-password') && (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                        {t.auth.password}
-                      </label>
-                      {authMode === 'login' && (
-                        <button 
-                          type="button"
-                          onClick={() => setAuthMode('forgot-password')}
-                          className="text-[11px] text-[var(--primary)] hover:underline font-medium"
-                        >
-                          {t.auth.forgotPassword}
-                        </button>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-secondary)]">
-                        <Lock className="w-4 h-4" />
-                      </div>
-                      <input 
-                        type={showPassword ? 'text' : 'password'}
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Confirm Password */}
-                {(authMode === 'register' || authMode === 'reset-password') && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                      {t.auth.confirmPassword}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-secondary)]">
-                        <Lock className="w-4 h-4" />
-                      </div>
-                      <input 
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        required
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                      >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Primary Submit Button */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-11 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-[var(--primary)]/25 active:scale-95 cursor-pointer mt-2"
-                >
-                  {loading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <span>
-                      {authMode === 'login' && t.auth.signInBtn}
-                      {authMode === 'register' && t.auth.createAccountBtn}
-                      {authMode === 'forgot-password' && t.auth.sendResetBtn}
-                      {authMode === 'reset-password' && t.auth.saveNewPasswordBtn}
-                    </span>
-                  )}
-                </button>
-
-                {/* Google Auth Option (Located cleanly BELOW the primary button) */}
-                {(authMode === 'login' || authMode === 'register') && (
-                  <div className="space-y-3 pt-1">
-                    {/* Divider */}
-                    <div className="relative flex items-center justify-center my-2">
-                      <div className="border-t border-[var(--border-subtle)] w-full" />
-                      <span className="bg-[var(--bg-surface)] px-2.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] absolute">
-                        {t.auth.or}
-                      </span>
-                    </div>
-
-                    {/* Google Auth Button */}
-                    <button
-                      type="button"
-                      onClick={() => setShowGoogleModal(true)}
-                      className="w-full h-11 bg-white hover:bg-zinc-100 text-zinc-900 rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 cursor-pointer border border-zinc-200 group"
-                    >
-                      <svg className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                      </svg>
-                      <span>
-                        {authMode === 'login' ? t.auth.signInWithGoogle : t.auth.signUpWithGoogle}
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </form>
-            )}
-
-            {/* Quick Switcher Footer */}
-            <div className="mt-6 pt-4 border-t border-[var(--border-subtle)] text-center text-xs text-[var(--text-secondary)]">
-              {authMode === 'login' && (
-                <div>
-                  {t.auth.noAccount}{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('register');
-                      setError(null);
-                      setSuccess(null);
-                    }}
-                    className="text-[var(--primary)] hover:underline font-bold transition-colors ml-1 cursor-pointer"
-                  >
-                    {t.auth.createAccount}
-                  </button>
-                </div>
-              )}
-              {authMode === 'register' && (
-                <div>
-                  {t.auth.alreadyHaveAccount}{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('login');
-                      setError(null);
-                      setSuccess(null);
-                    }}
-                    className="text-[var(--primary)] hover:underline font-bold transition-colors ml-1 cursor-pointer"
-                  >
-                    {t.auth.signIn}
-                  </button>
-                </div>
-              )}
-            </div>
-          </motion.div>
+          {renderAuthCard()}
         </div>
       </main>
 
@@ -1054,7 +1223,7 @@ export function AuthScreen() {
             </button>
             <button
               type="button"
-              onClick={() => setShowDocsModal(true)}
+              onClick={openDocs}
               className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
             >
               {t.nav.docs}
@@ -1081,12 +1250,6 @@ export function AuthScreen() {
         isOpen={showDownloadModal}
         onClose={() => setShowDownloadModal(false)}
         detectedOS={detectedOS}
-      />
-
-      <DeveloperDocsModal
-        isOpen={showDocsModal}
-        onClose={() => setShowDocsModal(false)}
-        language={language}
       />
     </div>
   );
