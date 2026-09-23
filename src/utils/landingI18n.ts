@@ -5,6 +5,7 @@ export interface LandingTranslation {
     features: string;
     desktopApp: string;
     architecture: string;
+    docs: string;
     github: string;
     downloadDesktop: string;
     getStarted: string;
@@ -87,6 +88,7 @@ export const LANDING_I18N: Record<Language, LandingTranslation> = {
       features: 'Fitur',
       desktopApp: 'Aplikasi Desktop',
       architecture: 'Arsitektur',
+      docs: 'Dokumentasi Dev',
       github: 'GitHub',
       downloadDesktop: 'Unduh Desktop',
       getStarted: 'Mulai Sekarang',
@@ -167,6 +169,7 @@ export const LANDING_I18N: Record<Language, LandingTranslation> = {
       features: 'Features',
       desktopApp: 'Desktop App',
       architecture: 'Architecture',
+      docs: 'Developer Docs',
       github: 'GitHub',
       downloadDesktop: 'Download Desktop',
       getStarted: 'Get Started',

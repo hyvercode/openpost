@@ -32,8 +32,9 @@ import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { SaveToCollectionModal } from './components/SaveToCollectionModal';
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
 import { SyncLogModal } from './components/SyncLogModal';
+import { DeveloperDocsModal } from './components/DeveloperDocsModal';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
-import { LogOut, Eye, Keyboard, Cloud, CloudOff, RefreshCcw, MonitorSmartphone, Download, HelpCircle, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw, Search } from 'lucide-react';
+import { LogOut, Eye, Keyboard, Cloud, CloudOff, RefreshCcw, MonitorSmartphone, Download, HelpCircle, BookOpen, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw, Search } from 'lucide-react';
 import { Workspace, Theme, ApiCollection, RequestItem } from './types';
 import { cn } from './utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -80,6 +81,7 @@ export default function App() {
     setIsAgentModalOpen,
     setIsQuickSearchOpen,
     setIsHelpModalOpen,
+    setIsDocsModalOpen,
     setIsQuickEnvModalOpen,
     setIsKeyboardShortcutsModalOpen,
     setIsSyncLogModalOpen
@@ -926,6 +928,18 @@ export default function App() {
               </button>
             </div>
 
+            {/* Developer Documentation Button */}
+            <button
+              onClick={() => setIsDocsModalOpen(true)}
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs cursor-pointer"
+              title="Developer Documentation (API & Scripting)"
+            >
+              <BookOpen className="w-4 h-4 text-[var(--primary)]" />
+              <span className="text-[10px] font-bold uppercase tracking-wider hidden md:inline">
+                Docs
+              </span>
+            </button>
+
             {/* Theme Toggle Button */}
             <button
               onClick={() => {
@@ -1309,6 +1323,7 @@ export default function App() {
       />
       <QuickSearchModal />
       <HelpGuideModal />
+      <DeveloperDocsModal />
       <QuickEnvironmentModal />
       <KeyboardShortcutsModal />
       <SaveToCollectionModal />

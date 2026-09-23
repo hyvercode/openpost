@@ -39,6 +39,8 @@ interface AppState {
   setConflictData: (data: any) => void;
   isHelpModalOpen: boolean;
   setIsHelpModalOpen: (open: boolean) => void;
+  isDocsModalOpen: boolean;
+  setIsDocsModalOpen: (open: boolean) => void;
   isQuickSearchOpen: boolean;
   setIsQuickSearchOpen: (open: boolean) => void;
   isQuickEnvModalOpen: boolean;
@@ -179,6 +181,8 @@ export const useStore = create<AppState>((set) => ({
   setConflictData: (data) => set({ conflictData: data }),
   isHelpModalOpen: false,
   setIsHelpModalOpen: (open) => set({ isHelpModalOpen: open }),
+  isDocsModalOpen: false,
+  setIsDocsModalOpen: (open) => set({ isDocsModalOpen: open }),
   isQuickSearchOpen: false,
   setIsQuickSearchOpen: (open) => set({ isQuickSearchOpen: open }),
   isQuickEnvModalOpen: false,

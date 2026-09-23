@@ -1,11 +1,75 @@
+# Node & Dependencies
 node_modules/
-build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-store/
+
+# Production Builds & Output
 dist/
-coverage/
-.DS_Store
-*.log
-.env*
+dist-ssr/
+dist-electron/
+build/
+out/
+release/
+*.local
+
+# Desktop Agent & Binary Artifacts
+public/downloads/
+agent/bin/
+
+# Environment Variables & Secrets
+.env
+.env.*
 !.env.example
 
+# Local Databases & Persistent Storage
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+dev.db
+dev.sql
+
+# Prisma ORM
 /src/generated/prisma
 prisma/schema.prisma
+!prisma/schema.template.prisma
+
+# Cache & Temporary Files
+.vite/
+.cache/
+.temp/
+*.tmp
+*.log
+
+# Testing & Coverage
+coverage/
+.vitest/
+
+# OS-Specific Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# IDE & Editor Configurations
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.sublime-workspace
+*.sublime-project
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
