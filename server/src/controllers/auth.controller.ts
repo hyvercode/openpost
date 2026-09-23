@@ -56,6 +56,23 @@ export class AuthController {
     }
   };
 
+  googleAuth = async (req: Request, res: Response) => {
+    try {
+      const { credential, email, displayName, photoURL, googleId } = req.body;
+      const data = await this.authService.googleAuth({
+        credential,
+        email,
+        displayName,
+        photoURL,
+        googleId,
+      });
+      res.json(data);
+    } catch (error: any) {
+      console.error('Google Auth Error:', error);
+      res.status(400).json({ error: error.message, stack: error.stack });
+    }
+  };
+
   me = async (req: Request, res: Response) => {
     try {
       // The auth middleware will set req.user
