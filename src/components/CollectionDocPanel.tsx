@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2, Sparkles, Printer, Trash2, FileText, AlignLeft } from 'lucide-react';
+import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2, Sparkles, Printer, Trash2, FileText, AlignLeft, History, GitCommit, GitBranch } from 'lucide-react';
 import { cn } from '../utils';
 import { apiService } from '../lib/api';
 import { MockSettings } from './MockSettings';
 import { ConfirmModal } from './ConfirmModal';
+import { CollectionVersionModal } from './CollectionVersionModal';
+import { CollectionVersion } from '../types';
 import { generateCollectionMarkdown } from '../utils/markdownGenerator';
 import { generateCollectionPdf } from '../utils/pdfGenerator';
 import { downloadWordDocument } from '../utils/wordGenerator';
@@ -161,9 +163,12 @@ export function CollectionDocPanel() {
   const { activeTabId, collections, openTab, addToast } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const [docContent, setDocContent] = useState('');
-  const [activeSubTab, setActiveSubTab] = useState<'docs' | 'api' | 'mock' | 'export'>('docs');
+  const [activeSubTab, setActiveSubTab] = useState<'docs' | 'api' | 'mock' | 'export' | 'versions'>('docs');
   const [isSaving, setIsSaving] = useState(false);
   const [selectedEndpoints, setSelectedEndpoints] = useState<Set<string>>(new Set());
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [versionModalTab, setVersionModalTab] = useState<'history' | 'diff' | 'release'>('history');
+  const [collectionVersions, setCollectionVersions] = useState<CollectionVersion[]>([]);
 
   // PDF Export States
   const [exportFormat, setExportFormat] = useState<'markdown' | 'pdf' | 'word' | 'confluence'>('markdown');
@@ -226,10 +231,18 @@ export function CollectionDocPanel() {
   }, [targetEntity, collectionItem]);
 
   useEffect(() => {
-    if (targetType !== 'collection' && (activeSubTab === 'mock' || activeSubTab === 'export')) {
+    if (targetType !== 'collection' && (activeSubTab === 'mock' || activeSubTab === 'export' || activeSubTab === 'versions')) {
       setActiveSubTab('docs');
     }
   }, [targetType, activeSubTab]);
+
+  useEffect(() => {
+    if (collectionItem?.id) {
+      apiService.getCollectionVersions(collectionItem.id)
+        .then(vers => setCollectionVersions(vers))
+        .catch(console.error);
+    }
+  }, [collectionItem?.id]);
 
   if (!collectionItem || !targetEntity) {
     return (
@@ -439,6 +452,19 @@ export function CollectionDocPanel() {
               <span className="bg-orange-500/10 text-[var(--primary)] border border-orange-500/20 text-xs px-2.5 py-0.5 rounded-full font-semibold">
                 {targetType === 'collection' ? 'API Reference' : targetType === 'folder' ? 'Folder Docs' : 'Request Docs'}
               </span>
+              {targetType === 'collection' && (
+                <button
+                  onClick={() => {
+                    setVersionModalTab('history');
+                    setIsVersionModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30 hover:bg-[var(--primary)] hover:text-white transition-colors text-xs font-mono font-bold cursor-pointer"
+                  title="Manage Versions & Changelog"
+                >
+                  <History className="w-3 h-3" />
+                  <span>{collectionItem?.activeVersion || (collectionVersions[0]?.version) || 'v1.0.0 (Draft)'}</span>
+                </button>
+              )}
             </div>
             {targetType === 'collection' && (
               <div className="flex items-center gap-4 text-xs text-[var(--text-secondary)] mt-1.5 flex-wrap">
@@ -553,6 +579,20 @@ export function CollectionDocPanel() {
           >
             <BookOpen className="w-3.5 h-3.5" />
             Documentation
+          </button>
+        )}
+        {targetType === 'collection' && (
+          <button
+            onClick={() => { setActiveSubTab('versions'); setIsEditing(false); }}
+            className={cn(
+              "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
+              activeSubTab === 'versions' 
+                ? "text-[var(--primary)] border-b-[var(--primary)]" 
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
+            )}
+          >
+            <History className="w-3.5 h-3.5" />
+            Versions & Changelog
           </button>
         )}
       </div>
@@ -1269,6 +1309,100 @@ You can write step-by-step startup instructions.
               </div>
             </div>
           </div>
+        ) : activeSubTab === 'versions' ? (
+          <div className="flex flex-col gap-6 animate-fade-in select-none">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] shadow-xs">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-bold text-[var(--text-primary)]">Version & Release Strategy</span>
+                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30">
+                    {collectionItem?.activeVersion || (collectionVersions[0]?.version) || 'v1.0.0 (Draft)'}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Track endpoint schema evolution, breaking changes, and changelogs over time.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setVersionModalTab('diff');
+                    setIsVersionModalOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <GitBranch className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Inspect Diffs</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setVersionModalTab('release');
+                    setIsVersionModalOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                >
+                  <GitCommit className="w-3.5 h-3.5" />
+                  <span>Release New Version</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Versions timeline list in docs */}
+            {collectionVersions.length === 0 ? (
+              <div className="p-10 border border-dashed border-[var(--border-subtle)] rounded-xl text-center space-y-3 bg-[var(--bg-surface)]/30">
+                <History className="w-8 h-8 mx-auto text-[var(--primary)]" />
+                <h4 className="text-sm font-bold text-[var(--text-primary)]">No Public Releases Yet</h4>
+                <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
+                  Create your first version snapshot to generate automated changelogs and enable endpoint diffing.
+                </p>
+                <button
+                  onClick={() => {
+                    setVersionModalTab('release');
+                    setIsVersionModalOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <GitCommit className="w-3.5 h-3.5" />
+                  <span>Create v1.0.0 Snapshot</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {collectionVersions.map(ver => (
+                  <div key={ver.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] space-y-3 shadow-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-sm text-[var(--primary)] bg-[var(--primary)]/10 px-2.5 py-0.5 rounded border border-[var(--primary)]/20">
+                          {ver.version}
+                        </span>
+                        <span className="font-bold text-sm text-[var(--text-primary)]">
+                          {ver.name || `Release ${ver.version}`}
+                        </span>
+                        {ver.tags?.map(t => (
+                          <span key={t} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="text-xs text-[var(--text-secondary)] flex items-center gap-3">
+                        <span>🕒 {new Date(ver.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                        <span>👤 {ver.author || 'User'}</span>
+                        <span>📦 {ver.requests?.length || 0} endpoints</span>
+                      </div>
+                    </div>
+
+                    {ver.description && (
+                      <div className="bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-mono whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto select-text">
+                        {ver.description}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <MockSettings collection={collectionItem} />
         )}
@@ -1318,6 +1452,18 @@ You can write step-by-step startup instructions.
         onConfirm={confirmModal.onConfirm}
         onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
       />
+
+      {collectionItem && isVersionModalOpen && (
+        <CollectionVersionModal
+          isOpen={isVersionModalOpen}
+          onClose={() => setIsVersionModalOpen(false)}
+          collection={collectionItem}
+          initialTab={versionModalTab}
+          onCollectionUpdated={() => {
+            apiService.getCollectionVersions(collectionItem.id).then(setCollectionVersions);
+          }}
+        />
+      )}
     </div>
   );
 }

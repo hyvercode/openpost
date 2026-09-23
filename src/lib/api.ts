@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { useStore } from '../store/useStore';
-import { Workspace, ApiCollection, Environment, Deployment } from '../types';
+import { Workspace, ApiCollection, Environment, Deployment, CollectionVersion } from '../types';
 import { syncEngine } from './syncEngine';
 
 export const api = axios.create({
@@ -176,6 +176,75 @@ export const apiService = {
   async generateDocumentation(collectionName: string, folders: any[], requests: any[], targetType?: 'collection' | 'folder' | 'request', targetName?: string): Promise<{ markdown: string }> {
     const res = await api.post('/collections/generate-docs', { collectionName, folders, requests, targetType, targetName });
     return res.data;
+  },
+
+  // Collection Versions & Changelog
+  async getCollectionVersions(collectionId: string): Promise<CollectionVersion[]> {
+    try {
+      const res = await api.get(`/versions/collection/${collectionId}`);
+      if (Array.isArray(res.data)) {
+        localStorage.setItem(`openpost_versions_${collectionId}`, JSON.stringify(res.data));
+        return res.data;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch versions from backend, falling back to local storage', e);
+    }
+    const cached = localStorage.getItem(`openpost_versions_${collectionId}`);
+    return cached ? JSON.parse(cached) : [];
+  },
+
+  async createCollectionVersion(data: Partial<CollectionVersion> & { workspaceId: string; collectionId: string; version: string }): Promise<CollectionVersion> {
+    try {
+      const res = await api.post('/versions', data);
+      // Update local cache
+      const cached = await this.getCollectionVersions(data.collectionId);
+      const updated = [res.data, ...cached.filter(v => v.id !== res.data.id)];
+      localStorage.setItem(`openpost_versions_${data.collectionId}`, JSON.stringify(updated));
+      return res.data;
+    } catch (e) {
+      console.warn('Backend unavailable, creating version locally', e);
+      const localVersion: CollectionVersion = {
+        id: data.id || `local_ver_${Date.now()}`,
+        workspaceId: data.workspaceId,
+        collectionId: data.collectionId,
+        collectionName: data.collectionName || 'Collection',
+        version: data.version,
+        name: data.name || null,
+        description: data.description || null,
+        author: data.author || null,
+        createdAt: new Date().toISOString(),
+        folders: data.folders || [],
+        requests: data.requests || [],
+        mockConfig: data.mockConfig,
+        tags: data.tags || ['latest'],
+        diffSummary: data.diffSummary || null,
+      };
+      const cached = await this.getCollectionVersions(data.collectionId);
+      const updated = [localVersion, ...cached];
+      localStorage.setItem(`openpost_versions_${data.collectionId}`, JSON.stringify(updated));
+      return localVersion;
+    }
+  },
+
+  async rollbackCollectionToVersion(versionId: string): Promise<{ success: boolean; message: string; collection: ApiCollection; version: CollectionVersion }> {
+    const res = await api.post(`/versions/${versionId}/rollback`);
+    return res.data;
+  },
+
+  async forkCollectionVersion(versionId: string, name?: string): Promise<ApiCollection> {
+    const res = await api.post(`/versions/${versionId}/fork`, { name });
+    return res.data;
+  },
+
+  async deleteCollectionVersion(id: string, collectionId: string): Promise<void> {
+    try {
+      await api.delete(`/versions/${id}`);
+    } catch (e) {
+      console.warn('Failed to delete version on server', e);
+    }
+    const cached = await this.getCollectionVersions(collectionId);
+    const updated = cached.filter(v => v.id !== id);
+    localStorage.setItem(`openpost_versions_${collectionId}`, JSON.stringify(updated));
   },
 
   // Environments
