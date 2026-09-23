@@ -21,6 +21,7 @@ import deploymentRoutes from './server/src/routes/deployment.routes';
 import userRoutes from './server/src/routes/user.routes';
 import authRoutes from './server/src/routes/auth.routes';
 import commentRoutes from './server/src/routes/comment.routes';
+import versionRoutes from './server/src/routes/version.routes';
 import { prisma } from './server/src/db';
 import { requireAuth } from './server/src/middleware/auth';
 import { rateLimiter } from './server/src/middleware/rateLimiter';
@@ -44,6 +45,7 @@ async function startServer() {
   app.use('/api/deployments', deploymentRoutes);
   app.use('/api/users', userRoutes);
   app.use('/api/comments', commentRoutes);
+  app.use('/api/versions', versionRoutes);
 
   app.post("/api/generate-code", async (req, res) => {
     try {

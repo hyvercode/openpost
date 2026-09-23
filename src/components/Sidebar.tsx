@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2, CheckSquare, Square, X, Check, Cookie, FileCode, Cloud, FilePlus, FolderPlus } from 'lucide-react';
+import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2, CheckSquare, Square, X, Check, Cookie, FileCode, Cloud, FilePlus, FolderPlus, GitCommit, GitBranch } from 'lucide-react';
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
@@ -19,6 +19,7 @@ import { OpenApiImportModal } from './OpenApiImportModal';
 import { parseOpenAPISpec } from '../utils/openapiImport';
 import { HistorySidebar } from './HistorySidebar';
 import { exportWorkspaceJSON, exportSingleCollectionJSON, exportAllPostmanJSON } from '../utils/exportUtils';
+import { CollectionVersionModal } from './CollectionVersionModal';
 
 function interpolateString(str: string, vars: any[]): string {
   if (!str) return '';
@@ -87,6 +88,10 @@ export function Sidebar() {
   const [isOpenApiModalOpen, setIsOpenApiModalOpen] = useState(false);
   const [draggedOverId, setDraggedOverId] = useState<string | null>(null);
   const [draggedOverType, setDraggedOverType] = useState<'collection' | 'folder' | 'request' | null>(null);
+
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [selectedVersionCollection, setSelectedVersionCollection] = useState<ApiCollection | null>(null);
+  const [versionModalTab, setVersionModalTab] = useState<'history' | 'diff' | 'release'>('history');
 
   const [customizationModal, setCustomizationModal] = useState<{
     isOpen: boolean;
@@ -2071,6 +2076,20 @@ export function Sidebar() {
                         );
                       })()}
                       <span className="text-xs truncate">{collection.name}</span>
+                      {collection.activeVersion && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedVersionCollection(collection);
+                            setVersionModalTab('history');
+                            setIsVersionModalOpen(true);
+                          }}
+                          className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30 hover:bg-[var(--primary)] hover:text-white transition-colors shrink-0"
+                          title={`Version: ${collection.activeVersion}. Click to view versions & changelog.`}
+                        >
+                          {collection.activeVersion}
+                        </button>
+                      )}
                     </div>
                     <div className="relative shrink-0 flex items-center">
                       <button 
@@ -2119,6 +2138,40 @@ export function Sidebar() {
                             >
                               <BookOpen className="w-4 h-4 text-[var(--primary)] shrink-0" />
                               <span className="font-semibold text-[var(--primary)]">View Documentation</span>
+                            </button>
+                            <div className="h-px bg-[var(--border-subtle)] my-1" />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                setSelectedVersionCollection(collection);
+                                setVersionModalTab('history');
+                                setIsVersionModalOpen(true);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <History className="w-4 h-4 text-indigo-400 shrink-0" />
+                              <div className="flex-1 flex items-center justify-between">
+                                <span className="font-semibold text-indigo-400">Version History & Diff</span>
+                                {collection.activeVersion && (
+                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                                    {collection.activeVersion}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(null);
+                                setSelectedVersionCollection(collection);
+                                setVersionModalTab('release');
+                                setIsVersionModalOpen(true);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
+                            >
+                              <GitCommit className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <span>Release New Version...</span>
                             </button>
                             <div className="h-px bg-[var(--border-subtle)] my-1" />
                             <button
@@ -2762,6 +2815,21 @@ export function Sidebar() {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedVersionCollection && isVersionModalOpen && (
+        <CollectionVersionModal
+          isOpen={isVersionModalOpen}
+          onClose={() => {
+            setIsVersionModalOpen(false);
+            setSelectedVersionCollection(null);
+          }}
+          collection={selectedVersionCollection}
+          initialTab={versionModalTab}
+          onCollectionUpdated={(updated) => {
+            setSelectedVersionCollection(updated);
+          }}
+        />
       )}
     </div>
   );

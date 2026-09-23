@@ -171,6 +171,61 @@ export interface ApiCollection {
   shareVisibility?: "public" | "private";
   mockVisibility?: "public" | "private";
   docVisibility?: "public" | "private";
+  activeVersion?: string;
+}
+
+export interface EndpointFieldDiff {
+  field: 'name' | 'method' | 'url' | 'headers' | 'params' | 'body' | 'auth' | 'description' | 'folder';
+  label: string;
+  oldValue: any;
+  newValue: any;
+  isBreaking?: boolean;
+}
+
+export interface EndpointDiffItem {
+  id: string;
+  name: string;
+  method: string;
+  url: string;
+  folderId?: string | null;
+  changeType: 'added' | 'removed' | 'modified' | 'unchanged';
+  isBreaking: boolean;
+  fieldDiffs: EndpointFieldDiff[];
+  requestSnapshot?: RequestItem;
+  previousSnapshot?: RequestItem;
+}
+
+export interface CollectionDiffResult {
+  addedCount: number;
+  removedCount: number;
+  modifiedCount: number;
+  unchangedCount: number;
+  breakingCount: number;
+  suggestedSemVer: string;
+  suggestedBumpType: 'major' | 'minor' | 'patch' | 'none';
+  endpoints: EndpointDiffItem[];
+}
+
+export interface CollectionVersion {
+  id: string;
+  workspaceId: string;
+  collectionId: string;
+  collectionName: string;
+  version: string;
+  name?: string | null;
+  description?: string | null;
+  author?: string | null;
+  createdAt: string;
+  folders: ApiFolder[];
+  requests: RequestItem[];
+  mockConfig?: MockConfig;
+  tags?: string[];
+  diffSummary?: {
+    added: number;
+    removed: number;
+    modified: number;
+    breaking: number;
+  } | null;
 }
 
 export interface Environment {
