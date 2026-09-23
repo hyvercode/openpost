@@ -30,13 +30,15 @@ import {
   Cpu,
   Database,
   ArrowRight,
-  Network
+  Network,
+  BookOpen
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Theme } from '../types';
 import { api } from '../lib/api';
 import { GoogleAuthModal } from './GoogleAuthModal';
 import { DesktopDownloadModal } from './DesktopDownloadModal';
+import { DeveloperDocsModal } from './DeveloperDocsModal';
 import { LANDING_I18N, Language } from '../utils/landingI18n';
 
 export function AuthScreen() {
@@ -45,6 +47,7 @@ export function AuthScreen() {
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password' | 'email-confirmation-pending'>('login');
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [showDocsModal, setShowDocsModal] = useState(false);
   const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
 
   // Language state
@@ -310,6 +313,15 @@ export function AuthScreen() {
               <Network className="w-3.5 h-3.5 text-[var(--primary)]" />
               <span>{t.nav.architecture}</span>
             </a>
+
+            <button
+              type="button"
+              onClick={() => setShowDocsModal(true)}
+              className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-[var(--primary)]" />
+              <span>{t.nav.docs}</span>
+            </button>
 
             <a 
               href="https://github.com/hyvercode" 
@@ -1042,6 +1054,13 @@ export function AuthScreen() {
             </button>
             <button
               type="button"
+              onClick={() => setShowDocsModal(true)}
+              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            >
+              {t.nav.docs}
+            </button>
+            <button
+              type="button"
               onClick={cycleTheme}
               className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
             >
@@ -1062,6 +1081,12 @@ export function AuthScreen() {
         isOpen={showDownloadModal}
         onClose={() => setShowDownloadModal(false)}
         detectedOS={detectedOS}
+      />
+
+      <DeveloperDocsModal
+        isOpen={showDocsModal}
+        onClose={() => setShowDocsModal(false)}
+        language={language}
       />
     </div>
   );
