@@ -4,6 +4,14 @@ import express from 'express';
 import workspaceRoutes from '../src/routes/workspace.routes';
 import { prisma } from '../src/db';
 
+vi.mock('../src/middleware/auth', () => ({
+  requireAuth: (req: any, _res: any, next: any) => {
+    req.user = { uid: 'user1', email: 'test@example.com' };
+    next();
+  },
+  requireWorkspaceAccess: (_req: any, _res: any, next: any) => next(),
+}));
+
 vi.mock('../src/db', () => ({
   prisma: {
     user: {
