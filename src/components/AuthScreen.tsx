@@ -24,18 +24,56 @@ import {
   Laptop,
   Check,
   Github,
-  BookOpen,
-  Cpu
+  Sun,
+  Moon,
+  MonitorSmartphone,
+  Cpu,
+  Database,
+  ArrowRight,
+  Network
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { Theme } from '../types';
 import { api } from '../lib/api';
 import { GoogleAuthModal } from './GoogleAuthModal';
 import { DesktopDownloadModal } from './DesktopDownloadModal';
+import { LANDING_I18N, Language } from '../utils/landingI18n';
 
 export function AuthScreen() {
+  const { theme, setTheme, setUser, addToast } = useStore();
+
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password' | 'reset-password' | 'email-confirmation-pending'>('login');
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
+
+  // Language state
+  const [language, setLanguage] = useState<Language>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('openpost_lang') as Language;
+      if (saved === 'id' || saved === 'en') return saved;
+    }
+    return 'id'; // Default to Indonesian based on user language
+  });
+
+  const t = LANDING_I18N[language] || LANDING_I18N.id;
+
+  const handleLanguageChange = (lang: Language) => {
+    setLanguage(lang);
+    localStorage.setItem('openpost_lang', lang);
+    addToast(lang === 'id' ? 'Bahasa diubah ke Bahasa Indonesia' : 'Language set to English', 'info', 2000);
+  };
+
+  const cycleTheme = () => {
+    const order: Theme[] = ['default', 'light', 'dark'];
+    const next = order[(order.indexOf(theme) + 1) % order.length];
+    setTheme(next);
+    addToast(
+      next === 'light' ? 'Mode Terang (Light Mode)' : next === 'dark' ? 'Mode Gelap (Slate Dark)' : 'Tema Aubergine (Default)',
+      'info',
+      2000
+    );
+  };
   
   // Auth Form State
   const [email, setEmail] = useState('');
@@ -53,8 +91,6 @@ export function AuthScreen() {
 
   // Detected OS
   const [detectedOS, setDetectedOS] = useState<'windows' | 'mac' | 'linux'>('windows');
-
-  const { setUser, addToast } = useStore();
 
   // Detect user OS
   useEffect(() => {
@@ -89,16 +125,16 @@ export function AuthScreen() {
     setSuccess(null);
     try {
       const res = await api.get(`/auth/verify-email?token=${token}`);
-      const msg = res.data?.message || "Email address verified successfully! You can now sign in.";
+      const msg = res.data?.message || (language === 'id' ? "Email berhasil diverifikasi! Silakan masuk." : "Email verified! You can now sign in.");
       setSuccess(msg);
-      addToast("Email address confirmed! Please sign in.", "success", 5000);
+      addToast(msg, "success", 5000);
       setAuthMode('login');
       if (res.data?.email) {
         setEmail(res.data.email);
       }
     } catch (err: any) {
       console.error("Verification error:", err);
-      const msg = err.response?.data?.error || "Failed to confirm email. Link may be invalid or expired.";
+      const msg = err.response?.data?.error || (language === 'id' ? "Gagal memverifikasi email. Tautan mungkin kedaluwarsa." : "Failed to confirm email. Link may be invalid.");
       setError(msg);
       addToast(msg, "error");
     } finally {
@@ -113,12 +149,12 @@ export function AuthScreen() {
     setError(null);
     try {
       const res = await api.post('/auth/resend-verification', { email: targetEmail });
-      const msg = res.data?.message || "A new confirmation email has been sent. Please check your inbox.";
+      const msg = res.data?.message || (language === 'id' ? "Email konfirmasi baru telah dikirim." : "Confirmation email sent.");
       setSuccess(msg);
       if (res.data?.verificationLink) {
         setVerificationDevLink(res.data.verificationLink);
       }
-      addToast("Confirmation email sent!", "success", 4000);
+      addToast(msg, "success", 4000);
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to resend confirmation email.");
     } finally {
@@ -135,20 +171,20 @@ export function AuthScreen() {
     try {
       if (authMode === 'reset-password') {
         if (password !== confirmPassword) {
-          throw new Error("Passwords do not match");
+          throw new Error(language === 'id' ? "Konfirmasi kata sandi tidak cocok" : "Passwords do not match");
         }
         const params = new URLSearchParams(window.location.search);
         const token = params.get('resetToken');
         await api.post('/auth/reset-password', { token, password });
-        addToast("Password reset successfully. You can now login.", "success");
+        addToast(language === 'id' ? "Kata sandi berhasil direset. Silakan masuk." : "Password reset successfully. You can now login.", "success");
         setAuthMode('login');
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (authMode === 'forgot-password') {
         await api.post('/auth/forgot-password', { email });
-        setSuccess("If an account exists with that email, you will receive a reset link shortly.");
+        setSuccess(language === 'id' ? "Jika akun terdaftar, tautan reset akan dikirimkan ke email Anda." : "If an account exists, a reset link will be sent shortly.");
       } else if (authMode === 'register') {
         if (password !== confirmPassword) {
-          throw new Error("Passwords do not match");
+          throw new Error(language === 'id' ? "Konfirmasi kata sandi tidak cocok" : "Passwords do not match");
         }
         const res = await api.post('/auth/register', { email, password });
         
@@ -157,8 +193,8 @@ export function AuthScreen() {
           setVerificationDevLink(res.data.verificationLink);
         }
         setAuthMode('email-confirmation-pending');
-        setSuccess("Account created! A confirmation email has been sent to your address.");
-        addToast("Registration successful! Please confirm your email before logging in.", "info", 6000);
+        setSuccess(language === 'id' ? "Akun berhasil dibuat! Silakan cek email Anda untuk konfirmasi." : "Account created! Please check your email to activate.");
+        addToast(language === 'id' ? "Registrasi sukses! Silakan konfirmasi email." : "Registration successful! Please confirm your email.", "info", 6000);
       } else {
         // Login mode
         const res = await api.post('/auth/login', { email, password });
@@ -188,62 +224,161 @@ export function AuthScreen() {
 
   const osInfo = getOSDownloadInfo();
 
+  const scrollToOverview = () => {
+    const el = document.getElementById('overview');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+      setHighlightedSection('overview');
+      setTimeout(() => setHighlightedSection(null), 3000);
+    }
+  };
+
+  const scrollToFeatures = () => {
+    const el = document.getElementById('features');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+      setHighlightedSection('features');
+      setTimeout(() => setHighlightedSection(null), 3000);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#200017] text-white selection:bg-[#E95420]/30 flex flex-col font-sans">
+    <div className={`min-h-screen font-sans flex flex-col transition-colors duration-300 ${
+      theme === 'light' ? 'theme-light bg-[var(--bg-base)] text-[var(--text-primary)]' : 
+      theme === 'dark' ? 'theme-dark bg-[var(--bg-base)] text-[var(--text-primary)]' : 
+      'theme-default bg-[var(--bg-base)] text-[var(--text-primary)]'
+    }`}>
       {/* Background Gradient & Ambient Glow */}
-      <div className="fixed inset-0 bg-gradient-to-br from-[#200017] via-[#3B0A29] to-[#14000E] -z-10 pointer-events-none" />
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] bg-gradient-to-b from-[#E95420]/15 to-transparent blur-3xl -z-10 pointer-events-none" />
+      <div className={`fixed inset-0 pointer-events-none -z-10 transition-opacity duration-500 ${
+        theme === 'light' 
+          ? 'bg-gradient-to-br from-slate-50 via-zinc-100 to-amber-50/20' 
+          : theme === 'dark' 
+          ? 'bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617]' 
+          : 'bg-gradient-to-br from-[#200017] via-[#3B0A29] to-[#14000E]'
+      }`} />
+      
+      <div className={`fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] blur-3xl -z-10 pointer-events-none transition-opacity duration-500 ${
+        theme === 'light'
+          ? 'bg-gradient-to-b from-[#DD4814]/10 to-transparent'
+          : 'bg-gradient-to-b from-[#E95420]/15 to-transparent'
+      }`} />
 
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 w-full border-b border-white/5 bg-[#200017]/85 backdrop-blur-md">
+      <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/85 backdrop-blur-md transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#E95420] flex items-center justify-center text-white shadow-md shadow-[#E95420]/25">
+            <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shadow-md shadow-[var(--primary)]/25">
               <Server className="w-4 h-4" />
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="font-bold text-lg tracking-tight text-white">OpenPost</span>
-              <span className="text-[10px] uppercase font-semibold text-white/40 tracking-wider hidden sm:inline">
+              <span className="font-bold text-lg tracking-tight text-[var(--text-primary)]">OpenPost</span>
+              <span className="text-[10px] uppercase font-semibold text-[var(--text-secondary)] tracking-wider hidden sm:inline">
                 API Platform
               </span>
             </div>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="hidden md:flex items-center gap-6 text-xs text-white/60 font-medium">
-            <a href="#features" className="hover:text-white transition-colors">Features</a>
+          {/* Navigation Links (including targeted selector a:nth-of-type(2)) */}
+          <nav className="hidden md:flex items-center gap-6 text-xs text-[var(--text-secondary)] font-medium">
+            <button
+              type="button"
+              onClick={scrollToFeatures}
+              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            >
+              {t.nav.features}
+            </button>
+
             <button 
               type="button" 
               onClick={() => setShowDownloadModal(true)} 
-              className="hover:text-white transition-colors flex items-center gap-1 cursor-pointer"
+              className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1 cursor-pointer"
             >
-              <Laptop className="w-3.5 h-3.5 text-[#E95420]" />
-              <span>Desktop App</span>
+              <Laptop className="w-3.5 h-3.5 text-[var(--primary)]" />
+              <span>{t.nav.desktopApp}</span>
             </button>
-            <a href="#overview" className="hover:text-white transition-colors">Architecture</a>
+
+            {/* Targeted element: a:nth-of-type(2) in nav */}
+            <a 
+              href="#overview" 
+              onClick={(e) => {
+                e.preventDefault();
+                scrollToOverview();
+              }}
+              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <Network className="w-3.5 h-3.5 text-[var(--primary)]" />
+              <span>{t.nav.architecture}</span>
+            </a>
+
             <a 
               href="https://github.com/hyvercode" 
               target="_blank" 
               rel="noreferrer" 
-              className="hover:text-white transition-colors flex items-center gap-1"
+              className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
             >
               <Github className="w-3.5 h-3.5" />
-              <span>GitHub</span>
+              <span>{t.nav.github}</span>
             </a>
           </nav>
 
-          {/* Top CTAs */}
-          <div className="flex items-center gap-3">
+          {/* Controls: Language Switcher, Theme Switcher & Action CTA */}
+          <div className="flex items-center gap-2.5">
+            {/* Language Switcher */}
+            <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => handleLanguageChange('id')}
+                className={`px-2 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                  language === 'id' 
+                    ? 'bg-[var(--primary)] text-white shadow-xs' 
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+                title="Bahasa Indonesia"
+              >
+                <span>ID</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleLanguageChange('en')}
+                className={`px-2 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                  language === 'en' 
+                    ? 'bg-[var(--primary)] text-white shadow-xs' 
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                }`}
+                title="English"
+              >
+                <span>EN</span>
+              </button>
+            </div>
+
+            {/* Theme Switcher */}
+            <button
+              type="button"
+              onClick={cycleTheme}
+              className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer flex items-center gap-1"
+              title={`Theme: ${theme.toUpperCase()} (Click to toggle)`}
+            >
+              {theme === 'light' ? (
+                <Sun className="w-4 h-4 text-amber-500" />
+              ) : theme === 'dark' ? (
+                <Moon className="w-4 h-4 text-sky-400" />
+              ) : (
+                <MonitorSmartphone className="w-4 h-4 text-[var(--primary)]" />
+              )}
+            </button>
+
+            {/* Desktop Download Button in Header */}
             <button
               type="button"
               onClick={() => setShowDownloadModal(true)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-semibold border border-white/10 transition-colors cursor-pointer"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] transition-colors cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5 text-[#E95420]" />
-              <span>Download Desktop</span>
+              <Download className="w-3.5 h-3.5 text-[var(--primary)]" />
+              <span>{t.nav.downloadDesktop}</span>
             </button>
 
+            {/* Get Started Button */}
             <button
               type="button"
               onClick={() => {
@@ -251,9 +386,9 @@ export function AuthScreen() {
                 const formElement = document.getElementById('auth-card');
                 formElement?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="px-3.5 py-1.5 rounded-lg bg-[#E95420] hover:bg-[#c7461b] text-white text-xs font-bold transition-all shadow-md shadow-[#E95420]/20 active:scale-95 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-lg bg-[var(--primary)] hover:opacity-90 text-white text-xs font-bold transition-all shadow-md shadow-[var(--primary)]/20 active:scale-95 cursor-pointer"
             >
-              Get Started
+              {t.nav.getStarted}
             </button>
           </div>
         </div>
@@ -264,40 +399,40 @@ export function AuthScreen() {
         {/* Left Column: Product Value & Desktop Downloads */}
         <div className="lg:col-span-7 space-y-8">
           {/* Editorial Kicker */}
-          <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-[#E95420] uppercase">
-            <span>Open Source API Client</span>
+          <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-[var(--primary)] uppercase">
+            <span>{t.hero.kicker}</span>
             <span aria-hidden="true">·</span>
-            <span>Version 1.0.0</span>
+            <span>{t.hero.version}</span>
             <span aria-hidden="true">·</span>
-            <span className="text-white/40">Offline First</span>
+            <span className="text-[var(--text-secondary)]">{t.hero.offlineFirst}</span>
           </div>
 
-          {/* Punchy Headline */}
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] text-white">
-            The lightweight, offline-first API workspace for engineers.
+          {/* Headline */}
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] text-[var(--text-primary)]">
+            {t.hero.title}
           </h1>
 
           {/* Subtitle */}
-          <p className="text-sm sm:text-base text-white/60 leading-relaxed max-w-xl font-normal">
-            Design, debug, and automate REST, GraphQL, WebSocket, and SSE endpoints with zero cloud friction. Run standalone on your desktop with an embedded offline backend and SQLite database, or collaborate with your team in real time.
+          <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed max-w-xl font-normal">
+            {t.hero.subtitle}
           </p>
 
           {/* Desktop Download Highlight Box */}
-          <div className="p-6 rounded-2xl bg-[#2C001E]/80 border border-white/10 backdrop-blur-md shadow-xl space-y-4 max-w-xl">
+          <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] backdrop-blur-md shadow-xl space-y-4 max-w-xl transition-colors duration-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#E95420]/15 border border-[#E95420]/30 flex items-center justify-center text-[#E95420]">
+                <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/15 border border-[var(--primary)]/30 flex items-center justify-center text-[var(--primary)]">
                   <Laptop className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-white flex items-center gap-2">
-                    <span>OpenPost Desktop</span>
-                    <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                      Standalone
+                  <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                    <span>{t.desktopCard.title}</span>
+                    <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      {t.desktopCard.standalone}
                     </span>
                   </div>
-                  <div className="text-[11px] text-white/40">
-                    Includes embedded background server &amp; local SQLite engine
+                  <div className="text-[11px] text-[var(--text-secondary)]">
+                    {t.desktopCard.desc}
                   </div>
                 </div>
               </div>
@@ -308,70 +443,70 @@ export function AuthScreen() {
               <button
                 type="button"
                 onClick={() => setShowDownloadModal(true)}
-                className="h-11 px-5 bg-gradient-to-r from-[#E95420] to-[#f4683a] hover:from-[#d84a19] hover:to-[#e45b2e] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-[#E95420]/30 active:scale-95 cursor-pointer"
+                className="h-11 px-5 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-[var(--primary)]/25 active:scale-95 cursor-pointer"
               >
                 <Download className="w-4 h-4" />
-                <span>Download for {osInfo.name} ({osInfo.ext})</span>
+                <span>{t.desktopCard.downloadFor} {osInfo.name} ({osInfo.ext})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowDownloadModal(true)}
-                className="h-11 px-4 bg-white/5 hover:bg-white/10 text-white/80 hover:text-white rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 border border-white/10 transition-colors cursor-pointer"
+                className="h-11 px-4 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 border border-[var(--border-subtle)] transition-colors cursor-pointer"
               >
-                <span>Other Platforms</span>
-                <ChevronRight className="w-3.5 h-3.5 text-white/40" />
+                <span>{t.desktopCard.otherPlatforms}</span>
+                <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
               </button>
             </div>
 
-            {/* Natural Typographic Badges (No pill soup) */}
-            <div className="pt-2 border-t border-white/5 flex flex-wrap items-center gap-y-1 gap-x-3 text-[11px] text-white/50">
-              <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+            {/* Natural Badges */}
+            <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap items-center gap-y-1 gap-x-3 text-[11px] text-[var(--text-secondary)]">
+              <div className="flex items-center gap-1.5 text-emerald-500 font-medium">
                 <Check className="w-3.5 h-3.5 shrink-0" />
-                <span>Zero CORS Blockers</span>
+                <span>{t.desktopCard.zeroCors}</span>
               </div>
-              <span aria-hidden="true" className="text-white/20">·</span>
-              <div className="flex items-center gap-1.5 text-white/70">
-                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Complete Offline Mode</span>
+              <span aria-hidden="true" className="opacity-30">·</span>
+              <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
+                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span>{t.desktopCard.completeOffline}</span>
               </div>
-              <span aria-hidden="true" className="text-white/20">·</span>
-              <div className="flex items-center gap-1.5 text-white/70">
-                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>No Account Required for Desktop</span>
+              <span aria-hidden="true" className="opacity-30">·</span>
+              <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
+                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span>{t.desktopCard.noAccountNeeded}</span>
               </div>
             </div>
           </div>
 
           {/* Micro Value Proposition Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 max-w-xl">
-            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
-              <div className="text-[#E95420] text-xs font-bold mb-1 flex items-center gap-1.5">
+            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] transition-colors duration-200">
+              <div className="text-[var(--primary)] text-xs font-bold mb-1 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5" />
-                <span>Multi-Protocol</span>
+                <span>{t.valueProps.multiProtocol}</span>
               </div>
-              <p className="text-[11px] text-white/50 leading-relaxed">
-                REST, GraphQL Studio, WebSocket, &amp; SSE streams.
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                {t.valueProps.multiProtocolDesc}
               </p>
             </div>
 
-            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
-              <div className="text-amber-400 text-xs font-bold mb-1 flex items-center gap-1.5">
+            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] transition-colors duration-200">
+              <div className="text-amber-500 text-xs font-bold mb-1 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5" />
-                <span>Mock Servers</span>
+                <span>{t.valueProps.mockServers}</span>
               </div>
-              <p className="text-[11px] text-white/50 leading-relaxed">
-                Spin up instant mock endpoints with custom JSON &amp; delays.
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                {t.valueProps.mockServersDesc}
               </p>
             </div>
 
-            <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 col-span-2 sm:col-span-1">
-              <div className="text-emerald-400 text-xs font-bold mb-1 flex items-center gap-1.5">
+            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] col-span-2 sm:col-span-1 transition-colors duration-200">
+              <div className="text-emerald-500 text-xs font-bold mb-1 flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Zero Telemetry</span>
+                <span>{t.valueProps.zeroTelemetry}</span>
               </div>
-              <p className="text-[11px] text-white/50 leading-relaxed">
-                Your API secrets and payload stay strictly local.
+              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                {t.valueProps.zeroTelemetryDesc}
               </p>
             </div>
           </div>
@@ -382,11 +517,11 @@ export function AuthScreen() {
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-[#2D001E] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden ring-1 ring-white/10"
+            className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition-colors duration-200"
           >
             {/* Auth Mode Header / Tabs */}
             {authMode === 'login' || authMode === 'register' ? (
-              <div className="flex border-b border-white/10 mb-6 pb-2">
+              <div className="flex border-b border-[var(--border-subtle)] mb-6 pb-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -395,14 +530,14 @@ export function AuthScreen() {
                     setSuccess(null);
                   }}
                   className={`flex-1 pb-2.5 text-center text-sm font-bold transition-colors relative cursor-pointer ${
-                    authMode === 'login' ? 'text-white' : 'text-white/40 hover:text-white/80'
+                    authMode === 'login' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
-                  Sign In
+                  {t.auth.signIn}
                   {authMode === 'login' && (
                     <motion.div 
                       layoutId="activeTabUnderline"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E95420]" 
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--primary)]" 
                     />
                   )}
                 </button>
@@ -414,38 +549,38 @@ export function AuthScreen() {
                     setSuccess(null);
                   }}
                   className={`flex-1 pb-2.5 text-center text-sm font-bold transition-colors relative cursor-pointer ${
-                    authMode === 'register' ? 'text-white' : 'text-white/40 hover:text-white/80'
+                    authMode === 'register' ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
-                  Create Account
+                  {t.auth.createAccount}
                   {authMode === 'register' && (
                     <motion.div 
                       layoutId="activeTabUnderline"
-                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E95420]" 
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--primary)]" 
                     />
                   )}
                 </button>
               </div>
             ) : (
-              <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/10">
-                <h2 className="text-base font-bold text-white">
-                  {authMode === 'forgot-password' && 'Reset Password'}
-                  {authMode === 'reset-password' && 'Set New Password'}
-                  {authMode === 'email-confirmation-pending' && 'Email Confirmation'}
+              <div className="flex items-center justify-between mb-6 pb-3 border-b border-[var(--border-subtle)]">
+                <h2 className="text-base font-bold text-[var(--text-primary)]">
+                  {authMode === 'forgot-password' && (language === 'id' ? 'Lupa Kata Sandi' : 'Reset Password')}
+                  {authMode === 'reset-password' && (language === 'id' ? 'Atur Kata Sandi Baru' : 'Set New Password')}
+                  {authMode === 'email-confirmation-pending' && (language === 'id' ? 'Konfirmasi Email' : 'Email Confirmation')}
                 </h2>
                 <button
                   type="button"
                   onClick={() => setAuthMode('login')}
-                  className="text-xs text-[#E95420] hover:underline font-semibold"
+                  className="text-xs text-[var(--primary)] hover:underline font-semibold"
                 >
-                  Back to Sign In
+                  {language === 'id' ? 'Kembali ke Masuk' : 'Back to Sign In'}
                 </button>
               </div>
             )}
 
             {/* Error Message Banner */}
             {error && (
-              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-start gap-2.5">
+              <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-start gap-2.5">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span className="leading-snug">{error}</span>
               </div>
@@ -453,7 +588,7 @@ export function AuthScreen() {
 
             {/* Success Message Banner */}
             {success && (
-              <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-start gap-2.5">
+              <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                 <span className="leading-snug">{success}</span>
               </div>
@@ -462,24 +597,25 @@ export function AuthScreen() {
             {/* Email Confirmation Pending Mode */}
             {authMode === 'email-confirmation-pending' ? (
               <div className="space-y-4">
-                <div className="p-4 rounded-xl bg-[#1A0012] border border-white/5 text-center space-y-3">
-                  <div className="w-10 h-10 bg-amber-500/15 text-amber-400 rounded-full flex items-center justify-center mx-auto">
+                <div className="p-4 rounded-xl bg-[var(--bg-input)] border border-[var(--border-subtle)] text-center space-y-3">
+                  <div className="w-10 h-10 bg-amber-500/15 text-amber-500 rounded-full flex items-center justify-center mx-auto">
                     <Send className="w-5 h-5" />
                   </div>
-                  <p className="text-xs text-white/70 leading-relaxed">
-                    We sent a confirmation link to <strong className="text-white">{registeredEmail || email}</strong>. Please check your inbox to activate your account.
+                  <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                    {language === 'id' ? 'Tautan konfirmasi telah dikirimkan ke ' : 'We sent a confirmation link to '}
+                    <strong className="text-[var(--text-primary)]">{registeredEmail || email}</strong>.
                   </p>
                 </div>
 
                 {verificationDevLink && (
                   <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs">
-                    <div className="font-bold text-amber-300 flex items-center gap-1.5">
+                    <div className="font-bold text-amber-500 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>Development Test Link:</span>
+                      <span>{language === 'id' ? 'Tautan Pengujian:' : 'Development Test Link:'}</span>
                     </div>
                     <a 
                       href={verificationDevLink}
-                      className="block p-2 bg-black/40 rounded border border-white/5 text-[#E95420] hover:underline font-mono text-[11px] break-all"
+                      className="block p-2 bg-black/40 rounded border border-white/5 text-[var(--primary)] hover:underline font-mono text-[11px] break-all"
                     >
                       {verificationDevLink}
                     </a>
@@ -491,17 +627,17 @@ export function AuthScreen() {
                     type="button"
                     onClick={() => handleResendVerification(registeredEmail || email)}
                     disabled={loading}
-                    className="flex-1 h-10 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-white/10 cursor-pointer"
+                    className="flex-1 h-10 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-[var(--border-subtle)] cursor-pointer"
                   >
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                    <span>Resend Email</span>
+                    <span>{language === 'id' ? 'Kirim Ulang' : 'Resend Email'}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setAuthMode('login')}
-                    className="flex-1 h-10 bg-[#E95420] hover:bg-[#c7461b] text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                    className="flex-1 h-10 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
                   >
-                    Back to Sign In
+                    {language === 'id' ? 'Kembali' : 'Back to Sign In'}
                   </button>
                 </div>
               </div>
@@ -511,11 +647,11 @@ export function AuthScreen() {
                 {/* Email Address */}
                 {(authMode === 'login' || authMode === 'register' || authMode === 'forgot-password') && (
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-                      Email Address
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                      {t.auth.emailAddress}
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-white/30">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-secondary)]">
                         <Mail className="w-4 h-4" />
                       </div>
                       <input 
@@ -524,7 +660,7 @@ export function AuthScreen() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@company.com"
-                        className="w-full bg-[#180011] border border-white/10 rounded-xl py-2.5 pl-10 pr-3 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#E95420] focus:ring-1 focus:ring-[#E95420]/30 transition-all font-medium"
+                        className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
                       />
                     </div>
                   </div>
@@ -534,21 +670,21 @@ export function AuthScreen() {
                 {(authMode === 'login' || authMode === 'register' || authMode === 'reset-password') && (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-                        Password
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                        {t.auth.password}
                       </label>
                       {authMode === 'login' && (
                         <button 
                           type="button"
                           onClick={() => setAuthMode('forgot-password')}
-                          className="text-[11px] text-[#E95420] hover:underline font-medium"
+                          className="text-[11px] text-[var(--primary)] hover:underline font-medium"
                         >
-                          Forgot password?
+                          {t.auth.forgotPassword}
                         </button>
                       )}
                     </div>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-white/30">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-secondary)]">
                         <Lock className="w-4 h-4" />
                       </div>
                       <input 
@@ -557,12 +693,12 @@ export function AuthScreen() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••••••"
-                        className="w-full bg-[#180011] border border-white/10 rounded-xl py-2.5 pl-10 pr-10 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#E95420] focus:ring-1 focus:ring-[#E95420]/30 transition-all font-medium"
+                        className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-white/30 hover:text-white transition-colors"
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -573,11 +709,11 @@ export function AuthScreen() {
                 {/* Confirm Password */}
                 {(authMode === 'register' || authMode === 'reset-password') && (
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-                      Confirm Password
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                      {t.auth.confirmPassword}
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-white/30">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--text-secondary)]">
                         <Lock className="w-4 h-4" />
                       </div>
                       <input 
@@ -586,12 +722,12 @@ export function AuthScreen() {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="••••••••••••"
-                        className="w-full bg-[#180011] border border-white/10 rounded-xl py-2.5 pl-10 pr-10 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-[#E95420] focus:ring-1 focus:ring-[#E95420]/30 transition-all font-medium"
+                        className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-white/30 hover:text-white transition-colors"
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                       >
                         {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -603,30 +739,28 @@ export function AuthScreen() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full h-11 bg-[#E95420] hover:bg-[#c7461b] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-[#E95420]/25 active:scale-95 cursor-pointer mt-2"
+                  className="w-full h-11 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-[var(--primary)]/25 active:scale-95 cursor-pointer mt-2"
                 >
                   {loading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <>
-                      <span>
-                        {authMode === 'login' && 'Sign In to Workspace'}
-                        {authMode === 'register' && 'Create Free Account'}
-                        {authMode === 'forgot-password' && 'Send Reset Link'}
-                        {authMode === 'reset-password' && 'Save New Password'}
-                      </span>
-                    </>
+                    <span>
+                      {authMode === 'login' && t.auth.signInBtn}
+                      {authMode === 'register' && t.auth.createAccountBtn}
+                      {authMode === 'forgot-password' && t.auth.sendResetBtn}
+                      {authMode === 'reset-password' && t.auth.saveNewPasswordBtn}
+                    </span>
                   )}
                 </button>
 
-                {/* Google Auth Option (Located cleanly BELOW the primary button as requested) */}
+                {/* Google Auth Option (Located cleanly BELOW the primary button) */}
                 {(authMode === 'login' || authMode === 'register') && (
                   <div className="space-y-3 pt-1">
                     {/* Divider */}
                     <div className="relative flex items-center justify-center my-2">
-                      <div className="border-t border-white/10 w-full" />
-                      <span className="bg-[#2D001E] px-2.5 text-[10px] font-bold uppercase tracking-wider text-white/35 absolute">
-                        or
+                      <div className="border-t border-[var(--border-subtle)] w-full" />
+                      <span className="bg-[var(--bg-surface)] px-2.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] absolute">
+                        {t.auth.or}
                       </span>
                     </div>
 
@@ -634,7 +768,7 @@ export function AuthScreen() {
                     <button
                       type="button"
                       onClick={() => setShowGoogleModal(true)}
-                      className="w-full h-11 bg-white hover:bg-zinc-100 text-zinc-900 rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 cursor-pointer border border-white/20 group"
+                      className="w-full h-11 bg-white hover:bg-zinc-100 text-zinc-900 rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 cursor-pointer border border-zinc-200 group"
                     >
                       <svg className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -643,7 +777,7 @@ export function AuthScreen() {
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                       </svg>
                       <span>
-                        {authMode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}
+                        {authMode === 'login' ? t.auth.signInWithGoogle : t.auth.signUpWithGoogle}
                       </span>
                     </button>
                   </div>
@@ -652,10 +786,10 @@ export function AuthScreen() {
             )}
 
             {/* Quick Switcher Footer */}
-            <div className="mt-6 pt-4 border-t border-white/5 text-center text-xs text-white/50">
+            <div className="mt-6 pt-4 border-t border-[var(--border-subtle)] text-center text-xs text-[var(--text-secondary)]">
               {authMode === 'login' && (
                 <div>
-                  Don't have an account?{' '}
+                  {t.auth.noAccount}{' '}
                   <button
                     type="button"
                     onClick={() => {
@@ -663,15 +797,15 @@ export function AuthScreen() {
                       setError(null);
                       setSuccess(null);
                     }}
-                    className="text-[#E95420] hover:text-[#f4683a] font-bold transition-colors ml-1"
+                    className="text-[var(--primary)] hover:underline font-bold transition-colors ml-1 cursor-pointer"
                   >
-                    Create Account
+                    {t.auth.createAccount}
                   </button>
                 </div>
               )}
               {authMode === 'register' && (
                 <div>
-                  Already have an account?{' '}
+                  {t.auth.alreadyHaveAccount}{' '}
                   <button
                     type="button"
                     onClick={() => {
@@ -679,9 +813,9 @@ export function AuthScreen() {
                       setError(null);
                       setSuccess(null);
                     }}
-                    className="text-[#E95420] hover:text-[#f4683a] font-bold transition-colors ml-1"
+                    className="text-[var(--primary)] hover:underline font-bold transition-colors ml-1 cursor-pointer"
                   >
-                    Sign In
+                    {t.auth.signIn}
                   </button>
                 </div>
               )}
@@ -690,49 +824,184 @@ export function AuthScreen() {
         </div>
       </main>
 
+      {/* Architecture Overview Section (Targeted by nav link: a:nth-of-type(2)) */}
+      <section 
+        id="overview" 
+        className={`w-full border-t border-[var(--border-subtle)] py-16 px-6 transition-all duration-500 ${
+          highlightedSection === 'overview' ? 'ring-2 ring-[var(--primary)] bg-[var(--primary)]/5' : 'bg-[var(--bg-surface)]/60'
+        }`}
+      >
+        <div className="max-w-6xl mx-auto space-y-12">
+          {/* Section Header */}
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-semibold mb-1">
+              <Network className="w-3.5 h-3.5" />
+              <span>Full-Stack Architecture</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
+              {t.architecture.title}
+            </h2>
+            <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
+              {t.architecture.subtitle}
+            </p>
+          </div>
+
+          {/* Architecture Visual Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Box 1: Client */}
+            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center">
+                <Laptop className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                {t.architecture.clientTitle}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {t.architecture.clientDesc}
+              </p>
+              <div className="pt-2 text-[10px] font-mono text-[var(--text-secondary)] border-t border-[var(--border-subtle)]">
+                Vite · Tailwind CSS · Monaco
+              </div>
+            </div>
+
+            {/* Box 2: Express Server */}
+            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center">
+                <Server className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                {t.architecture.serverTitle}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {t.architecture.serverDesc}
+              </p>
+              <div className="pt-2 text-[10px] font-mono text-[var(--text-secondary)] border-t border-[var(--border-subtle)]">
+                Node.js · Express · esbuild
+              </div>
+            </div>
+
+            {/* Box 3: Dual Storage */}
+            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
+                <Database className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                {t.architecture.dbTitle}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {t.architecture.dbDesc}
+              </p>
+              <div className="pt-2 text-[10px] font-mono text-[var(--text-secondary)] border-t border-[var(--border-subtle)]">
+                Prisma 7 · SQLite · PostgreSQL
+              </div>
+            </div>
+
+            {/* Box 4: Agent Bridge */}
+            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center">
+                <Cpu className="w-5 h-5" />
+              </div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">
+                {t.architecture.bridgeTitle}
+              </h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {t.architecture.bridgeDesc}
+              </p>
+              <div className="pt-2 text-[10px] font-mono text-[var(--text-secondary)] border-t border-[var(--border-subtle)]">
+                Localhost Bridge · Port 8765
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Live Verification Card */}
+          <div className="p-6 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-1 text-center md:text-left">
+              <div className="text-sm font-bold text-[var(--text-primary)] flex items-center justify-center md:justify-start gap-2">
+                <span>Want to test the backend API right now?</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              </div>
+              <p className="text-xs text-[var(--text-secondary)]">
+                The local backend server is running and responding to real API queries.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await api.get('/health');
+                    addToast(`API Health OK: ${JSON.stringify(res.data)}`, 'success', 3000);
+                  } catch (e: any) {
+                    addToast(`Health check error: ${e.message}`, 'error', 3000);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-xs font-mono text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer flex items-center gap-2"
+              >
+                <span>GET /api/health</span>
+                <ArrowRight className="w-3.5 h-3.5 text-[var(--primary)]" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDownloadModal(true)}
+                className="px-4 py-2 rounded-xl bg-[var(--primary)] text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                {t.nav.downloadDesktop}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Feature Overview Strip */}
-      <section id="features" className="w-full border-t border-white/5 bg-[#170010]/80 py-16 px-6">
+      <section 
+        id="features" 
+        className={`w-full border-t border-[var(--border-subtle)] py-16 px-6 transition-all duration-500 ${
+          highlightedSection === 'features' ? 'ring-2 ring-[var(--primary)] bg-[var(--primary)]/5' : 'bg-[var(--bg-base)]'
+        }`}
+      >
         <div className="max-w-6xl mx-auto space-y-10">
           <div className="text-center max-w-2xl mx-auto space-y-2">
-            <h2 className="text-2xl font-bold text-white tracking-tight">
-              Engineered for developer velocity &amp; privacy
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
+              {t.features.title}
             </h2>
-            <p className="text-xs text-white/50">
-              All the essentials of a modern API client without bloated cloud lock-in or tracking.
+            <p className="text-xs text-[var(--text-secondary)]">
+              {t.features.subtitle}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Feature 1 */}
-            <div className="p-6 rounded-2xl bg-[#26001B] border border-white/5 space-y-3">
-              <div className="w-9 h-9 rounded-xl bg-[#E95420]/15 border border-[#E95420]/30 flex items-center justify-center text-[#E95420]">
+            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
+              <div className="w-9 h-9 rounded-xl bg-[var(--primary)]/15 border border-[var(--primary)]/30 flex items-center justify-center text-[var(--primary)]">
                 <Zap className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-bold text-white">Full-Stack API Client &amp; Scripting</h3>
-              <p className="text-xs text-white/50 leading-relaxed">
-                Test REST, GraphQL with interactive schema introspection, WebSocket, and SSE. Full support for Postman-compatible test scripts (<code className="text-white/80 font-mono">pm.*</code>) and dynamic environment variables.
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">{t.features.feat1Title}</h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {t.features.feat1Desc}
               </p>
             </div>
 
             {/* Feature 2 */}
-            <div className="p-6 rounded-2xl bg-[#26001B] border border-white/5 space-y-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500">
                 <Layers className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-bold text-white">Mock Servers &amp; Batch Runner</h3>
-              <p className="text-xs text-white/50 leading-relaxed">
-                Simulate backend endpoints instantly with custom status codes, headers, and payloads. Run automated regression test suites using data-driven CSV or JSON test matrices.
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">{t.features.feat2Title}</h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {t.features.feat2Desc}
               </p>
             </div>
 
             {/* Feature 3 */}
-            <div className="p-6 rounded-2xl bg-[#26001B] border border-white/5 space-y-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
                 <Laptop className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-bold text-white">Native Desktop &amp; Local Agent</h3>
-              <p className="text-xs text-white/50 leading-relaxed">
-                Download the standalone desktop application powered by an embedded offline server and SQLite engine. Includes local proxy bridge to eliminate CORS barriers completely.
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">{t.features.feat3Title}</h3>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                {t.features.feat3Desc}
               </p>
             </div>
           </div>
@@ -740,10 +1009,10 @@ export function AuthScreen() {
       </section>
 
       {/* Minimal Footer */}
-      <footer className="w-full border-t border-white/5 py-8 px-6 bg-[#12000D] text-[11px] text-white/40">
+      <footer className="w-full border-t border-[var(--border-subtle)] py-8 px-6 bg-[var(--bg-surface)] text-[11px] text-[var(--text-secondary)] transition-colors duration-200">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-white/70">OpenPost</span>
+            <span className="font-semibold text-[var(--text-primary)]">OpenPost</span>
             <span aria-hidden="true">·</span>
             <span>© 2026 Open Source Project by hyvercode</span>
           </div>
@@ -752,21 +1021,32 @@ export function AuthScreen() {
             <button
               type="button"
               onClick={() => setShowDownloadModal(true)}
-              className="hover:text-white transition-colors cursor-pointer"
+              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
             >
-              Desktop Downloads
+              {t.nav.downloadDesktop}
             </button>
             <a 
               href="https://github.com/hyvercode" 
               target="_blank" 
               rel="noreferrer"
-              className="hover:text-white transition-colors"
+              className="hover:text-[var(--text-primary)] transition-colors"
             >
               GitHub
             </a>
-            <a href="#features" className="hover:text-white transition-colors">
-              Documentation
-            </a>
+            <button
+              type="button"
+              onClick={scrollToOverview}
+              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            >
+              {t.nav.architecture}
+            </button>
+            <button
+              type="button"
+              onClick={cycleTheme}
+              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            >
+              Theme: {theme.toUpperCase()}
+            </button>
           </div>
         </div>
       </footer>
