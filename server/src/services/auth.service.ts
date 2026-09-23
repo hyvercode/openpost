@@ -117,13 +117,118 @@ export class AuthService {
     }
 
     const token = jwt.sign({ userId: user.uid }, JWT_SECRET, { expiresIn: '7d' });
-    return { user: { uid: user.uid, email: user.email, displayName: user.displayName }, token };
+    return { user: { uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL }, token };
   }
 
   async getMe(userId: string) {
     const user = await prisma.user.findUnique({ where: { uid: userId } });
     if (!user) throw new Error('User not found');
-    return { uid: user.uid, email: user.email, displayName: user.displayName };
+    return { uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL };
+  }
+
+  async googleAuth(data: { credential?: string; email?: string; displayName?: string; photoURL?: string; googleId?: string }) {
+    let email = data.email?.trim().toLowerCase();
+    let displayName = data.displayName?.trim();
+    let photoURL = data.photoURL?.trim();
+
+    // If Google ID Token (credential) is passed, decode payload
+    if (data.credential) {
+      try {
+        const decoded = jwt.decode(data.credential) as any;
+        if (decoded && decoded.email) {
+          email = decoded.email.toLowerCase();
+          displayName = displayName || decoded.name || decoded.given_name;
+          photoURL = photoURL || decoded.picture;
+        }
+      } catch (err) {
+        console.warn('Failed to decode Google credential JWT:', err);
+      }
+    }
+
+    if (!email) {
+      throw new Error('Valid Google email address is required');
+    }
+
+    let user = await prisma.user.findUnique({ where: { email } });
+    const isNewUser = !user;
+
+    if (!user) {
+      // Register with Google
+      user = await prisma.user.create({
+        data: {
+          email,
+          displayName: displayName || email.split('@')[0],
+          photoURL: photoURL || null,
+          isEmailVerified: true,
+        },
+      });
+
+      // Automatically create a default workspace for the new user
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: `${user.displayName || 'My'}'s Workspace`,
+          ownerId: user.uid,
+        },
+      });
+
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: user.uid,
+          role: 'OWNER',
+          status: 'ACTIVE',
+        },
+      });
+    } else {
+      // Login with Google: mark email verified and refresh profile info if available
+      user = await prisma.user.update({
+        where: { uid: user.uid },
+        data: {
+          isEmailVerified: true,
+          displayName: user.displayName || displayName || email.split('@')[0],
+          photoURL: photoURL || user.photoURL,
+        },
+      });
+
+      // Ensure user has at least one workspace
+      const userMemberships = await prisma.workspaceMember.count({
+        where: { userId: user.uid },
+      });
+
+      if (userMemberships === 0) {
+        const workspace = await prisma.workspace.create({
+          data: {
+            name: `${user.displayName || 'My'}'s Workspace`,
+            ownerId: user.uid,
+          },
+        });
+
+        await prisma.workspaceMember.create({
+          data: {
+            workspaceId: workspace.id,
+            userId: user.uid,
+            role: 'OWNER',
+            status: 'ACTIVE',
+          },
+        });
+      }
+    }
+
+    const token = jwt.sign({ userId: user.uid, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+
+    return {
+      user: {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+      },
+      token,
+      isNewUser,
+      message: isNewUser
+        ? 'Account successfully registered and authenticated with Google!'
+        : 'Successfully logged in with Google!',
+    };
   }
 
   async forgotPassword(email: string) {
