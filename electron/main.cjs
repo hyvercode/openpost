@@ -26,11 +26,12 @@ function createWindow(port) {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
+      preload: path.join(__dirname, 'preload.cjs'),
       webSecurity: false // bypass CORS for direct local requests
     }
   });
 
-  const appUrl = `http://localhost:${port}`;
+  const appUrl = `http://localhost:${port}?isDesktop=true`;
   
   console.log('Waiting for backend server to be ready...');
   
