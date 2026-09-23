@@ -27,7 +27,11 @@
     "test": "vitest run",
     "bridge": "node agent/desktop-agent.js",
     "build:agent": "mkdir -p public/downloads && npx pkg agent/desktop-agent.js -t node18-win-x64,node18-linux-x64,node18-macos-x64 --out-path public/downloads",
-    "build:electron": "npm run build && electron-builder build"
+    "build:electron": "npm run build && electron-builder build -mwl",
+    "build:electron:all": "npm run build && electron-builder build -mwl",
+    "build:electron:win": "npm run build && electron-builder build --win",
+    "build:electron:mac": "npm run build && electron-builder build --mac",
+    "build:electron:linux": "npm run build && electron-builder build --linux"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -132,16 +136,22 @@
       }
     ],
     "mac": {
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "win": {
       "target": [
-        "nsis"
+        "nsis",
+        "zip"
       ]
     },
     "linux": {
       "target": [
-        "AppImage"
+        "AppImage",
+        "tar.gz"
       ]
     },
     "asarUnpack": [

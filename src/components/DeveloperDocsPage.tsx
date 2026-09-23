@@ -462,14 +462,20 @@ npm run bridge
 
           <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
             <h4 className="text-xs font-bold text-[var(--text-primary)]">
-              {isIndo ? 'Membangun Aplikasi Desktop Electron' : 'Building Standalone Electron Installer'}
+              {isIndo ? 'Membangun Aplikasi Desktop Electron (Multi-Platform Otomatis)' : 'Building Standalone Electron Installer (Auto Multi-Platform)'}
             </h4>
             <p className="text-xs text-[var(--text-secondary)]">
-              {isIndo ? 'Gunakan perintah berikut untuk membundel seluruh aplikasi ke installer native Windows (.exe), macOS (.dmg), atau Linux (.AppImage):' : 'Use the following command to bundle the entire full-stack monolith into native desktop installers:'}
+              {isIndo ? 'Perintah build:electron secara otomatis membundel installer untuk semua platform sekaligus (Windows .exe, macOS .dmg/.zip, dan Linux .AppImage/.tar.gz):' : 'The build:electron command automatically packages installers for all platforms simultaneously (Windows .exe, macOS .dmg/.zip, and Linux .AppImage/.tar.gz):'}
             </p>
-            <div className="bg-[var(--bg-panel)] p-3 rounded-lg border border-[var(--border-subtle)]">
-              <pre className="text-xs font-mono text-[var(--text-primary)]">
+            <div className="bg-[var(--bg-panel)] p-3 rounded-lg border border-[var(--border-subtle)] space-y-2">
+              <pre className="text-xs font-mono text-[var(--text-primary)] leading-relaxed">
+{`# Auto-build untuk semua platform sekaligus (Windows, macOS, Linux):
 npm run build:electron
+
+# Atau pilih platform tertentu:
+npm run build:electron:win    # Khusus Windows (.exe NSIS)
+npm run build:electron:mac    # Khusus macOS (.dmg / .zip)
+npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
               </pre>
             </div>
           </div>

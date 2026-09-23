@@ -33,6 +33,7 @@ import { SaveToCollectionModal } from './components/SaveToCollectionModal';
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
 import { SyncLogModal } from './components/SyncLogModal';
 import { DeveloperDocsPage } from './components/DeveloperDocsPage';
+import { isDesktopEnvironment } from './utils/platform';
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts';
 import { LogOut, Eye, Keyboard, Cloud, CloudOff, RefreshCcw, MonitorSmartphone, Download, HelpCircle, BookOpen, Sun, Moon, ChevronRight, ChevronLeft, ChevronUp, ChevronDown, Columns2, Rows2, LayoutGrid, Maximize2, Minimize2, Move, GripHorizontal, User, Server, PanelRight, TerminalSquare, RefreshCw, Search } from 'lucide-react';
 import { Workspace, Theme, ApiCollection, RequestItem } from './types';
@@ -88,6 +89,7 @@ export default function App() {
     setIsKeyboardShortcutsModalOpen,
     setIsSyncLogModalOpen
   } = useStore();
+  const isDesktop = isDesktopEnvironment();
   const [loading, setLoading] = useState(true);
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
   const [syncQueueCount, setSyncQueueCount] = useState(0);
@@ -685,7 +687,7 @@ export default function App() {
     return <LoadingScreen message="Fetching workspaces..." />;
   }
 
-  if (isDocsPageOpen) {
+  if (isDocsPageOpen && !isDesktop) {
     return <DeveloperDocsPage onBack={() => setIsDocsPageOpen(false)} />;
   }
 
@@ -934,17 +936,19 @@ export default function App() {
               </button>
             </div>
 
-            {/* Developer Documentation Button */}
-            <button
-              onClick={() => setIsDocsPageOpen(true)}
-              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs cursor-pointer"
-              title="Developer Documentation (API & Scripting)"
-            >
-              <BookOpen className="w-4 h-4 text-[var(--primary)]" />
-              <span className="text-[10px] font-bold uppercase tracking-wider hidden md:inline">
-                Docs
-              </span>
-            </button>
+            {/* Developer Documentation Button (Web only) */}
+            {!isDesktop && (
+              <button
+                onClick={() => setIsDocsPageOpen(true)}
+                className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs cursor-pointer"
+                title="Developer Documentation (API & Scripting)"
+              >
+                <BookOpen className="w-4 h-4 text-[var(--primary)]" />
+                <span className="text-[10px] font-bold uppercase tracking-wider hidden md:inline">
+                  Docs
+                </span>
+              </button>
+            )}
 
             {/* Theme Toggle Button */}
             <button
