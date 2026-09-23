@@ -218,7 +218,7 @@ export const apiService = {
     await api.delete(`/deployments/${id}`);
   },
 
-  async executeRequest(req: any, proxyConfig?: any, forceDirect = false) {
+  async executeRequest(req: any, proxyConfig?: any, forceDirect = false, signal?: AbortSignal) {
     const { agentMode } = useStore.getState();
     const isDesktopAgent = agentMode === 'desktop';
     const proxyBaseUrl = isDesktopAgent ? 'http://127.0.0.1:8765/api/proxy' : '/proxy';
@@ -258,6 +258,7 @@ export const apiService = {
           headers,
           data: bodyData,
           validateStatus: () => true,
+          signal,
         });
         const endTime = performance.now();
         const totalTime = endTime - startTime;
@@ -333,7 +334,8 @@ export const apiService = {
       }, {
         headers: {
           'x-target-url': req.url
-        }
+        },
+        signal,
       });
       return res.data;
     } catch (err: any) {

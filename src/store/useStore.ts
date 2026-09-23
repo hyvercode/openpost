@@ -76,6 +76,7 @@ interface AppState {
   
   openTab: (tab: { id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc' | 'test_suite'; name: string; method?: string; isDirty?: boolean }) => void;
   closeTab: (id: string) => void;
+  closeAllTabs: () => void;
 
   editingEnvironment: Environment | null;
   setEditingEnvironment: (env: Environment | null) => void;
@@ -329,6 +330,8 @@ export const useStore = create<AppState>((set) => ({
     }
     return { openTabs: newTabs, activeTabId: newActiveId };
   }),
+
+  closeAllTabs: () => set({ openTabs: [], activeTabId: null, activeView: 'empty' }),
 
   editingEnvironment: null,
   setEditingEnvironment: (editingEnvironment) => set({ editingEnvironment }),

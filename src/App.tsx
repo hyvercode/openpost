@@ -88,6 +88,8 @@ export default function App() {
   const [isCurlModalOpen, setIsCurlModalOpen] = useState(false);
   const [syncQueueCount, setSyncQueueCount] = useState(0);
   const [syncedCount, setSyncedCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
+  const [lastSuccessTime, setLastSuccessTime] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
@@ -108,6 +110,13 @@ export default function App() {
     const handleLogUpdate = (e: any) => {
       const logs = e.detail;
       setSyncedCount(logs.filter((l: any) => l.status === 'synced').length);
+      if (logs.length > 0) {
+        setLastSyncTime(logs[0].timestamp);
+      }
+      const lastSuccess = logs.find((l: any) => l.status === 'synced');
+      if (lastSuccess) {
+        setLastSuccessTime(lastSuccess.timestamp);
+      }
     };
     const handleOnline = () => {
       setIsOffline(false);
@@ -130,6 +139,13 @@ export default function App() {
     });
     syncEngine.getLogs().then(logs => {
       setSyncedCount(logs.filter(l => l.status === 'synced').length);
+      if (logs.length > 0) {
+        setLastSyncTime(logs[0].timestamp);
+      }
+      const lastSuccess = logs.find((l: any) => l.status === 'synced');
+      if (lastSuccess) {
+        setLastSuccessTime(lastSuccess.timestamp);
+      }
     });
 
     return () => {
@@ -1223,28 +1239,50 @@ export default function App() {
         {/* Bottom Status Bar */}
         <footer className="h-6 bg-[var(--border-strong)] text-[var(--text-primary)] text-[10px] px-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setIsSyncLogModalOpen(true)}
-              className="flex items-center gap-2 hover:text-[var(--primary)] transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-1.5">
-                {isSyncing ? (
-                  <RefreshCcw className="w-3.5 h-3.5 animate-spin text-blue-500" />
-                ) : syncQueueCount > 0 ? (
-                  <CloudOff className="w-3.5 h-3.5 text-amber-500" />
-                ) : (
-                  <Cloud className="w-3.5 h-3.5 text-emerald-500" />
-                )}
-                <span>Sync Status:</span>
+            <div className="relative group flex">
+              <button 
+                onClick={() => setIsSyncLogModalOpen(true)}
+                className="flex items-center gap-2 hover:text-[var(--primary)] transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5">
+                  {isSyncing ? (
+                    <RefreshCcw className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                  ) : syncQueueCount > 0 ? (
+                    <CloudOff className="w-3.5 h-3.5 text-amber-500" />
+                  ) : (
+                    <Cloud className="w-3.5 h-3.5 text-emerald-500" />
+                  )}
+                  <span>Sync Status:</span>
+                </div>
+                <div className="flex items-center gap-2 font-medium">
+                  <span className="text-emerald-500">{syncedCount} Synced</span>
+                  <span className="text-[var(--text-secondary)]">/</span>
+                  <span className={syncQueueCount > 0 ? "text-amber-500" : "text-[var(--text-secondary)]"}>
+                    {syncQueueCount} Pending
+                  </span>
+                </div>
+              </button>
+              
+              <div className="absolute bottom-full left-0 mb-2 w-64 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                <div className="flex flex-col gap-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)]">Pending Items:</span>
+                    <span className="font-semibold text-[var(--text-primary)]">{syncQueueCount}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)]">Latest Sync:</span>
+                    <span className="font-semibold text-[var(--text-primary)]">{lastSyncTime ? new Date(lastSyncTime).toLocaleTimeString() : 'Never'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)]">Last Success:</span>
+                    <span className="font-semibold text-emerald-500">{lastSuccessTime ? new Date(lastSuccessTime).toLocaleTimeString() : 'Never'}</span>
+                  </div>
+                  <div className="mt-1 pt-2 border-t border-[var(--border-subtle)] text-[var(--text-secondary)] text-center italic">
+                    Click to view detailed logs
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center gap-2 font-medium">
-                <span className="text-emerald-500">{syncedCount} Synced</span>
-                <span className="text-[var(--text-secondary)]">/</span>
-                <span className={syncQueueCount > 0 ? "text-amber-500" : "text-[var(--text-secondary)]"}>
-                  {syncQueueCount} Pending
-                </span>
-              </div>
-            </button>
+            </div>
             <div className="w-px h-3 bg-[var(--border-subtle)]" />
             <span>v1.0.0 Desktop</span>
           </div>
