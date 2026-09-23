@@ -52,8 +52,9 @@ export function AuthScreen() {
   const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
   const isDesktop = isDesktopEnvironment();
 
-  // Listen to #docs hash
+  // Listen to #docs hash (web only)
   useEffect(() => {
+    if (isDesktop) return;
     const handleHash = () => {
       if (typeof window !== 'undefined' && window.location.hash === '#docs') {
         setShowDocsPage(true);
@@ -62,9 +63,10 @@ export function AuthScreen() {
     handleHash();
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+  }, [isDesktop]);
 
   const openDocs = () => {
+    if (isDesktop) return;
     setShowDocsPage(true);
     if (typeof window !== 'undefined') {
       window.location.hash = 'docs';
@@ -583,8 +585,8 @@ export function AuthScreen() {
     </motion.div>
   );
 
-  // Dedicated Developer Documentation Page
-  if (showDocsPage) {
+  // Dedicated Developer Documentation Page (Web only)
+  if (showDocsPage && !isDesktop) {
     return (
       <DeveloperDocsPage 
         onBack={closeDocs}
@@ -633,16 +635,6 @@ export function AuthScreen() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={openDocs}
-                className="px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] flex items-center gap-1.5 transition-all cursor-pointer"
-                title={language === 'id' ? 'Buka Dokumentasi Developer' : 'Open Developer Docs'}
-              >
-                <BookOpen className="w-3.5 h-3.5 text-[var(--primary)]" />
-                <span>{t.nav.docs}</span>
-              </button>
-
               {/* Language Switcher */}
               <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold">
                 <button
@@ -853,16 +845,6 @@ export function AuthScreen() {
               ) : (
                 <MonitorSmartphone className="w-4 h-4 text-[var(--primary)]" />
               )}
-            </button>
-
-            {/* Desktop Download Button in Header */}
-            <button
-              type="button"
-              onClick={() => setShowDownloadModal(true)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] transition-colors cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-[var(--primary)]" />
-              <span>{t.nav.downloadDesktop}</span>
             </button>
 
             {/* Get Started Button */}

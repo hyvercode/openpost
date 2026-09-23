@@ -159,9 +159,17 @@ To run the desktop version locally:
 npm run electron:dev
 ```
 
-To package for Windows, macOS, and Linux:
+To automatically package for all platforms (Windows `.exe`, macOS `.dmg`/`.zip`, Linux `.AppImage`/`.tar.gz`):
 ```bash
 npm run build:electron
+# or explicitly: npm run build:electron:all
+```
+
+To build for a specific operating system:
+```bash
+npm run build:electron:win    # Windows (NSIS Installer)
+npm run build:electron:mac    # macOS (DMG & Zip)
+npm run build:electron:linux  # Linux (AppImage & tar.gz)
 ```
 
 ---
