@@ -1,12 +1,20 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
-import { Play, Plus, Trash2, Save, Sliders, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap, MoreVertical, Code2, Upload, FolderPlus } from 'lucide-react';
+import { Play, Plus, Trash2, Save, Sliders, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap, MoreVertical, Code2, Upload, FolderPlus, Square, Gauge, Timer } from 'lucide-react';
 import { KeyValue, RequestAuth, RequestItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService, api } from '../lib/api';
 import { CurlImportModal } from './CurlImportModal';
 import { CodeSnippetModal } from './CodeSnippetModal';
+import { RateLimiterModal } from './RateLimiterModal';
+import { 
+  RateLimiterConfig, 
+  loadRateLimiterConfig, 
+  saveRateLimiterConfig, 
+  checkRateLimit, 
+  generate429Response 
+} from '../utils/rateLimiter';
 import { AutocompleteInput, AutocompleteTextarea } from './AutocompleteInput';
 import { JsonEditor } from './JsonEditor';
 import { motion, AnimatePresence } from 'motion/react';
@@ -134,8 +142,44 @@ export function RequestPanel() {
   const [protoServiceName, setProtoServiceName] = useState('');
   const [protoMethodName, setProtoMethodName] = useState('');
 
+  // Request Rate Limiter States
+  const [rateLimiterConfig, setRateLimiterConfig] = useState<RateLimiterConfig>(loadRateLimiterConfig);
+  const [isRateLimiterModalOpen, setIsRateLimiterModalOpen] = useState(false);
+  const [requestTimestamps, setRequestTimestamps] = useState<number[]>([]);
+  const [rateLimitCooldownSec, setRateLimitCooldownSec] = useState<number>(0);
+
+  // Live background ticker for rate limit cooldown countdown
+  useEffect(() => {
+    if (!rateLimiterConfig.enabled) {
+      if (rateLimitCooldownSec !== 0) setRateLimitCooldownSec(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const status = checkRateLimit(requestTimestamps, rateLimiterConfig, now);
+      setRateLimitCooldownSec(status.allowed ? 0 : status.resetInSeconds);
+    }, 400);
+    return () => clearInterval(interval);
+  }, [rateLimiterConfig, requestTimestamps, rateLimitCooldownSec]);
+
+  const handleResetRateLimitQuota = () => {
+    setRequestTimestamps([]);
+    setRateLimitCooldownSec(0);
+    addToast('Rate limit quota reset successfully', 'success', 2000);
+    addConsoleLog('info', 'Rate limiter sliding window quota reset manually');
+  };
+
+  const handleSaveRateLimiterConfig = (newConfig: RateLimiterConfig) => {
+    setRateLimiterConfig(newConfig);
+    saveRateLimiterConfig(newConfig);
+    const check = checkRateLimit(requestTimestamps, newConfig);
+    setRateLimitCooldownSec(check.allowed ? 0 : check.resetInSeconds);
+    addToast(`Rate Limiter ${newConfig.enabled ? 'enabled' : 'disabled'} (${newConfig.maxRequests} req / ${newConfig.windowSeconds}s)`, 'info', 2500);
+  };
+
   const activeRequestIdRef = useRef<string | null>(null);
   const skipNextAutosave = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleCurlImport = (curlData: { method: string, url: string, headers: Array<{key: string, value: string}>, body: string }) => {
     setMethod(curlData.method);
@@ -435,6 +479,38 @@ if (method === 'WS') {
     }
 
     if (!url) return;
+    
+    // Rate Limiter Check (Mimic real-world network constraints and API usage limits)
+    if (rateLimiterConfig.enabled) {
+      const now = Date.now();
+      const check = checkRateLimit(requestTimestamps, rateLimiterConfig, now);
+      if (!check.allowed) {
+        if (rateLimiterConfig.mode === 'simulate_429') {
+          // Record attempt in sliding window
+          setRequestTimestamps(prev => [...prev.slice(-40), now]);
+          const sim429 = generate429Response(rateLimiterConfig, check.resetInSeconds, url, method);
+          setResponse(sim429);
+          setIsRequestLoading(false);
+          addToast(`429 Too Many Requests: Rate limit exceeded (${check.currentCount}/${rateLimiterConfig.maxRequests} in ${rateLimiterConfig.windowSeconds}s)`, 'warning', 4000);
+          addConsoleLog('warn', `Simulated 429 Too Many Requests: Rate limit reached (${check.currentCount}/${rateLimiterConfig.maxRequests} req in ${rateLimiterConfig.windowSeconds}s). Retry-After: ${check.resetInSeconds}s`);
+          return;
+        } else {
+          // 'block' mode
+          setRateLimitCooldownSec(check.resetInSeconds);
+          addToast(`Rate limit reached: Please wait ${check.resetInSeconds}s before sending another request`, 'warning', 3000);
+          addConsoleLog('warn', `Request blocked by Rate Limiter: ${check.currentCount}/${rateLimiterConfig.maxRequests} requests within ${rateLimiterConfig.windowSeconds}s window.`);
+          return;
+        }
+      }
+      // Record allowed request timestamp
+      setRequestTimestamps(prev => [...prev.slice(-40), now]);
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    
     setIsRequestLoading(true);
     setResponse(null);
     addToast(`${method} request sent`, 'info', 2000);
@@ -687,7 +763,7 @@ if (method === 'WS') {
         body: parsedBody ? { content: typeof parsedBody === 'string' ? parsedBody : JSON.stringify(parsedBody) } : undefined,
       };
 
-      const resData = await apiService.executeRequest(reqPayload, proxyConfig, requestMode === 'direct');
+      const resData = await apiService.executeRequest(reqPayload, proxyConfig, requestMode === 'direct', abortControllerRef.current?.signal);
       
       if (resData.isBase64 && computedBodyType === 'protobuf') {
         try {
@@ -864,6 +940,19 @@ if (method === 'WS') {
       }
 
     } catch (error: any) {
+      if (error.name === 'CanceledError' || error.message?.toLowerCase().includes('canceled') || error.code === 'ERR_CANCELED') {
+        addToast(`Request canceled`, 'info');
+        setResponse({
+          error: true,
+          status: 0,
+          statusText: 'Canceled',
+          data: { error: 'Request was canceled by the user' },
+          headers: {}
+        });
+        setIsRequestLoading(false);
+        return;
+      }
+
       const errRes = {
         error: true,
         data: error.response?.data || error.message,
@@ -1451,30 +1540,86 @@ if (method === 'WS') {
           </div>
 
           <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
-            <button 
-              onClick={handleSend}
-              disabled={isRequestLoading || ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting')}
-              className={cn(
-                "text-white px-4 sm:px-6 py-2 sm:py-0 rounded-lg font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none min-h-[36px]",
-                (method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connected' ? "bg-red-500 hover:bg-red-600" : "bg-[var(--primary)] hover:bg-[#e65a2d]",
-                "disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              )}
-            >
-              {isRequestLoading || ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting') ? (
-                <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Play className="w-4 h-4 fill-current hidden" />
-              )}
-              {method === 'WS' 
-                ? (wsStatus[activeRequest?.id || ''] === 'connected' ? 'Disconnect' : wsStatus[activeRequest?.id || ''] === 'connecting' ? 'Connecting' : 'Connect') 
-                : 'Send'}
-            </button>
+            {isRequestLoading && method !== 'WS' && method !== 'SSE' ? (
+              <button 
+                onClick={() => {
+                  if (abortControllerRef.current) {
+                    abortControllerRef.current.abort();
+                  }
+                }}
+                className={cn(
+                  "text-white px-4 sm:px-6 py-2 sm:py-0 rounded-lg font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none min-h-[36px]",
+                  "bg-red-500 hover:bg-red-600 cursor-pointer"
+                )}
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                Cancel
+              </button>
+            ) : (
+              <button 
+                onClick={handleSend}
+                disabled={
+                  (rateLimiterConfig.enabled && rateLimiterConfig.mode === 'block' && rateLimitCooldownSec > 0) ||
+                  ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting')
+                }
+                className={cn(
+                  "text-white px-4 sm:px-6 py-2 sm:py-0 rounded-lg font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none min-h-[36px]",
+                  rateLimiterConfig.enabled && rateLimiterConfig.mode === 'block' && rateLimitCooldownSec > 0
+                    ? "bg-amber-600 hover:bg-amber-700 opacity-90"
+                    : (method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connected' 
+                    ? "bg-red-500 hover:bg-red-600" 
+                    : "bg-[var(--primary)] hover:bg-[#e65a2d]",
+                  "disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                )}
+              >
+                {rateLimiterConfig.enabled && rateLimiterConfig.mode === 'block' && rateLimitCooldownSec > 0 ? (
+                  <span className="flex items-center gap-1.5 font-mono">
+                    <Clock className="w-3.5 h-3.5 animate-spin" />
+                    Wait {rateLimitCooldownSec}s
+                  </span>
+                ) : ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting') ? (
+                  <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Play className="w-4 h-4 fill-current hidden" />
+                )}
+                {!(rateLimiterConfig.enabled && rateLimiterConfig.mode === 'block' && rateLimitCooldownSec > 0) && (
+                  method === 'WS' 
+                    ? (wsStatus[activeRequest?.id || ''] === 'connected' ? 'Disconnect' : wsStatus[activeRequest?.id || ''] === 'connecting' ? 'Connecting' : 'Connect') 
+                    : method === 'SSE'
+                    ? (wsStatus[activeRequest?.id || ''] === 'connected' ? 'Disconnect' : wsStatus[activeRequest?.id || ''] === 'connecting' ? 'Connecting' : 'Connect') 
+                    : 'Send'
+                )}
+              </button>
+            )}
             
             <div className="hidden sm:flex items-center justify-center text-xs font-medium text-[var(--text-secondary)] shrink-0 px-1">
               {saveStatus === 'Saving...' && <span className="animate-pulse">Saving...</span>}
               {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
               {saveStatus === 'Changed' && <span>Unsaved...</span>}
             </div>
+
+            {/* Rate Limiter Quick Trigger */}
+            <button
+              onClick={() => setIsRateLimiterModalOpen(true)}
+              title={`API Rate Limiter: ${rateLimiterConfig.enabled ? (rateLimiterConfig.mode === 'simulate_429' ? 'Simulating 429' : 'Active') : 'Disabled'}. Click to configure network constraints and limits.`}
+              className={cn(
+                "p-2 sm:px-2.5 sm:py-2 rounded-lg border transition-all flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 min-h-[36px]",
+                rateLimiterConfig.enabled
+                  ? rateLimitCooldownSec > 0
+                    ? "bg-red-500/10 border-red-500/40 text-red-500 animate-pulse"
+                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
+                  : "bg-[var(--bg-hover)] border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-focus)]"
+              )}
+            >
+              <Gauge className={cn("w-4 h-4 shrink-0", rateLimiterConfig.enabled ? (rateLimitCooldownSec > 0 ? "text-red-500" : "text-emerald-500") : "text-[var(--text-secondary)]")} />
+              <span className="hidden xl:inline">
+                {rateLimiterConfig.enabled
+                  ? rateLimitCooldownSec > 0
+                    ? `Cooldown ${rateLimitCooldownSec}s`
+                    : `${requestTimestamps.filter(t => t > Date.now() - rateLimiterConfig.windowSeconds * 1000).length}/${rateLimiterConfig.maxRequests} req`
+                  : 'Rate Limiter'}
+              </span>
+            </button>
 
             {/* Code Snippet Button */}
             <button
@@ -1570,6 +1715,28 @@ if (method === 'WS') {
                   </select>
                 </div>
 
+                {/* Rate Limiter Setting */}
+                <button
+                  onClick={() => {
+                    setIsKebabMenuOpen(false);
+                    setIsRateLimiterModalOpen(true);
+                  }}
+                  className="w-full px-2 py-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded font-medium transition-colors flex items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <Gauge className="w-4 h-4 text-[var(--primary)]" />
+                    <span>Rate Limiter</span>
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider",
+                    rateLimiterConfig.enabled
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                      : "bg-gray-500/10 border-gray-500/30 text-[var(--text-secondary)]"
+                  )}>
+                    {rateLimiterConfig.enabled ? 'On' : 'Off'}
+                  </span>
+                </button>
+
                 {/* Code Snippet Generator */}
                 <button
                   onClick={() => {
@@ -1598,6 +1765,50 @@ if (method === 'WS') {
           </div>
         </div>
       </div>
+
+        {/* Rate Limiting Active Banner (Block Mode) */}
+        {rateLimiterConfig.enabled && rateLimiterConfig.mode === 'block' && rateLimitCooldownSec > 0 && (
+          <div className="mt-2 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-md flex items-center justify-between text-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-red-500 font-semibold">
+              <AlertCircle className="w-4 h-4 shrink-0 animate-bounce" />
+              <span>
+                Rate Limit Exceeded: Please wait <strong>{rateLimitCooldownSec}s</strong> before sending another request ({rateLimiterConfig.maxRequests} req / {rateLimiterConfig.windowSeconds}s constraint active).
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setIsRateLimiterModalOpen(true)}
+                className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded text-[11px] font-bold transition-colors cursor-pointer"
+              >
+                Configure
+              </button>
+              <button
+                onClick={handleResetRateLimitQuota}
+                className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-bold transition-colors cursor-pointer shadow-sm"
+              >
+                Bypass / Reset
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Rate Limiting Simulation Banner (429 Mode) */}
+        {rateLimiterConfig.enabled && rateLimiterConfig.mode === 'simulate_429' && (
+          <div className="mt-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center justify-between text-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-[var(--text-primary)]">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span className="text-[11px] text-[var(--text-secondary)]">
+                Rate Limiter in <strong>Simulate 429 mode</strong>: Exceeding {rateLimiterConfig.maxRequests} req / {rateLimiterConfig.windowSeconds}s will generate mock HTTP 429 Too Many Requests responses for API resilience testing.
+              </span>
+            </div>
+            <button
+              onClick={() => setIsRateLimiterModalOpen(true)}
+              className="text-[10px] text-amber-500 font-bold hover:underline shrink-0 ml-2 cursor-pointer"
+            >
+              Adjust
+            </button>
+          </div>
+        )}
 
         {urlErrorMsg && (
           <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium px-1">
@@ -2350,6 +2561,15 @@ if (method === 'WS') {
           gqlVariables,
           authConfig
         }}
+      />
+
+      <RateLimiterModal
+        isOpen={isRateLimiterModalOpen}
+        onClose={() => setIsRateLimiterModalOpen(false)}
+        config={rateLimiterConfig}
+        onSaveConfig={handleSaveRateLimiterConfig}
+        requestTimestamps={requestTimestamps}
+        onResetQuota={handleResetRateLimitQuota}
       />
     </motion.div>
   );

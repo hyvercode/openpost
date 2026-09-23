@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2, Sparkles, Printer, Trash2 } from 'lucide-react';
+import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2, Sparkles, Printer, Trash2, FileText, AlignLeft } from 'lucide-react';
 import { cn } from '../utils';
 import { apiService } from '../lib/api';
 import { MockSettings } from './MockSettings';
 import { ConfirmModal } from './ConfirmModal';
 import { generateCollectionMarkdown } from '../utils/markdownGenerator';
 import { generateCollectionPdf } from '../utils/pdfGenerator';
+import { downloadWordDocument } from '../utils/wordGenerator';
+import { generateCollectionConfluenceMarkup } from '../utils/confluenceGenerator';
 import ReactMarkdown from 'react-markdown';
 
 // Helper for custom regex-based markdown parser
@@ -164,7 +166,7 @@ export function CollectionDocPanel() {
   const [selectedEndpoints, setSelectedEndpoints] = useState<Set<string>>(new Set());
 
   // PDF Export States
-  const [exportFormat, setExportFormat] = useState<'markdown' | 'pdf'>('markdown');
+  const [exportFormat, setExportFormat] = useState<'markdown' | 'pdf' | 'word' | 'confluence'>('markdown');
   const [pdfTitle, setPdfTitle] = useState('');
   const [pdfIncludeIntro, setPdfIncludeIntro] = useState(true);
   const [pdfAccentColor, setPdfAccentColor] = useState('#4F46E5');
@@ -389,6 +391,11 @@ export function CollectionDocPanel() {
 
   const generatedMarkdown = useMemo(() => 
     collectionItem ? generateCollectionMarkdown(collectionItem, selectedEndpoints, docVersion) : '', 
+    [collectionItem, selectedEndpoints, docVersion]
+  );
+
+  const generatedConfluence = useMemo(() => 
+    collectionItem ? generateCollectionConfluenceMarkup(collectionItem, selectedEndpoints, docVersion) : '', 
     [collectionItem, selectedEndpoints, docVersion]
   );
 
@@ -794,7 +801,7 @@ You can write step-by-step startup instructions.
                 <Share2 className="w-4 h-4 text-[var(--primary)]" />
                 <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Export Format:</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setExportFormat('markdown')}
                   className={cn(
@@ -818,6 +825,30 @@ You can write step-by-step startup instructions.
                 >
                   <BookOpen className="w-3.5 h-3.5" />
                   PDF Report (.pdf)
+                </button>
+                <button
+                  onClick={() => setExportFormat('word')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                    exportFormat === 'word'
+                      ? "bg-blue-600 text-white border-transparent shadow-sm"
+                      : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-blue-500 hover:border-blue-500/30"
+                  )}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  Word (.doc)
+                </button>
+                <button
+                  onClick={() => setExportFormat('confluence')}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                    exportFormat === 'confluence'
+                      ? "bg-[#0052CC] text-white border-transparent shadow-sm"
+                      : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[#0052CC] hover:border-[#0052CC]/30"
+                  )}
+                >
+                  <AlignLeft className="w-3.5 h-3.5" />
+                  Confluence/Jira
                 </button>
               </div>
             </div>
@@ -1022,7 +1053,7 @@ You can write step-by-step startup instructions.
                       </div>
                     </div>
                   </>
-                ) : (
+                ) : exportFormat === 'pdf' ? (
                   /* PDF Preview Blueprint Outline */
                   <div className="flex-1 flex flex-col min-h-0">
                     <div className="flex items-center justify-between mb-4 shrink-0">
@@ -1171,6 +1202,63 @@ You can write step-by-step startup instructions.
                         )}
                       </div>
 
+                    </div>
+                  </div>
+                ) : exportFormat === "word" ? (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="flex items-center justify-between mb-4 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-sm font-bold text-[var(--text-primary)]">Word Document (.doc)</h3>
+                        <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Office Ready</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (selectedEndpoints.size === 0) {
+                            addToast("Please select at least one endpoint to export", "warning");
+                            return;
+                          }
+                          downloadWordDocument(collectionItem, selectedEndpoints, docVersion);
+                          addToast("Word documentation compiled and downloaded!", "success", 2500);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition-all cursor-pointer"
+                      >
+                        <Download className="w-4 h-4" />
+                        Export Word Document
+                      </button>
+                    </div>
+                    <div className="flex-1 min-h-0 bg-white border border-[var(--border-subtle)] rounded-xl overflow-hidden flex flex-col shadow-inner text-gray-900">
+                      <div className="flex-1 overflow-y-auto p-8 prose prose-slate max-w-none select-text custom-scrollbar">
+                         <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
+                           <FileText className="w-16 h-16 opacity-20" />
+                           <p className="text-sm">Click "Export Word Document" to generate a complete .doc file.</p>
+                         </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="flex items-center justify-between mb-4 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-sm font-bold text-[var(--text-primary)]">Confluence / Jira Markup</h3>
+                        <span className="text-[10px] bg-[#0052CC]/10 text-[#0052CC] border border-[#0052CC]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Atlassian Ready</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                           navigator.clipboard.writeText(generatedConfluence);
+                           addToast("Confluence markup copied!", "success", 2000);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[#0052CC] hover:bg-[#0047B3] text-white rounded-lg shadow-md transition-all cursor-pointer"
+                      >
+                        <Copy className="w-4 h-4" />
+                        Copy Markup
+                      </button>
+                    </div>
+                    <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl overflow-hidden flex flex-col shadow-inner">
+                      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        <pre className="text-xs font-mono text-[var(--text-secondary)] whitespace-pre-wrap select-all">
+                          {generatedConfluence}
+                        </pre>
+                      </div>
                     </div>
                   </div>
                 )}

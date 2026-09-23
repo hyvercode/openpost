@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Copy, Trash2, XCircle } from 'lucide-react';
 import { cn } from '../utils';
 
 export function TabBar() {
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, tabId: string } | null>(null);
+
   const {
     openTabs,
     activeTabId,
     setActiveTabId,
     closeTab,
+    closeAllTabs,
     activeView,
     setActiveView,
     setActiveRequest,
@@ -18,6 +21,21 @@ export function TabBar() {
     draftRequests,
     createStandaloneRequest
   } = useStore();
+
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const handleContextMenu = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      tabId: id
+    });
+  };
 
   const isTabActive = (tab: typeof openTabs[0]) => {
     if (activeTabId !== tab.id) return false;
@@ -73,6 +91,7 @@ export function TabBar() {
           <div 
             key={tab.id}
             onClick={() => handleTabClick(tab)}
+            onContextMenu={(e) => handleContextMenu(e, tab.id)}
             className={cn(
               "flex items-center gap-2 px-3 py-2 border-r border-[var(--border-subtle)] max-w-[200px] cursor-pointer group text-xs shrink-0",
               isTabActive(tab) ? "bg-[var(--bg-panel)] text-[var(--text-primary)] border-t-2 border-t-[var(--primary)]" : "bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-panel)]"
@@ -111,6 +130,47 @@ export function TabBar() {
       >
         <Plus className="w-3.5 h-3.5" />
       </button>
+
+      {contextMenu && (
+        <div 
+          className="fixed z-50 bg-[var(--bg-panel)] border border-[var(--border-subtle)] shadow-xl rounded-md py-1 flex flex-col min-w-[160px] text-xs"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button 
+            className="flex items-center gap-2 px-3 py-1.5 text-left hover:bg-[var(--bg-hover)] text-[var(--text-primary)] w-full transition-colors"
+            onClick={() => {
+              closeTab(contextMenu.tabId);
+              setContextMenu(null);
+            }}
+          >
+            <X className="w-3.5 h-3.5" />
+            Close Tab
+          </button>
+          <button 
+            className="flex items-center gap-2 px-3 py-1.5 text-left hover:bg-[var(--bg-hover)] text-[var(--text-primary)] w-full transition-colors"
+            onClick={() => {
+              const tabIdsToClose = openTabs.filter(t => t.id !== contextMenu.tabId).map(t => t.id);
+              tabIdsToClose.forEach(id => closeTab(id));
+              setContextMenu(null);
+            }}
+          >
+            <XCircle className="w-3.5 h-3.5" />
+            Close Other Tabs
+          </button>
+          <div className="h-px w-full bg-[var(--border-subtle)] my-1" />
+          <button 
+            className="flex items-center gap-2 px-3 py-1.5 text-left hover:bg-red-500/10 text-red-500 w-full transition-colors"
+            onClick={() => {
+              closeAllTabs();
+              setContextMenu(null);
+            }}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Close All Tabs
+          </button>
+        </div>
+      )}
     </div>
   );
 }

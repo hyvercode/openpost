@@ -11,7 +11,7 @@ function createPrismaClient(): PrismaClient {
   if (databaseUrl.startsWith('file:') || databaseUrl.startsWith('sqlite:')) {
     const dbPath = databaseUrl.replace('file:', '').replace('sqlite:', '').replace(/^\/\//, '');
     const db = new Database(dbPath);
-    const adapter = new PrismaBetterSqlite3(db);
+    const adapter = new PrismaBetterSqlite3(db as any);
     return new PrismaClient({ adapter });
   } else if (databaseUrl.startsWith('postgres://') || databaseUrl.startsWith('postgresql://')) {
     const pool = new pg.Pool({ connectionString: databaseUrl });
