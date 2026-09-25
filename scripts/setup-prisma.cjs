@@ -15,7 +15,7 @@ if (url.startsWith('postgres://') || url.startsWith('postgresql://')) {
 } else if (url.startsWith('file:') || url.startsWith('sqlite:')) {
   provider = 'sqlite';
 } else if (!provider) {
-  provider = 'postgresql';
+  provider = 'sqlite';
 }
 
 console.log(`Setting up Prisma for provider: ${provider} (DATABASE_URL protocol: ${url.split(':')[0] || 'none'})`);

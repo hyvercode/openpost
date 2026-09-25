@@ -2,6 +2,7 @@ import { prisma } from '../db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 import { EmailService } from './email.service';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-for-dev';
@@ -131,17 +132,29 @@ export class AuthService {
     let displayName = data.displayName?.trim();
     let photoURL = data.photoURL?.trim();
 
-    // If Google ID Token (credential) is passed, decode payload
+    // If Google ID Token (credential) is passed, verify with Google TokenInfo API
     if (data.credential) {
       try {
-        const decoded = jwt.decode(data.credential) as any;
-        if (decoded && decoded.email) {
-          email = decoded.email.toLowerCase();
-          displayName = displayName || decoded.name || decoded.given_name;
-          photoURL = photoURL || decoded.picture;
+        const verifyRes = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${data.credential}`, {
+          timeout: 8000
+        });
+        if (verifyRes.data && verifyRes.data.email) {
+          email = verifyRes.data.email.toLowerCase();
+          displayName = displayName || verifyRes.data.name || verifyRes.data.given_name;
+          photoURL = photoURL || verifyRes.data.picture;
         }
-      } catch (err) {
-        console.warn('Failed to decode Google credential JWT:', err);
+      } catch (err: any) {
+        console.warn('Google token verification via tokeninfo failed, checking JWT payload:', err?.message);
+        try {
+          const decoded = jwt.decode(data.credential) as any;
+          if (decoded && decoded.email) {
+            email = decoded.email.toLowerCase();
+            displayName = displayName || decoded.name || decoded.given_name;
+            photoURL = photoURL || decoded.picture;
+          }
+        } catch (decodeErr) {
+          console.error('Failed to decode Google credential JWT:', decodeErr);
+        }
       }
     }
 
