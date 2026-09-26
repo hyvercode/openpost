@@ -731,7 +731,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-2.5 md:px-4 shrink-0 bg-[var(--bg-panel)] shadow-2xs select-none gap-2 overflow-x-auto scrollbar-none">
           {/* Left Context Controls */}
-          <div className="flex items-center gap-2 md:gap-3 shrink-0">
+          <div className="flex-1 flex items-center gap-2 md:gap-3 min-w-0 pr-2">
             <button 
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
               className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1 shadow-2xs cursor-pointer shrink-0"
@@ -785,16 +785,21 @@ export default function App() {
             {/* Quick Search Workspace Trigger */}
             <button
               onClick={() => setIsQuickSearchOpen(true)}
-              className="flex items-center gap-2 bg-[var(--bg-hover)]/60 hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg px-2.5 py-1 transition-all shadow-2xs cursor-pointer group shrink-0"
+              className="flex-1 max-w-sm min-w-[120px] flex items-center justify-between gap-2 bg-[var(--bg-hover)]/60 hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg px-2.5 py-1.5 transition-all shadow-2xs cursor-pointer group"
               title="Quick Search Workspace (Cmd+K / Ctrl+K)"
             >
-              <Search className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--primary)] transition-colors" />
-              <span className="hidden sm:inline font-medium">Search...</span>
-              <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-[var(--text-tertiary)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded shadow-2xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <Search className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--primary)] transition-colors shrink-0" />
+                <span className="truncate font-medium">Search...</span>
+              </div>
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-[var(--text-tertiary)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded shadow-2xs shrink-0">
                 <span className="text-[11px]">⌘</span>K
               </kbd>
             </button>
+          </div>
 
+          {/* Right Layout, Mode & Preferences Controls */}
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             {/* Quick Actions Group */}
             <div className="flex items-center bg-[var(--bg-hover)]/40 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
               <button
@@ -877,10 +882,6 @@ export default function App() {
                 <HelpCircle className="w-4 h-4" />
               </button>
             </div>
-          </div>
-
-          {/* Right Layout & Preferences Controls */}
-          <div className="flex items-center gap-2 shrink-0">
             {/* Layout Split Mode Segment */}
             <div className="flex items-center bg-[var(--bg-hover)]/50 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
               <button
