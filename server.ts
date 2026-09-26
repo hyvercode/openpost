@@ -30,7 +30,7 @@ async function startServer() {
   const app = express();
   
   // Dev server must always run on port 3000 per AI Studio environment constraints
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(cors());
   app.use(express.json({ limit: "50mb" }));

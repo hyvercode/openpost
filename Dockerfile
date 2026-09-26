@@ -14,7 +14,7 @@ COPY prisma ./prisma/
 RUN npm install
 
 # Sediakan dummy DATABASE_URL agar `prisma generate` tidak error saat build
-ENV DATABASE_URL="file:/app/data/dev.db"
+ENV DATABASE_URL="postgresql://postgres:Hyvercode@123!@localhost:5432/openpost?schema=public"
 
 # Generate Prisma Client (Sesuaikan jika di package.json Anda namanya 'db:setup')
 RUN npx prisma generate
@@ -55,5 +55,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+# ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "dist/server.cjs"]
