@@ -152,6 +152,147 @@ export function AuthScreen() {
     }
   }, []);
 
+  // Google OAuth Direct Handling: Check for incoming OAuth redirect tokens in URL hash
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const hash = window.location.hash;
+    if (hash && (hash.includes('access_token=') || hash.includes('id_token='))) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const idToken = params.get('id_token');
+
+      // Clear tokens from the URL bar immediately for security and clean display
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+      if (accessToken || idToken) {
+        processGoogleAuth({
+          accessToken: accessToken || undefined,
+          idToken: idToken || undefined,
+        });
+      }
+    }
+  }, []);
+
+  const processGoogleAuth = async ({
+    idToken,
+    accessToken,
+  }: {
+    idToken?: string;
+    accessToken?: string;
+  }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      let email = '';
+      let displayName = '';
+      let photoURL = '';
+
+      if (accessToken) {
+        try {
+          const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (userinfoRes.ok) {
+            const data = await userinfoRes.json();
+            email = data.email;
+            displayName = data.name || data.given_name;
+            photoURL = data.picture;
+          }
+        } catch (fetchErr) {
+          console.warn('Could not fetch userinfo from Google with accessToken:', fetchErr);
+        }
+      }
+
+      const res = await api.post('/auth/google', {
+        credential: idToken || undefined,
+        email: email || undefined,
+        displayName: displayName || undefined,
+        photoURL: photoURL || undefined,
+      });
+
+      const { user, token, message } = res.data;
+      localStorage.setItem('auth_token', token);
+      setUser(user);
+      addToast(
+        message ||
+          (language === 'id'
+            ? `Berhasil masuk sebagai ${user.displayName || user.email}!`
+            : `Logged in as ${user.displayName || user.email}!`),
+        'success',
+        3500
+      );
+    } catch (err: any) {
+      console.error('Google Auth callback error:', err);
+      setError(
+        err.response?.data?.error ||
+          (language === 'id' ? 'Gagal verifikasi Google Auth dengan server.' : 'Google authentication failed.')
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDirectGoogleAuth = async () => {
+    const customClientId = localStorage.getItem('openpost_google_client_id') || '';
+    const activeClientId = customClientId || (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '';
+
+    let clientIdToUse = activeClientId.trim();
+    if (!clientIdToUse) {
+      const enteredId = window.prompt(
+        language === 'id'
+          ? 'Masukkan Google OAuth Client ID (dari Google Cloud Console) untuk mengarahkan ke akun Google:'
+          : 'Enter your Google OAuth Client ID to redirect directly to Google Auth:'
+      );
+      if (!enteredId || !enteredId.trim()) {
+        return;
+      }
+      clientIdToUse = enteredId.trim();
+      localStorage.setItem('openpost_google_client_id', clientIdToUse);
+    }
+
+    setLoading(true);
+    setError(null);
+
+    // If GIS OAuth2 Token Client is available, trigger popup
+    if (window.google?.accounts?.oauth2) {
+      try {
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientIdToUse,
+          scope: 'openid email profile',
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse?.error) {
+              setLoading(false);
+              setError(tokenResponse.error_description || tokenResponse.error);
+              return;
+            }
+            if (tokenResponse?.access_token) {
+              await processGoogleAuth({ accessToken: tokenResponse.access_token });
+            }
+          },
+        });
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch (gisError) {
+        console.warn('Google Identity Services popup error, falling back to direct redirect:', gisError);
+      }
+    }
+
+    // Direct redirect to Google OAuth 2.0 authorization endpoint
+    const redirectUri = window.location.origin + window.location.pathname;
+    const nonce = Math.random().toString(36).substring(2);
+    const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+      clientIdToUse
+    )}&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&response_type=token%20id_token&scope=${encodeURIComponent(
+      'openid email profile'
+    )}&nonce=${nonce}&prompt=select_account`;
+
+    // Direct redirect to Google Auth!
+    window.location.href = googleAuthUrl;
+  };
+
   const verifyEmailToken = async (token: string) => {
     setLoading(true);
     setError(null);
@@ -526,10 +667,11 @@ export function AuthScreen() {
                 </span>
               </div>
 
-              {/* Google Auth Button */}
+              {/* Google Auth Button - Directly triggers Google Auth */}
               <button
                 type="button"
-                onClick={() => setShowGoogleModal(true)}
+                onClick={handleDirectGoogleAuth}
+                disabled={loading}
                 className="w-full h-11 bg-white hover:bg-zinc-100 text-zinc-900 rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 cursor-pointer border border-zinc-200 group"
               >
                 <svg className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
@@ -542,6 +684,20 @@ export function AuthScreen() {
                   {authMode === 'login' ? t.auth.signInWithGoogle : t.auth.signUpWithGoogle}
                 </span>
               </button>
+
+              <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] px-1 pt-0.5">
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  Google OAuth 2.0
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowGoogleModal(true)}
+                  className="hover:underline text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                >
+                  {language === 'id' ? 'Opsi Lanjutan' : 'Advanced Options'}
+                </button>
+              </div>
             </div>
           )}
         </form>
