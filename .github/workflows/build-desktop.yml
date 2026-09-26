@@ -1,0 +1,55 @@
+name: Build Desktop Apps (Multi-Platform)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: --linux
+            platform_name: Linux
+          - os: windows-latest
+            target: --win
+            platform_name: Windows
+          - os: macos-latest
+            target: --mac
+            platform_name: macOS
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Prisma Client
+        run: npm run db:setup
+
+      - name: Build Web Assets
+        run: npm run build
+
+      - name: Package Desktop App with Electron Builder
+        run: npx electron-builder build ${{ matrix.target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openpost-${{ matrix.platform_name }}
+          path: release/*
+          if-no-files-found: warn
