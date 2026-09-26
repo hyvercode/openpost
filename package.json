@@ -27,7 +27,7 @@
     "test": "vitest run",
     "bridge": "node agent/desktop-agent.js",
     "build:agent": "mkdir -p public/downloads && npx pkg agent/desktop-agent.js -t node18-win-x64,node18-linux-x64,node18-macos-x64 --out-path public/downloads",
-    "build:electron": "npm run build && electron-builder build -mwl",
+    "build:electron": "npm run build && electron-builder build",
     "build:electron:all": "npm run build && electron-builder build -mwl",
     "build:electron:win": "npm run build && electron-builder build --win",
     "build:electron:mac": "npm run build && electron-builder build --mac",
