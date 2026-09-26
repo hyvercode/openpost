@@ -947,7 +947,7 @@ export function AuthScreen() {
             </button>
 
             <a 
-              href="https://github.com/hyvercode" 
+              href="https://github.com/hyvercode/openpost" 
               target="_blank" 
               rel="noreferrer" 
               className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
@@ -1345,7 +1345,7 @@ export function AuthScreen() {
               {t.nav.downloadDesktop}
             </button>
             <a 
-              href="https://github.com/hyvercode" 
+              href="https://github.com/hyvercode/openpost" 
               target="_blank" 
               rel="noreferrer"
               className="hover:text-[var(--text-primary)] transition-colors"
