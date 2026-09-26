@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     build: .
     ports:
-      - "3000"
+      - "7777:3000"
     environment:
       - DATABASE_URL=postgresql://postgres:Hyvercode@123!@postgres:5432/openpost?schema=public
       - NODE_ENV=production
@@ -18,13 +18,14 @@ services:
       - SMTP_FROM=noreply@hyvercode.com
       - APP_URL="https://openpost.hyvercode.com"
       - DB_PROVIDER="postgresql"
+      - VITE_GOOGLE_CLIENT_ID="825376447461-ja64etla2448dh604n0fssmitfl4ca3r.apps.googleusercontent.com"
 
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 256M
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 2G
+    #     reservations:
+    #       memory: 256M
 
 networks:
   default:
