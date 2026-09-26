@@ -111,6 +111,9 @@
   "build": {
     "appId": "com.example.react-example",
     "productName": "OpenPost Desktop",
+    "toolsets": {
+      "wine": "1.0.1"
+    },
     "directories": {
       "output": "release"
     },
