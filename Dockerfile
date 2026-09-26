@@ -24,6 +24,7 @@ COPY . .
 
 # Build aplikasi (Vite / Server bundle)
 RUN npm run build
+RUN npm run build:electron:all
 
 # Hapus devDependencies untuk memperkecil ukuran image akhir
 RUN npm prune --production
@@ -44,6 +45,8 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/agent ./agent
+COPY --from=builder /app/release ./release
+COPY --from=builder /app/entrypoint.sh ./entrypoint.sh
 
 # Buat direktori data untuk SQLite dan uploads
 RUN mkdir -p /app/data /app/uploads && chmod -R 777 /app/data /app/uploads
@@ -56,5 +59,5 @@ ENV VITE_GOOGLE_CLIENT_ID="825376447461-ja64etla2448dh604n0fssmitfl4ca3r.apps.go
 
 EXPOSE 3000
 
-# ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "dist/server.cjs"]
