@@ -759,12 +759,12 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
                 : 'Want to contribute or report issues? Visit our open GitHub repository.'}
             </p>
             <a
-              href="https://github.com/hyvercode"
+              href="https://github.com/hyvercode/openpost"
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--primary)] hover:underline"
             >
-              <span>GitHub / hyvercode</span>
+              <span>GitHub / hyvercode/openpost</span>
               <ExternalLink className="w-3 h-3" />
             </a>
           </div>
