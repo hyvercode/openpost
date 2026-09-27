@@ -23,6 +23,8 @@ RUN npx prisma generate
 COPY . .
 
 # Build aplikasi (Vite / Server bundle)
+ENV VITE_GOOGLE_CLIENT_ID="825376447461-ja64etla2448dh604n0fssmitfl4ca3r.apps.googleusercontent.com"
+
 RUN npm run build
 #RUN npm run build:electron:all
 
@@ -54,7 +56,6 @@ RUN mkdir -p /app/data /app/uploads && chmod -R 777 /app/data /app/uploads
 ENV NODE_ENV=production
 ENV DB_PROVIDER=postgresql
 ENV PORT=3000
-ENV VITE_GOOGLE_CLIENT_ID="825376447461-ja64etla2448dh604n0fssmitfl4ca3r.apps.googleusercontent.com"
 
 EXPOSE 3000
 
