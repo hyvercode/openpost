@@ -14,7 +14,7 @@ COPY prisma ./prisma/
 RUN npm install
 
 # Sediakan dummy DATABASE_URL agar `prisma generate` tidak error saat build
-ENV DATABASE_URL="postgresql://postgres:Hyvercode@123!@localhost:5432/openpost?schema=public"
+ENV DATABASE_URL="../data/dev.db"
 
 # Generate Prisma Client (Sesuaikan jika di package.json Anda namanya 'db:setup')
 RUN npx prisma generate
@@ -23,8 +23,6 @@ RUN npx prisma generate
 COPY . .
 
 # Build aplikasi (Vite / Server bundle)
-ENV VITE_GOOGLE_CLIENT_ID="825376447461-ja64etla2448dh604n0fssmitfl4ca3r.apps.googleusercontent.com"
-
 RUN npm run build
 #RUN npm run build:electron:all
 
