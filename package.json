@@ -117,11 +117,13 @@
     "productName": "OpenPost",
     "artifactName": "${productName}-${version}.${ext}",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "assets/icons"
     },
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "assets/icons/**/*",
       "package.json",
       "node_modules/**/*"
     ],
@@ -144,11 +146,13 @@
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
+      "icon": "assets/icons/icon.icns",
       "target": [
         "zip"
       ]
     },
     "win": {
+      "icon": "assets/icons/icon.ico",
       "target": [
         "portable",
         "zip"
@@ -159,6 +163,7 @@
       "packElevateHelper": false
     },
     "linux": {
+      "icon": "assets/icons/icon.png",
       "target": [
         "AppImage",
         "tar.gz"

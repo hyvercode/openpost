@@ -25,9 +25,17 @@ function checkServerReady(url, cb, attempts = 0) {
 }
 
 function createWindow(port) {
+  // Window icon: dev path vs packaged (asar:false) path.
+  const iconCandidates = [
+    path.join(__dirname, '../assets/icons/icon.png'),
+    path.join(process.resourcesPath || '', 'app', 'assets', 'icons', 'icon.png'),
+  ];
+  const windowIcon = iconCandidates.find((p) => p && fs.existsSync(p));
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
+    icon: windowIcon,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
