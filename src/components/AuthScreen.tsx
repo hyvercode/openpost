@@ -388,11 +388,11 @@ export function AuthScreen() {
   const getOSDownloadInfo = () => {
     switch (detectedOS) {
       case 'mac':
-        return { name: 'macOS', file: 'OpenPost-1.0.0.dmg', ext: '.dmg' };
+        return { name: 'macOS', file: 'OpenPost-1.0.0-mac.zip', ext: '.zip' };
       case 'linux':
         return { name: 'Linux', file: 'OpenPost-1.0.0.AppImage', ext: '.AppImage' };
       default:
-        return { name: 'Windows', file: 'OpenPost-Setup-1.0.0.exe', ext: '.exe' };
+        return { name: 'Windows', file: 'OpenPost-1.0.0.exe', ext: '.exe' };
     }
   };
 

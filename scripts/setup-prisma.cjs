@@ -2,20 +2,35 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv/config');
 
-let url = process.env.DATABASE_URL || '';
-let provider = process.env.DB_PROVIDER;
+const argv = process.argv.slice(2);
+// Allow forcing a provider from CLI (used by desktop packaging which must
+// bundle a SQLite client regardless of the dev DATABASE_URL):
+//   node scripts/setup-prisma.cjs --sqlite
+//   node scripts/setup-prisma.cjs --provider=postgresql
+let cliProvider = null;
+for (const arg of argv) {
+  if (arg === '--sqlite') cliProvider = 'sqlite';
+  else if (arg.startsWith('--provider=')) cliProvider = arg.split('=')[1];
+}
 
-// Prioritize protocol detection from DATABASE_URL if DATABASE_URL is provided
-if (url.startsWith('postgres://') || url.startsWith('postgresql://')) {
-  provider = 'postgresql';
-} else if (url.startsWith('mysql://') || url.startsWith('mariadb://')) {
-  provider = 'mysql';
-} else if (url.startsWith('mongodb://') || url.startsWith('mongodb+srv://')) {
-  provider = 'mongodb';
-} else if (url.startsWith('file:') || url.startsWith('sqlite:')) {
-  provider = 'sqlite';
-} else if (!provider) {
-  provider = 'sqlite';
+let url = process.env.DATABASE_URL || '';
+let provider = cliProvider || process.env.DB_PROVIDER;
+
+// CLI --sqlite / --provider=* always wins (desktop packaging must bundle a
+// SQLite client regardless of the dev DATABASE_URL in .env).
+if (!cliProvider) {
+  // Prioritize protocol detection from DATABASE_URL if DATABASE_URL is provided
+  if (url.startsWith('postgres://') || url.startsWith('postgresql://')) {
+    provider = 'postgresql';
+  } else if (url.startsWith('mysql://') || url.startsWith('mariadb://')) {
+    provider = 'mysql';
+  } else if (url.startsWith('mongodb://') || url.startsWith('mongodb+srv://')) {
+    provider = 'mongodb';
+  } else if (url.startsWith('file:') || url.startsWith('sqlite:')) {
+    provider = 'sqlite';
+  } else if (!provider) {
+    provider = 'sqlite';
+  }
 }
 
 console.log(`Setting up Prisma for provider: ${provider} (DATABASE_URL protocol: ${url.split(':')[0] || 'none'})`);

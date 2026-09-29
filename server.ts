@@ -26,6 +26,27 @@ import { prisma } from './server/src/db';
 import { requireAuth } from './server/src/middleware/auth';
 import { rateLimiter } from './server/src/middleware/rateLimiter';
 
+// Resolve the application root across dev and packaged (Electron) layouts:
+// - dev (tsx server.ts):        __dirname = <project>/, cwd = <project>/
+// - bundled dev:                __dirname = <project>/dist/
+// - packaged (asar:false):      __dirname = <resources>/app/dist/
+// The Electron child process sets cwd to the userData dir (writable), so
+// process.cwd() must NOT be used to locate bundled assets.
+function resolveAppRoot(): string {
+  if (process.env.OPENPOST_APP_ROOT && fs.existsSync(process.env.OPENPOST_APP_ROOT)) {
+    return process.env.OPENPOST_APP_ROOT;
+  }
+  const resourcesPath = (process as any).resourcesPath as string | undefined;
+  if (resourcesPath) {
+    const candidate = path.join(resourcesPath, 'app');
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  if (path.basename(__dirname) === 'dist') return path.dirname(__dirname);
+  return process.cwd();
+}
+
+const APP_ROOT = resolveAppRoot();
+
 async function startServer() {
   const app = express();
   
@@ -175,15 +196,32 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
   // Serve desktop agent binary/script downloads directly with attachment disposition
   app.get("/downloads/:filename", (req, res) => {
     const filename = req.params.filename;
-    
-    // Check public/downloads/
-    let filePath = path.join(process.cwd(), "public", "downloads", filename);
-    
-    // Fallback to agent/desktop-agent.js if requesting JS script or if file not found in public/downloads
-    if (!fs.existsSync(filePath)) {
-      if (filename.includes("js") || filename.includes("node")) {
-        filePath = path.join(process.cwd(), "agent", "desktop-agent.js");
+
+    // Bundled downloads live next to dist/ (dev: dist/downloads or
+    // public/downloads; packaged: <resources>/app/dist/downloads).
+    const searchDirs = [
+      path.join(APP_ROOT, "dist", "downloads"),
+      path.join(APP_ROOT, "public", "downloads"),
+      path.join(process.cwd(), "dist", "downloads"),
+      path.join(process.cwd(), "public", "downloads"),
+      path.join(process.cwd(), "agent"),
+    ];
+    let filePath = "";
+    for (const dir of searchDirs) {
+      const candidate = path.join(dir, filename);
+      if (fs.existsSync(candidate)) {
+        filePath = candidate;
+        break;
       }
+    }
+
+    // Fallback to agent/desktop-agent.js source if requesting a script
+    if (!filePath && (filename.includes("js") || filename.includes("node"))) {
+      const fallbackCandidates = [
+        path.join(APP_ROOT, "agent", "desktop-agent.js"),
+        path.join(process.cwd(), "agent", "desktop-agent.js"),
+      ];
+      filePath = fallbackCandidates.find((c) => fs.existsSync(c)) || "";
     }
 
     if (fs.existsSync(filePath)) {
@@ -199,7 +237,11 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
     }
     
     // Fallback script if binary not found
-    const fallbackScript = path.join(process.cwd(), "agent", "desktop-agent.js");
+    const fallbackCandidates = [
+      path.join(APP_ROOT, "agent", "desktop-agent.js"),
+      path.join(process.cwd(), "agent", "desktop-agent.js"),
+    ];
+    const fallbackScript = fallbackCandidates.find((c) => fs.existsSync(c)) || fallbackCandidates[0];
     if (fs.existsSync(fallbackScript)) {
       res.setHeader('Content-Disposition', `attachment; filename="desktop-agent.js"`);
       res.setHeader('Content-Type', 'application/javascript');
@@ -653,7 +695,13 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       });
       app.use(vite.middlewares);
     } else {
-      const distPath = path.join(process.cwd(), "dist");
+      // Packaged dist path resolves relative to the app root, not cwd
+      // (cwd is the userData dir under Electron).
+      const distCandidates = [
+        path.join(APP_ROOT, "dist"),
+        path.join(process.cwd(), "dist"),
+      ];
+      const distPath = distCandidates.find((c) => fs.existsSync(c)) || distCandidates[0];
       app.use(express.static(distPath));
       app.get("*", (req, res) => {
         res.sendFile(path.join(distPath, "index.html"));

@@ -39,28 +39,18 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
     setTimeout(() => setCopiedCmd(null), 2000);
   };
 
-  const handleDownload = (filename: string, platformName: string) => {
-    const blob = new Blob([
-      `OpenPost Desktop v1.0.0 - ${platformName}\n\n` +
-      `Thank you for downloading OpenPost Desktop!\n` +
-      `Package: ${filename}\n` +
-      `Documentation: https://github.com/hyvercode/openpost\n\n` +
-      `Installation Instructions:\n` +
-      `1. Run the installer (${filename})\n` +
-      `2. OpenPost includes an embedded offline server and SQLite engine.\n` +
-      `3. Enjoy zero-latency API testing!\n`
-    ], { type: 'text/plain' });
-    
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const GITHUB_RELEASES_URL = 'https://github.com/hyvercode/openpost/releases';
 
-    addToast(`Starting download: ${filename} (${platformName})`, 'success', 4000);
+  const handleDownload = (filename: string, platformName: string) => {
+    // NOTE: Desktop binaries are built by electron-builder via CI
+    // (see .github/workflows/build-desktop.yml) and published as GitHub
+    // Release assets. There is no binary bundled in the web app, so we
+    // must NOT generate a fake Blob file here — that produces a text file
+    // that fails when executed (e.g. "./OpenPost-1.0.0.AppImage: 1:
+    // OpenPost: not found"). Redirect to the real release assets instead.
+    window.open(GITHUB_RELEASES_URL, '_blank', 'noopener,noreferrer');
+
+    addToast(`Opening GitHub Releases — download ${filename} (${platformName}) there`, 'success', 5000);
   };
 
   const platforms = [
@@ -68,42 +58,42 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
       id: 'windows' as const,
       name: 'Windows',
       badge: 'Windows 10 / 11 (64-bit)',
-      filename: 'OpenPost-Setup-1.0.0.exe',
-      size: '84.2 MB',
+      filename: 'OpenPost-1.0.0.exe',
+      size: '~150 MB',
       icon: (
         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
           <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.799"/>
         </svg>
       ),
-      description: 'Installer with automatic updates and desktop shortcuts.',
-      installGuide: 'OpenPost-Setup-1.0.0.exe',
+      description: 'Portable Windows build — no install needed, just run.',
+      installGuide: 'OpenPost-1.0.0.exe',
     },
     {
       id: 'mac' as const,
       name: 'macOS',
       badge: 'Apple Silicon (M1/M2/M3) & Intel',
-      filename: 'OpenPost-1.0.0.dmg',
-      size: '89.6 MB',
+      filename: 'OpenPost-1.0.0-mac.zip',
+      size: '~500 MB',
       icon: (
         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
           <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.42c.62-.75 1.04-1.8 0.93-2.85-.9.04-1.98.6-2.61 1.34-.56.64-1.05 1.71-.92 2.74 1.01.08 2.03-.5 2.6-1.23z"/>
         </svg>
       ),
-      description: 'Universal macOS disk image (.dmg). Drag into Applications folder.',
-      installGuide: 'open OpenPost-1.0.0.dmg',
+      description: 'macOS zip build. Extract and move to Applications.',
+      installGuide: 'unzip OpenPost-1.0.0-mac.zip',
     },
     {
       id: 'linux' as const,
       name: 'Linux',
       badge: 'Ubuntu / Debian / Fedora / Arch',
       filename: 'OpenPost-1.0.0.AppImage',
-      size: '81.4 MB',
+      size: '~280 MB',
       icon: (
         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
           <path d="M12.002 0c-4.148 0-7.5 3.352-7.5 7.5 0 2.827 1.554 5.289 3.847 6.545l-.469 1.637c-.161.562.157 1.152.719 1.313.193.055.39.047.579-.016l1.834-.611c.328.086.666.132 1.012.132.346 0 .684-.046 1.012-.132l1.834.611c.189.063.386.071.579.016.562-.161.88-.751.719-1.313l-.469-1.637c2.293-1.256 3.847-3.718 3.847-6.545 0-4.148-3.352-7.5-7.5-7.5z"/>
         </svg>
       ),
-      description: 'Standalone AppImage and Debian package for Linux distros.',
+      description: 'Standalone AppImage for Linux distros.',
       installGuide: 'chmod +x OpenPost-1.0.0.AppImage && ./OpenPost-1.0.0.AppImage',
     },
   ];
