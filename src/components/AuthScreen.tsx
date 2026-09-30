@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { 
   Server, 
   Mail, 
@@ -10,27 +10,14 @@ import {
   AlertCircle,
   CheckCircle2,
   RefreshCw,
-  ExternalLink,
   Send,
   Download,
-  Terminal,
-  Layers,
-  Zap,
-  ShieldCheck,
-  Globe,
-  ChevronDown,
-  ChevronRight,
   Sparkles,
   Laptop,
-  Check,
   Github,
   Sun,
   Moon,
   MonitorSmartphone,
-  Cpu,
-  Database,
-  ArrowRight,
-  Network,
   BookOpen
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
@@ -49,7 +36,6 @@ export function AuthScreen() {
   const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [showDocsPage, setShowDocsPage] = useState(false);
-  const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
   const isDesktop = isDesktopEnvironment();
 
   // Listen to #docs hash (web only)
@@ -86,7 +72,7 @@ export function AuthScreen() {
       const saved = localStorage.getItem('openpost_lang') as Language;
       if (saved === 'id' || saved === 'en') return saved;
     }
-    return 'id'; // Default to Indonesian based on user language
+    return 'id'; // Default to Indonesian
   });
 
   const t = LANDING_I18N[language] || LANDING_I18N.id;
@@ -255,9 +241,9 @@ export function AuthScreen() {
     setError(null);
 
     // If GIS OAuth2 Token Client is available, trigger popup
-    if (window.google?.accounts?.oauth2) {
+    if ((window as any).google?.accounts?.oauth2) {
       try {
-        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
           client_id: clientIdToUse,
           scope: 'openid email profile',
           callback: async (tokenResponse: any) => {
@@ -382,37 +368,6 @@ export function AuthScreen() {
       setError(message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getOSDownloadInfo = () => {
-    switch (detectedOS) {
-      case 'mac':
-        return { name: 'macOS', file: 'OpenPost-1.0.0.dmg', ext: '.dmg' };
-      case 'linux':
-        return { name: 'Linux', file: 'OpenPost-1.0.0.AppImage', ext: '.AppImage' };
-      default:
-        return { name: 'Windows', file: 'OpenPost-Setup-1.0.0.exe', ext: '.exe' };
-    }
-  };
-
-  const osInfo = getOSDownloadInfo();
-
-  const scrollToOverview = () => {
-    const el = document.getElementById('overview');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-      setHighlightedSection('overview');
-      setTimeout(() => setHighlightedSection(null), 3000);
-    }
-  };
-
-  const scrollToFeatures = () => {
-    const el = document.getElementById('features');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-      setHighlightedSection('features');
-      setTimeout(() => setHighlightedSection(null), 3000);
     }
   };
 
@@ -752,124 +707,8 @@ export function AuthScreen() {
     );
   }
 
-  // Standalone Desktop Build View (Bypasses mini landing page completely!)
-  if (isDesktop) {
-    return (
-      <div className={`min-h-screen font-sans flex flex-col justify-between transition-colors duration-300 ${
-        theme === 'light' ? 'theme-light bg-[var(--bg-base)] text-[var(--text-primary)]' : 
-        theme === 'dark' ? 'theme-dark bg-[var(--bg-base)] text-[var(--text-primary)]' : 
-        'theme-default bg-[var(--bg-base)] text-[var(--text-primary)]'
-      }`}>
-        {/* Background Gradient & Ambient Glow */}
-        <div className={`fixed inset-0 pointer-events-none -z-10 transition-opacity duration-500 ${
-          theme === 'light' 
-            ? 'bg-gradient-to-br from-slate-50 via-zinc-100 to-amber-50/20' 
-            : theme === 'dark' 
-            ? 'bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617]' 
-            : 'bg-gradient-to-br from-[#200017] via-[#3B0A29] to-[#14000E]'
-        }`} />
-        
-        <div className={`fixed top-0 left-1/2 -translate-x-1/2 w-[900px] h-[450px] blur-3xl -z-10 pointer-events-none transition-opacity duration-500 ${
-          theme === 'light'
-            ? 'bg-gradient-to-b from-[#DD4814]/10 to-transparent'
-            : 'bg-gradient-to-b from-[#E95420]/15 to-transparent'
-        }`} />
-
-        {/* Minimal Desktop Top Bar */}
-        <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/85 backdrop-blur-md transition-colors duration-200">
-          <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shadow-md shadow-[var(--primary)]/25">
-                <Server className="w-3.5 h-3.5" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="font-bold text-base tracking-tight text-[var(--text-primary)]">OpenPost</span>
-                <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                  Desktop v1.0.0
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Language Switcher */}
-              <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => handleLanguageChange('id')}
-                  className={`px-2 py-0.5 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
-                    language === 'id' 
-                      ? 'bg-[var(--primary)] text-white shadow-xs' 
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                  title="Bahasa Indonesia"
-                >
-                  <span>ID</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleLanguageChange('en')}
-                  className={`px-2 py-0.5 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
-                    language === 'en' 
-                      ? 'bg-[var(--primary)] text-white shadow-xs' 
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                  }`}
-                  title="English"
-                >
-                  <span>EN</span>
-                </button>
-              </div>
-
-              {/* Theme Switcher */}
-              <button
-                type="button"
-                onClick={cycleTheme}
-                className="p-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
-                title={`Theme: ${theme.toUpperCase()}`}
-              >
-                {theme === 'light' ? (
-                  <Sun className="w-3.5 h-3.5 text-amber-500" />
-                ) : theme === 'dark' ? (
-                  <Moon className="w-3.5 h-3.5 text-sky-400" />
-                ) : (
-                  <MonitorSmartphone className="w-3.5 h-3.5 text-[var(--primary)]" />
-                )}
-              </button>
-            </div>
-          </div>
-        </header>
-
-        {/* Centered Desktop Login Main */}
-        <main className="flex-1 flex flex-col items-center justify-center p-6 my-auto">
-          <div className="w-full max-w-md mx-auto space-y-4">
-            {renderAuthCard()}
-
-            <div className="text-center text-[11px] text-[var(--text-secondary)] flex items-center justify-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              <span>
-                {language === 'id' 
-                  ? 'Klien Desktop Mandiri · Penyimpanan SQLite Lokal · Zero CORS' 
-                  : 'Standalone Desktop Client · Embedded SQLite Engine · Zero CORS'}
-              </span>
-            </div>
-          </div>
-        </main>
-
-        <footer className="w-full py-4 text-center text-xs text-[var(--text-secondary)] border-t border-[var(--border-subtle)] bg-[var(--bg-base)]/50">
-          OpenPost Desktop · {new Date().getFullYear()} · Apache-2.0
-        </footer>
-
-        {/* Modals */}
-        <GoogleAuthModal
-          isOpen={showGoogleModal}
-          onClose={() => setShowGoogleModal(false)}
-          mode={authMode === 'register' ? 'register' : 'login'}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className={`min-h-screen font-sans flex flex-col transition-colors duration-300 ${
+    <div className={`min-h-screen font-sans flex flex-col justify-between transition-colors duration-300 ${
       theme === 'light' ? 'theme-light bg-[var(--bg-base)] text-[var(--text-primary)]' : 
       theme === 'dark' ? 'theme-dark bg-[var(--bg-base)] text-[var(--text-primary)]' : 
       'theme-default bg-[var(--bg-base)] text-[var(--text-primary)]'
@@ -883,15 +722,15 @@ export function AuthScreen() {
           : 'bg-gradient-to-br from-[#200017] via-[#3B0A29] to-[#14000E]'
       }`} />
       
-      <div className={`fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] blur-3xl -z-10 pointer-events-none transition-opacity duration-500 ${
+      <div className={`fixed top-0 left-1/2 -translate-x-1/2 w-[900px] h-[450px] blur-3xl -z-10 pointer-events-none transition-opacity duration-500 ${
         theme === 'light'
           ? 'bg-gradient-to-b from-[#DD4814]/10 to-transparent'
           : 'bg-gradient-to-b from-[#E95420]/15 to-transparent'
       }`} />
 
-      {/* Top Navigation Bar */}
+      {/* Top Header Bar */}
       <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/85 backdrop-blur-md transition-colors duration-200">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shadow-md shadow-[var(--primary)]/25">
@@ -905,60 +744,42 @@ export function AuthScreen() {
             </div>
           </div>
 
-          {/* Navigation Links (including targeted selector a:nth-of-type(2)) */}
-          <nav className="hidden md:flex items-center gap-6 text-xs text-[var(--text-secondary)] font-medium">
-            <button
-              type="button"
-              onClick={scrollToFeatures}
-              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-            >
-              {t.nav.features}
-            </button>
+          {/* Right Controls */}
+          <div className="flex items-center gap-3">
+            {!isDesktop && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowDownloadModal(true)}
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                  title="Download Desktop App"
+                >
+                  <Laptop className="w-3.5 h-3.5 text-[var(--primary)]" />
+                  <span>Desktop App</span>
+                </button>
 
-            <button 
-              type="button" 
-              onClick={() => setShowDownloadModal(true)} 
-              className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <Laptop className="w-3.5 h-3.5 text-[var(--primary)]" />
-              <span>{t.nav.desktopApp}</span>
-            </button>
-
-            {/* Targeted element: a:nth-of-type(2) in nav */}
-            <a 
-              href="#overview" 
-              onClick={(e) => {
-                e.preventDefault();
-                scrollToOverview();
-              }}
-              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <Network className="w-3.5 h-3.5 text-[var(--primary)]" />
-              <span>{t.nav.architecture}</span>
-            </a>
-
-            <button
-              type="button"
-              onClick={openDocs}
-              className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <BookOpen className="w-3.5 h-3.5 text-[var(--primary)]" />
-              <span>{t.nav.docs}</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={openDocs}
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                  title="Developer Documentation"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-[var(--primary)]" />
+                  <span>{t.nav.docs}</span>
+                </button>
+              </>
+            )}
 
             <a 
               href="https://github.com/hyvercode/openpost" 
               target="_blank" 
               rel="noreferrer" 
-              className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"
+              className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors"
+              title="GitHub Repository"
             >
-              <Github className="w-3.5 h-3.5" />
-              <span>{t.nav.github}</span>
+              <Github className="w-4 h-4" />
             </a>
-          </nav>
 
-          {/* Controls: Language Switcher, Theme Switcher & Action CTA */}
-          <div className="flex items-center gap-2.5">
             {/* Language Switcher */}
             <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold">
               <button
@@ -991,7 +812,7 @@ export function AuthScreen() {
             <button
               type="button"
               onClick={cycleTheme}
-              className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer flex items-center gap-1"
+              className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
               title={`Theme: ${theme.toUpperCase()} (Click to toggle)`}
             >
               {theme === 'light' ? (
@@ -1002,377 +823,55 @@ export function AuthScreen() {
                 <MonitorSmartphone className="w-4 h-4 text-[var(--primary)]" />
               )}
             </button>
-
-            {/* Get Started Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('login');
-                const formElement = document.getElementById('auth-card');
-                formElement?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="px-3.5 py-1.5 rounded-lg bg-[var(--primary)] hover:opacity-90 text-white text-xs font-bold transition-all shadow-md shadow-[var(--primary)]/20 active:scale-95 cursor-pointer"
-            >
-              {t.nav.getStarted}
-            </button>
           </div>
         </div>
       </header>
 
-      {/* Main Hero & Auth Stage */}
-      <main className="flex-1 max-w-6xl mx-auto w-full px-6 py-12 md:py-16 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-        {/* Left Column: Product Value & Desktop Downloads */}
-        <div className="lg:col-span-7 space-y-8">
-          {/* Editorial Kicker */}
-          <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-[var(--primary)] uppercase">
-            <span>{t.hero.kicker}</span>
-            <span aria-hidden="true">·</span>
-            <span>{t.hero.version}</span>
-            <span aria-hidden="true">·</span>
-            <span className="text-[var(--text-secondary)]">{t.hero.offlineFirst}</span>
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] text-[var(--text-primary)]">
-            {t.hero.title}
-          </h1>
-
-          {/* Subtitle */}
-          <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed max-w-xl font-normal">
-            {t.hero.subtitle}
-          </p>
-
-          {/* Desktop Download Highlight Box */}
-          <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] backdrop-blur-md shadow-xl space-y-4 max-w-xl transition-colors duration-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/15 border border-[var(--primary)]/30 flex items-center justify-center text-[var(--primary)]">
-                  <Laptop className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <span>{t.desktopCard.title}</span>
-                    <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                      {t.desktopCard.standalone}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">
-                    {t.desktopCard.desc}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Download CTA Button & Quick Switcher */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setShowDownloadModal(true)}
-                className="h-11 px-5 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-[var(--primary)]/25 active:scale-95 cursor-pointer"
-              >
-                <Download className="w-4 h-4" />
-                <span>{t.desktopCard.downloadFor} {osInfo.name} ({osInfo.ext})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowDownloadModal(true)}
-                className="h-11 px-4 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 border border-[var(--border-subtle)] transition-colors cursor-pointer"
-              >
-                <span>{t.desktopCard.otherPlatforms}</span>
-                <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-              </button>
-            </div>
-
-            {/* Natural Badges */}
-            <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap items-center gap-y-1 gap-x-3 text-[11px] text-[var(--text-secondary)]">
-              <div className="flex items-center gap-1.5 text-emerald-500 font-medium">
-                <Check className="w-3.5 h-3.5 shrink-0" />
-                <span>{t.desktopCard.zeroCors}</span>
-              </div>
-              <span aria-hidden="true" className="opacity-30">·</span>
-              <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
-                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>{t.desktopCard.completeOffline}</span>
-              </div>
-              <span aria-hidden="true" className="opacity-30">·</span>
-              <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
-                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span>{t.desktopCard.noAccountNeeded}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Micro Value Proposition Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 max-w-xl">
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] transition-colors duration-200">
-              <div className="text-[var(--primary)] text-xs font-bold mb-1 flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5" />
-                <span>{t.valueProps.multiProtocol}</span>
-              </div>
-              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                {t.valueProps.multiProtocolDesc}
-              </p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] transition-colors duration-200">
-              <div className="text-amber-500 text-xs font-bold mb-1 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5" />
-                <span>{t.valueProps.mockServers}</span>
-              </div>
-              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                {t.valueProps.mockServersDesc}
-              </p>
-            </div>
-
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] col-span-2 sm:col-span-1 transition-colors duration-200">
-              <div className="text-emerald-500 text-xs font-bold mb-1 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>{t.valueProps.zeroTelemetry}</span>
-              </div>
-              <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                {t.valueProps.zeroTelemetryDesc}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Modern Minimalist Auth Card */}
-        <div id="auth-card" className="lg:col-span-5 w-full max-w-md mx-auto">
+      {/* Main Centered Login Section */}
+      <main className="flex-1 flex flex-col items-center justify-center p-6 my-auto">
+        <div className="w-full max-w-md mx-auto space-y-4">
           {renderAuthCard()}
+
+          <div className="text-center text-[11px] text-[var(--text-secondary)] flex items-center justify-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>
+              {language === 'id' 
+                ? 'OpenPost API Platform · Standalone & Cloud · Zero CORS' 
+                : 'OpenPost API Platform · Standalone & Cloud · Zero CORS'}
+            </span>
+          </div>
         </div>
       </main>
 
-      {/* Architecture Overview Section (Targeted by nav link: a:nth-of-type(2)) */}
-      <section 
-        id="overview" 
-        className={`w-full border-t border-[var(--border-subtle)] py-16 px-6 transition-all duration-500 ${
-          highlightedSection === 'overview' ? 'ring-2 ring-[var(--primary)] bg-[var(--primary)]/5' : 'bg-[var(--bg-surface)]/60'
-        }`}
-      >
-        <div className="max-w-6xl mx-auto space-y-12">
-          {/* Section Header */}
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] text-xs font-semibold mb-1">
-              <Network className="w-3.5 h-3.5" />
-              <span>Full-Stack Architecture</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">
-              {t.architecture.title}
-            </h2>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-              {t.architecture.subtitle}
-            </p>
-          </div>
-
-          {/* Architecture Visual Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Box 1: Client */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center">
-                <Laptop className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                {t.architecture.clientTitle}
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {t.architecture.clientDesc}
-              </p>
-              <div className="pt-2 text-[10px] font-mono text-[var(--text-secondary)] border-t border-[var(--border-subtle)]">
-                Vite · Tailwind CSS · Monaco
-              </div>
-            </div>
-
-            {/* Box 2: Express Server */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center">
-                <Server className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                {t.architecture.serverTitle}
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {t.architecture.serverDesc}
-              </p>
-              <div className="pt-2 text-[10px] font-mono text-[var(--text-secondary)] border-t border-[var(--border-subtle)]">
-                Node.js · Express · esbuild
-              </div>
-            </div>
-
-            {/* Box 3: Dual Storage */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
-                <Database className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                {t.architecture.dbTitle}
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {t.architecture.dbDesc}
-              </p>
-              <div className="pt-2 text-[10px] font-mono text-[var(--text-secondary)] border-t border-[var(--border-subtle)]">
-                Prisma 7 · SQLite · PostgreSQL
-              </div>
-            </div>
-
-            {/* Box 4: Agent Bridge */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center">
-                <Cpu className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                {t.architecture.bridgeTitle}
-              </h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {t.architecture.bridgeDesc}
-              </p>
-              <div className="pt-2 text-[10px] font-mono text-[var(--text-secondary)] border-t border-[var(--border-subtle)]">
-                Localhost Bridge · Port 8765
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Live Verification Card */}
-          <div className="p-6 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="space-y-1 text-center md:text-left">
-              <div className="text-sm font-bold text-[var(--text-primary)] flex items-center justify-center md:justify-start gap-2">
-                <span>Want to test the backend API right now?</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-              <p className="text-xs text-[var(--text-secondary)]">
-                The local backend server is running and responding to real API queries.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const res = await api.get('/health');
-                    addToast(`API Health OK: ${JSON.stringify(res.data)}`, 'success', 3000);
-                  } catch (e: any) {
-                    addToast(`Health check error: ${e.message}`, 'error', 3000);
-                  }
-                }}
-                className="px-4 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-xs font-mono text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer flex items-center gap-2"
-              >
-                <span>GET /api/health</span>
-                <ArrowRight className="w-3.5 h-3.5 text-[var(--primary)]" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowDownloadModal(true)}
-                className="px-4 py-2 rounded-xl bg-[var(--primary)] text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
-              >
-                {t.nav.downloadDesktop}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Feature Overview Strip */}
-      <section 
-        id="features" 
-        className={`w-full border-t border-[var(--border-subtle)] py-16 px-6 transition-all duration-500 ${
-          highlightedSection === 'features' ? 'ring-2 ring-[var(--primary)] bg-[var(--primary)]/5' : 'bg-[var(--bg-base)]'
-        }`}
-      >
-        <div className="max-w-6xl mx-auto space-y-10">
-          <div className="text-center max-w-2xl mx-auto space-y-2">
-            <h2 className="text-2xl font-bold text-[var(--text-primary)] tracking-tight">
-              {t.features.title}
-            </h2>
-            <p className="text-xs text-[var(--text-secondary)]">
-              {t.features.subtitle}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Feature 1 */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
-              <div className="w-9 h-9 rounded-xl bg-[var(--primary)]/15 border border-[var(--primary)]/30 flex items-center justify-center text-[var(--primary)]">
-                <Zap className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">{t.features.feat1Title}</h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {t.features.feat1Desc}
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500">
-                <Layers className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">{t.features.feat2Title}</h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {t.features.feat2Desc}
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
-                <Laptop className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">{t.features.feat3Title}</h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {t.features.feat3Desc}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Minimal Footer */}
-      <footer className="w-full border-t border-[var(--border-subtle)] py-8 px-6 bg-[var(--bg-surface)] text-[11px] text-[var(--text-secondary)] transition-colors duration-200">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-[var(--text-primary)]">OpenPost</span>
-            <span aria-hidden="true">·</span>
-            <span>© 2026 Open Source Project by hyvercode</span>
-          </div>
-
-          <div className="flex items-center gap-6">
+      {/* Clean Minimal Footer */}
+      <footer className="w-full py-4 text-center text-xs text-[var(--text-secondary)] border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]/50 transition-colors duration-200">
+        <div className="max-w-5xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>OpenPost · {new Date().getFullYear()} · Apache-2.0</span>
+          <div className="flex items-center gap-4 text-[11px]">
             <button
               type="button"
               onClick={() => setShowDownloadModal(true)}
-              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+              className="hover:text-[var(--text-primary)] hover:underline cursor-pointer"
             >
               {t.nav.downloadDesktop}
             </button>
-            <a 
-              href="https://github.com/hyvercode/openpost" 
-              target="_blank" 
-              rel="noreferrer"
-              className="hover:text-[var(--text-primary)] transition-colors"
-            >
-              GitHub
-            </a>
-            <button
-              type="button"
-              onClick={scrollToOverview}
-              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-            >
-              {t.nav.architecture}
-            </button>
+            <span>·</span>
             <button
               type="button"
               onClick={openDocs}
-              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+              className="hover:text-[var(--text-primary)] hover:underline cursor-pointer"
             >
               {t.nav.docs}
             </button>
-            <button
-              type="button"
-              onClick={cycleTheme}
-              className="hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+            <span>·</span>
+            <a
+              href="https://github.com/hyvercode/openpost"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-[var(--text-primary)] hover:underline"
             >
-              Theme: {theme.toUpperCase()}
-            </button>
+              GitHub
+            </a>
           </div>
         </div>
       </footer>

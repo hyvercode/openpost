@@ -30,6 +30,7 @@
     "build:electron": "npm run build && electron-builder build",
     "build:electron:all": "npm run build && electron-builder build -mwl",
     "build:electron:win": "npm run build && electron-builder build --win",
+    "build:electron:win:nsis": "npm run build && electron-builder build --win nsis",
     "build:electron:mac": "npm run build && electron-builder build --mac",
     "build:electron:mac:dmg": "npm run build && electron-builder build --mac dmg",
     "build:electron:linux": "npm run build && electron-builder build --linux"
@@ -111,9 +112,6 @@
   "build": {
     "appId": "com.example.react-example",
     "productName": "OpenPost Desktop",
-    "toolsets": {
-      "wine": "1.0.1"
-    },
     "directories": {
       "output": "release"
     },
@@ -147,9 +145,13 @@
     },
     "win": {
       "target": [
-        "nsis",
+        "portable",
         "zip"
-      ]
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "packElevateHelper": false
     },
     "linux": {
       "target": [
