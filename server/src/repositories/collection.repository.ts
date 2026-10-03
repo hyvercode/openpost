@@ -14,6 +14,9 @@ export interface CollectionData {
   shareVisibility?: "public" | "private";
   mockVisibility?: "public" | "private";
   docVisibility?: "public" | "private";
+  /** Optimistic-locking fields (never persisted directly). */
+  expectedUpdatedAt?: string;
+  force?: boolean;
 }
 
 export class CollectionRepository {
@@ -28,7 +31,7 @@ export class CollectionRepository {
 
   async findByWorkspaceId(workspaceId: string) {
     const collections = await prisma.collection.findMany({
-      where: { workspaceId }
+      where: { workspaceId, deletedAt: null }
     });
     return collections.map(this.parseCollection);
   }
@@ -37,7 +40,7 @@ export class CollectionRepository {
     const collection = await prisma.collection.findUnique({
       where: { id }
     });
-    if (!collection) return null;
+    if (!collection || (collection as any).deletedAt) return null;
     return this.parseCollection(collection);
   }
 
@@ -63,29 +66,60 @@ export class CollectionRepository {
   }
 
   async update(id: string, data: Partial<CollectionData>) {
+    // Optimistic locking (PRD #51): when the client sends the updatedAt it
+    // last saw, reject stale writes with the current record for conflict UI.
+    if (data.expectedUpdatedAt && !data.force) {
+      const current = await prisma.collection.findUnique({ where: { id } });
+      const currentTs = current?.updatedAt ? new Date(current.updatedAt).getTime() : 0;
+      const expectedTs = new Date(data.expectedUpdatedAt).getTime();
+      if (current && !Number.isNaN(expectedTs) && currentTs !== expectedTs) {
+        const err: any = new Error('Conflict: collection changed on server');
+        err.code = 'CONFLICT';
+        err.current = this.parseCollection(current);
+        throw err;
+      }
+    }
+    const { expectedUpdatedAt: _e, force: _f, ...rest } = data;
     const updated = await prisma.collection.update({
       where: { id },
       data: {
-        ...(data.name !== undefined && { name: data.name }),
-        ...(data.description !== undefined && { description: data.description }),
-        ...(data.color !== undefined && { color: data.color }),
-        ...(data.icon !== undefined && { icon: data.icon }),
-        ...(data.position !== undefined && { position: data.position }),
-        ...(data.mockConfig !== undefined && { mockConfig: JSON.stringify(data.mockConfig) }),
-        ...(data.folders !== undefined && { folders: JSON.stringify(data.folders) }),
-        ...(data.requests !== undefined && { requests: JSON.stringify(data.requests) }),
-        ...(data.shareVisibility !== undefined && { shareVisibility: data.shareVisibility }),
-        ...(data.mockVisibility !== undefined && { mockVisibility: data.mockVisibility }),
-        ...(data.docVisibility !== undefined && { docVisibility: data.docVisibility })
+        ...(rest.name !== undefined && { name: rest.name }),
+        ...(rest.description !== undefined && { description: rest.description }),
+        ...(rest.color !== undefined && { color: rest.color }),
+        ...(rest.icon !== undefined && { icon: rest.icon }),
+        ...(rest.position !== undefined && { position: rest.position }),
+        ...(rest.mockConfig !== undefined && { mockConfig: JSON.stringify(rest.mockConfig) }),
+        ...(rest.folders !== undefined && { folders: JSON.stringify(rest.folders) }),
+        ...(rest.requests !== undefined && { requests: JSON.stringify(rest.requests) }),
+        ...(rest.shareVisibility !== undefined && { shareVisibility: rest.shareVisibility }),
+        ...(rest.mockVisibility !== undefined && { mockVisibility: rest.mockVisibility }),
+        ...(rest.docVisibility !== undefined && { docVisibility: rest.docVisibility })
       }
     });
     return this.parseCollection(updated);
   }
 
+  /** Soft delete (PRD #50): record stays recoverable via restore(). */
   async delete(id: string) {
-    const deleted = await prisma.collection.delete({
-      where: { id }
+    const deleted = await prisma.collection.update({
+      where: { id },
+      data: { deletedAt: new Date() } as any,
     });
     return this.parseCollection(deleted);
+  }
+
+  async restore(id: string) {
+    const restored = await prisma.collection.update({
+      where: { id },
+      data: { deletedAt: null } as any,
+    });
+    return this.parseCollection(restored);
+  }
+
+  async findTrashByWorkspaceId(workspaceId: string) {
+    const collections = await prisma.collection.findMany({
+      where: { workspaceId, deletedAt: { not: null } } as any,
+    });
+    return collections.map(this.parseCollection);
   }
 }

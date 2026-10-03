@@ -8,14 +8,16 @@ CREATE TABLE "User" (
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
     "verificationToken" TEXT,
     "resetToken" TEXT,
-    "resetTokenExpires" DATETIME
+    "resetTokenExpires" DATETIME,
+    "tokenVersion" INTEGER NOT NULL DEFAULT 0
 );
 
 -- CreateTable
 CREATE TABLE "Workspace" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
-    "ownerId" TEXT NOT NULL
+    "ownerId" TEXT NOT NULL,
+    "deletedAt" DATETIME
 );
 
 -- CreateTable
@@ -41,6 +43,59 @@ CREATE TABLE "Invitation" (
 );
 
 -- CreateTable
+CREATE TABLE "AuditLog" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "workspaceId" TEXT,
+    "userId" TEXT,
+    "action" TEXT NOT NULL,
+    "entityType" TEXT,
+    "entityId" TEXT,
+    "detail" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateTable
+CREATE TABLE "Monitor" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "workspaceId" TEXT NOT NULL,
+    "collectionId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "intervalMinutes" INTEGER NOT NULL DEFAULT 60,
+    "alertEmail" TEXT,
+    "slackWebhookUrl" TEXT,
+    "failThreshold" INTEGER NOT NULL DEFAULT 2,
+    "lastRunAt" DATETIME,
+    "lastStatus" TEXT,
+    "consecutiveFailures" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME,
+    CONSTRAINT "Monitor_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "MonitorRun" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "monitorId" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "passed" INTEGER NOT NULL DEFAULT 0,
+    "failed" INTEGER NOT NULL DEFAULT 0,
+    "timeMs" INTEGER NOT NULL DEFAULT 0,
+    "detail" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateTable
+CREATE TABLE "UsageMeter" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "yearMonth" TEXT NOT NULL,
+    "count" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" DATETIME
+);
+
+-- CreateTable
 CREATE TABLE "Collection" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "workspaceId" TEXT NOT NULL,
@@ -55,6 +110,8 @@ CREATE TABLE "Collection" (
     "shareVisibility" TEXT NOT NULL DEFAULT 'private',
     "mockVisibility" TEXT NOT NULL DEFAULT 'private',
     "docVisibility" TEXT NOT NULL DEFAULT 'private',
+    "deletedAt" DATETIME,
+    "updatedAt" DATETIME,
     CONSTRAINT "Collection_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -65,6 +122,8 @@ CREATE TABLE "Environment" (
     "name" TEXT NOT NULL,
     "variables" TEXT NOT NULL DEFAULT '[]',
     "position" INTEGER NOT NULL DEFAULT 0,
+    "deletedAt" DATETIME,
+    "updatedAt" DATETIME,
     CONSTRAINT "Environment_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -125,4 +184,7 @@ CREATE UNIQUE INDEX "WorkspaceMember_workspaceId_userId_key" ON "WorkspaceMember
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Invitation_token_key" ON "Invitation"("token");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UsageMeter_userId_action_yearMonth_key" ON "UsageMeter"("userId", "action", "yearMonth");
 

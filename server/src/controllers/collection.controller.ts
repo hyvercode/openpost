@@ -82,12 +82,16 @@ export class CollectionController {
     try {
       const { id } = req.params;
       if (!(await assertRecordAccess(req, res, () => this.collectionService.getCollectionById(id)))) return;
-      const { name, description, color, icon, position, mockConfig, folders, requests, shareVisibility, mockVisibility, docVisibility } = req.body;
+      const { name, description, color, icon, position, mockConfig, folders, requests, shareVisibility, mockVisibility, docVisibility, expectedUpdatedAt, force } = req.body;
       const updatedCollection = await this.collectionService.updateCollection(id, {
-        name, description, color, icon, position, mockConfig, folders, requests, shareVisibility, mockVisibility, docVisibility
+        name, description, color, icon, position, mockConfig, folders, requests, shareVisibility, mockVisibility, docVisibility,
+        expectedUpdatedAt, force,
       });
       res.json(updatedCollection);
     } catch (error: any) {
+      if (error?.code === 'CONFLICT') {
+        return res.status(409).json({ error: error.message, conflict: error.current });
+      }
       res.status(500).json({ error: 'Failed to update collection' });
     }
   };
@@ -96,10 +100,33 @@ export class CollectionController {
     try {
       const { id } = req.params;
       if (!(await assertRecordAccess(req, res, () => this.collectionService.getCollectionById(id)))) return;
-      await this.collectionService.deleteCollection(id);
-      res.json({ success: true, message: 'Collection deleted' });
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      await this.collectionService.deleteCollection(id, actor);
+      res.json({ success: true, message: 'Collection moved to trash' });
     } catch (error: any) {
       res.status(500).json({ error: 'Failed to delete collection' });
+    }
+  };
+
+  restoreCollection = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      const restored = await this.collectionService.restoreCollection(id, actor);
+      res.json(restored);
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to restore collection' });
+    }
+  };
+
+  getTrash = async (req: Request, res: Response) => {
+    try {
+      const { workspaceId } = req.params;
+      if (!(await assertWorkspaceAccess(req, res, workspaceId))) return;
+      const trash = await this.collectionService.getTrashByWorkspace(workspaceId);
+      res.json(trash);
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch trash' });
     }
   };
 }

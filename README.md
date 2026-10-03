@@ -3,7 +3,7 @@
 A powerful, Postman-like API testing application with team collaboration, collections, and environment variable support.
 
 ## Features
-- **Firebase Realtime Sync**: Instantly sync collections and environments across your team.
+- **Team Workspaces with Roles**: Owner/Admin/Editor/Viewer roles with server-side enforcement, email-verified invitations, and conflict detection on concurrent edits.
 - **Offline Support**: IndexedDB caching ensures you can still view and edit requests offline.
 - **Postman & OpenAPI Import**: Import existing Postman collections (v2.1) and OpenAPI/Swagger specs directly.
 - **Role-Based Workspaces**: Only invited users can access specific workspaces.
@@ -115,8 +115,7 @@ This application is a full-stack web application (React + Vite front-end, Expres
 
 ### Prerequisites
 - [Node.js](https://nodejs.org/) (v18 or higher recommended)
-- Firebase account (if utilizing real-time sync capabilities)
-- Cloud SQL or PostgreSQL database (for the Prisma backend)
+- PostgreSQL database (for the Prisma backend, or SQLite for local/desktop use)
 
 ### 1. Install Dependencies
 ```bash
@@ -126,7 +125,8 @@ npm install
 ### 2. Environment Variables
 Copy `.env.example` to `.env` and configure your environment variables:
 - Database URL (`DATABASE_URL`) for Prisma.
-- Firebase credentials (`VITE_FIREBASE_*`).
+- `JWT_SECRET` (required in production, min 32 chars).
+- `ADMIN_EMAILS` (optional, for `/api/admin/*`).
 
 ### 3. Database Setup (Prisma)
 Ensure your database is running, then apply the schema and generate the client:

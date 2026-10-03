@@ -19,6 +19,7 @@ model User {
   verificationToken  String?           @unique
   resetToken         String?           @unique
   resetTokenExpires  DateTime?
+  tokenVersion       Int               @default(0)
   workspaces         WorkspaceMember[]
   comments           Comment[]
 }
@@ -27,12 +28,14 @@ model Workspace {
   id           @@ID@@
   name         String
   ownerId      String
+  deletedAt    DateTime?
   members      WorkspaceMember[]
   collections  Collection[]
   environments Environment[]
   deployments  Deployment[]
   invitations  Invitation[]
   versions     CollectionVersion[]
+  monitors     Monitor[]
 }
 
 model WorkspaceMember {
@@ -54,7 +57,65 @@ model Invitation {
   role        String   @default("MEMBER")
   token       String   @unique
   expiresAt   DateTime
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// Audit log (PRD #50, #59): who did what, when. No relations on purpose —
+// entries must survive deletion of the workspace/user they describe.
+model AuditLog {
+  id          @@ID@@
+  workspaceId String?
+  userId      String?
+  action      String
+  entityType  String?
+  entityId    String?
+  detail      String?
+  createdAt   DateTime  @default(now())
+}
+
+// Scheduled monitor (PRD #52): runs a collection on an interval and alerts
+// on consecutive failures. intervalMinutes >= 5 to bound server load.
+model Monitor {
+  id                  @@ID@@
+  workspaceId         @@FOREIGN_KEY@@
+  collectionId        String
+  name                String
+  enabled             Boolean  @default(true)
+  intervalMinutes     Int      @default(60)
+  alertEmail          String?
+  slackWebhookUrl     String?
+  failThreshold       Int      @default(2)
+  lastRunAt           DateTime?
+  lastStatus          String?
+  consecutiveFailures Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime? @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model MonitorRun {
+  id          @@ID@@
+  monitorId   String
+  status      String
+  passed      Int      @default(0)
+  failed      Int      @default(0)
+  timeMs      Int      @default(0)
+  detail      String?
+  createdAt   DateTime @default(now())
+}
+
+// Usage metering (PRD #58 fase 1 billing): per-user monthly counters for
+// billable actions (proxy calls, AI calls). Payment provider later.
+model UsageMeter {
+  id        @@ID@@
+  userId    String
+  action    String
+  yearMonth String
+  count     Int      @default(0)
+  updatedAt DateTime? @updatedAt
+
+  @@unique([userId, action, yearMonth])
 }
 
 model Collection {
@@ -71,6 +132,8 @@ model Collection {
   shareVisibility String @default("private")
   mockVisibility  String @default("private")
   docVisibility   String @default("private")
+  deletedAt       DateTime?
+  updatedAt       DateTime? @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
@@ -81,7 +144,9 @@ model Environment {
   name        String
   variables   String    @default("[]")
   position    Int       @default(0)
-  
+  deletedAt   DateTime?
+  updatedAt   DateTime? @updatedAt
+
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }
 

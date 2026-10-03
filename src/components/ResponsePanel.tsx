@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore';
 import { cn } from '../utils';
 import { api } from '../lib/api';
 import { JsonTree } from './JsonTree';
-import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download, Cpu, Gauge, Zap, X, Server, Info, GitCompare, RefreshCw, Trash2, ChevronRight } from 'lucide-react';
+import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download, Cpu, Gauge, Zap, X, Server, Info, GitCompare, RefreshCw, Trash2, ChevronRight, FlaskConical } from 'lucide-react';
 import { diffLines } from 'diff';
 import { generateCurl, generateFetch, generateAxios, generatePythonRequests, generateGo, generateJavaOkHttp, generatePhpCurl, generateRubyNetHttp, generateCsharpHttpClient, generateSwiftUrlSession } from '../utils/snippetGenerator';
 import { replaceEnvironmentVariables } from '../utils';
@@ -532,6 +532,7 @@ export function ResponsePanel() {
   const [isPerfPanelOpen, setIsPerfPanelOpen] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
   const [isGeneratingCode, setIsGeneratingCode] = useState(false);
+  const [isGeneratingTests, setIsGeneratingTests] = useState(false);
   const [codeLanguage, setCodeLanguage] = useState('fetch');
   const [copied, setCopied] = useState(false);
 
@@ -693,6 +694,49 @@ export function ResponsePanel() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // AI: generate pm.* test assertions from the current response (PRD #56)
+  // and attach them to the active request's post-response script.
+  const handleGenerateTests = async () => {
+    if (!response || response.error || !activeRequest) {
+      addToast('Send a request successfully first', 'error');
+      return;
+    }
+    setIsGeneratingTests(true);
+    try {
+      const res = await api.post('/generate-tests', {
+        method: activeRequest.method,
+        url: activeRequest.url,
+        status: response.status,
+        responseBody: typeof response.data === 'object' ? JSON.stringify(response.data) : String(response.data ?? ''),
+      });
+      const script = String(res.data.script || '').trim();
+      if (!script) {
+        addToast('AI returned an empty script', 'error');
+        return;
+      }
+      const collection = collections.find(c => c.id === activeRequest.collectionId);
+      if (!collection) {
+        addToast('No parent collection found for this request', 'error');
+        return;
+      }
+      const existing = activeRequest.postResponseScript || '';
+      const updatedRequest = {
+        ...activeRequest,
+        postResponseScript: existing ? `${existing}\n\n${script}` : script,
+      };
+      const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
+      const { apiService } = await import('../lib/api');
+      await apiService.updateCollection(collection.id, { requests: updatedRequests });
+      setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
+      setActiveRequest(updatedRequest);
+      addToast('AI test assertions added to post-response script', 'success');
+    } catch (err: any) {
+      addToast(err.response?.data?.error || 'Failed to generate tests', 'error');
+    } finally {
+      setIsGeneratingTests(false);
+    }
+  };
+
   const handleSave = (fileName: string) => {
     if (!response) return;
     const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
@@ -824,11 +868,22 @@ export function ResponsePanel() {
         
         <div className="flex items-center gap-2">
           {response && !response.error && activeTab !== 'code' && (
-            <PerformanceOverview 
-              response={response} 
-              isPerfPanelOpen={isPerfPanelOpen} 
-              setIsPerfPanelOpen={setIsPerfPanelOpen} 
+            <PerformanceOverview
+              response={response}
+              isPerfPanelOpen={isPerfPanelOpen}
+              setIsPerfPanelOpen={setIsPerfPanelOpen}
             />
+          )}
+          {response && !response.error && (
+            <button
+              onClick={handleGenerateTests}
+              disabled={isGeneratingTests}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-xs font-bold text-[var(--text-primary)] disabled:opacity-50 cursor-pointer"
+              title="Generate pm.* test assertions from this response (AI)"
+            >
+              <FlaskConical className="w-3.5 h-3.5 text-[var(--primary)]" />
+              {isGeneratingTests ? 'Generating...' : 'AI Tests'}
+            </button>
           )}
           <button
             onClick={() => setResponseCollapsed(true)}

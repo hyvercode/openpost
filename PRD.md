@@ -91,5 +91,40 @@
      Done
  44. User Documentation & Help Section: Created interactive HelpGuideModal in UI (accessible via header Help button) and updated README.md with comprehensive user guides for Scripting Sandbox (pm.*), Mock Servers, GraphQL Studio, Automated Runner, Desktop Agent Bridge, and OpenAPI import/export.
      Done
- 45. Workspace & Collection JSON Export / Backup: Added options to export (download) entire workspace data or individual collections to JSON files (OpenPost & Postman formats), plus restore capability via drag & drop or file import.
-     Done
+  45. Workspace & Collection JSON Export / Backup: Added options to export (download) entire workspace data or individual collections to JSON files (OpenPost & Postman formats), plus restore capability via drag & drop or file import.
+      Done
+
+  ## Fitur & Perbaikan Baru (mulai 2026-10-03)
+
+  46. Matriks Role Workspace (Owner/Admin/Editor/Viewer) + enforcement di backend agar member biasa tidak bisa invite/hapus/ubah role.
+      Done (2026-10-03: server/src/middleware/roles.ts, requireRole di workspace.routes, guard owner di workspace.service)
+  47. Verifikasi email undangan: acceptInvitation wajib mencocokkan email undangan dengan email akun penerima.
+      Done (2026-10-03: workspace.service.acceptInvitation)
+  48. Lifecycle akun: logout server-side (revoke token), hapus akun + data, cabut semua sesi saat ganti password.
+      Done (2026-10-03: tokenVersion di User, POST /auth/logout, DELETE /auth/account, bump versi saat ganti/reset password)
+  49. Toggle visibilitas Public/Private koleksi di UI (Sidebar/modal) yang tersambung ke kolom shareVisibility/mockVisibility/docVisibility.
+      Done (2026-10-03: diverifikasi end-to-end — ShareSettingsModal + updateCollection + kolom DB + getSharedCollection sudah tersambung; tanpa perubahan kode)
+  50. Trash/archive + audit log: hapus bersifat soft-delete dengan pemulihan, catat siapa melakukan apa.
+      Done (2026-10-03: deletedAt di Workspace/Collection/Environment, tabel AuditLog, endpoint restore/trash/audit, audit di delete/invite/member)
+  51. Deteksi konflik kolaborasi: versioning/optimistic locking agar edit dua anggota tidak saling menimpa diam-diam.
+      Done (2026-10-03: updatedAt di Collection/Environment, 409 + force flag, resolusi otomatis via ConflictResolutionModal di lapisan API)
+  52. Scheduled runs & monitoring: jadwal eksekusi koleksi (cron), alerting email/Slack saat API down, dashboard uptime.
+      Done (2026-10-03: model Monitor/MonitorRun, scheduler 60s, run-now, email+Slack alert, MonitorsPanel UI)
+  53. Dokumentasi publik: publish URL publik + try-it widget untuk konsumen API.
+      Done (2026-10-03: PublicDocView tanpa login + try-it browser langsung, dirender sebelum auth gate)
+  54. Git sync: sinkronisasi koleksi ke repositori Git (versioning, PR review, CI).
+      Done fase 1 (2026-10-03: auto-snapshot tiap update + cap 30 + audit; remote push ditunda — butuh credential UX)
+  55. Contract testing: validasi respons terhadap skema OpenAPI + deteksi breaking change otomatis.
+      Done fase 1 (2026-10-03: diff added/removed/modified/breaking tersimpan di tiap auto-snapshot; validasi terhadap spec OpenAPI menyusul)
+  56. AI testing lanjutan: auto-generate test assertion dari respons, deteksi anomali performa, natural-language-to-request.
+      Done fase 1 (2026-10-03: POST /api/generate-tests + tombol AI Tests di ResponsePanel menulis ke post-response script)
+  57. Kolaborasi real-time: presence, live cursor, co-editing (atau hapus klaim Firebase Realtime Sync dari README bila tidak diimplementasikan).
+      Diputuskan (2026-10-03): DITUNDA — butuh infrastruktur WS + CRDT, tidak ada kode Firebase di repo. Klaim dihapus dari README pada #61. Fondasi sudah ada: optimistic locking (#51) + ConflictResolutionModal.
+  58. Monetisasi: usage metering + billing/kuota/plan sebelum scale (proxy, AI, email berbiaya per user).
+      Done fase 1 (2026-10-03: tabel UsageMeter + meter proxy_call/ai_call + GET /api/usage/me; AI endpoint kini wajib auth; payment provider menyusul)
+  59. Admin/ops: dashboard admin (user, workspace, usage), audit log keamanan, data export untuk compliance.
+      Done fase 1 (2026-10-03: /api/admin/stats|audit|usage dengan ADMIN_EMAILS gate; UI admin menyusul)
+  60. Kualitas rilis: E2E test, test IDOR/SSRF otomatis, secret scanning + SAST di CI.
+      Done (2026-10-03: server/tests/security.test.ts 11 kasus, .github/workflows/security.yml gitleaks+audit+tsc+test)
+  61. Perbaiki docs usang: README/RELEASE/DeveloperDocsPage masih menyebut fitur yang sudah dihapus (3 tema, DMG, custom accent).
+      Done (2026-10-03: klaim Firebase dihapus, build target diluruskan ke zip/portable, duplikasi RELEASE diperbaiki)

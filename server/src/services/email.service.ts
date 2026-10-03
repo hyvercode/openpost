@@ -117,4 +117,29 @@ export class EmailService {
       throw new Error('Failed to send password reset email');
     }
   }
+
+  async sendMonitorAlert(to: string, subject: string, text: string) {
+    const from = process.env.SMTP_FROM || 'no-reply@example.com';
+    const transporter = this.getTransporter();
+
+    const mailOptions = {
+      from,
+      to,
+      subject,
+      html: `
+        <h1>Monitor Alert</h1>
+        <p>${subject.replace(/</g, '&lt;')}</p>
+        <pre style="background:#f4f4f4;padding:12px;border-radius:4px;white-space:pre-wrap;">${text.replace(/</g, '&lt;')}</pre>
+      `,
+    };
+
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log('Monitor alert email sent: %s', info.messageId);
+      return info;
+    } catch (error) {
+      console.error('Error sending monitor alert email:', error);
+      throw new Error('Failed to send monitor alert email');
+    }
+  }
 }

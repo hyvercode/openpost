@@ -17,6 +17,8 @@ import { CollectionDocPanel } from './components/CollectionDocPanel';
 import { SettingsView } from './components/SettingsView';
 import { CookieManager } from './components/CookieManager';
 import { TestRunnerPanel } from './components/TestRunnerPanel';
+import { MonitorsPanel } from './components/MonitorsPanel';
+import { PublicDocView } from './components/PublicDocView';
 import { TabBar } from './components/TabBar';
 import { BottomDrawer } from './components/BottomDrawer';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -487,7 +489,12 @@ export default function App() {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // proceed with local logout even if the server call fails
+    }
     localStorage.removeItem('auth_token');
     setUser(null);
   };
@@ -685,6 +692,14 @@ export default function App() {
 
   if (isDocsPageOpen && !isDesktop) {
     return <DeveloperDocsPage onBack={() => setIsDocsPageOpen(false)} />;
+  }
+
+  // Public docs (?public_doc=) render without login (PRD #53).
+  if (publicDocId || publicDocError) {
+    if (loading) {
+      return <LoadingScreen message="Loading documentation..." />;
+    }
+    return <PublicDocView collection={publicDocCollection as any} error={publicDocError} />;
   }
 
   if (!user) {
@@ -1231,6 +1246,10 @@ export default function App() {
           ) : activeView === 'test_suite' ? (
             <div className="flex-1 flex flex-col min-h-0">
               <TestRunnerPanel />
+            </div>
+          ) : activeView === 'monitors' ? (
+            <div className="flex-1 flex flex-col min-h-0">
+              <MonitorsPanel />
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-sm bg-[var(--bg-base)]">

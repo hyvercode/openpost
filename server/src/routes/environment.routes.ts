@@ -11,5 +11,6 @@ router.get('/:workspaceId', environmentController.getEnvironmentsByWorkspace);
 router.post('/', environmentController.createEnvironment);
 router.put('/:id', environmentController.updateEnvironment);
 router.delete('/:id', environmentController.deleteEnvironment);
+router.post('/:id/restore', environmentController.restoreEnvironment);
 
 export default router;

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2, CheckSquare, Square, X, Check, Cookie, FileCode, Cloud, FilePlus, FolderPlus, GitCommit, GitBranch } from 'lucide-react';
+import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, Trash2, ChevronRight, ChevronDown, Edit2, Search, Copy, ChevronLeft, Palette, Rocket, Globe, ExternalLink, BookOpen, FileDown, History, Server, Share2, CheckSquare, Square, X, Check, Cookie, FileCode, Cloud, FilePlus, FolderPlus, GitCommit, GitBranch, Activity } from 'lucide-react';
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
@@ -71,7 +71,7 @@ export function Sidebar() {
     removeDraftRequest,
     closeTab
   } = useStore();
-  const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments' | 'history' | 'tests' | 'cookies'>('collections');
+  const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments' | 'history' | 'tests' | 'cookies' | 'monitors'>('collections');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   
@@ -1874,11 +1874,12 @@ export function Sidebar() {
           >
             <div className="flex items-center gap-2">
               <span className="w-1 h-3 bg-[var(--primary)] rounded-full"></span>
-              <span>{activeTab === 'collections' ? 'Collections' : 
-                     activeTab === 'environments' ? 'Environments' : 
-                     activeTab === 'cookies' ? 'Cookies Manager' : 
-                     activeTab === 'deployments' ? 'Mock API Servers' : 
-                     activeTab === 'history' ? 'History' : 
+              <span>{activeTab === 'collections' ? 'Collections' :
+                     activeTab === 'environments' ? 'Environments' :
+                     activeTab === 'cookies' ? 'Cookies Manager' :
+                     activeTab === 'deployments' ? 'Mock API Servers' :
+                     activeTab === 'monitors' ? 'Monitors' :
+                     activeTab === 'history' ? 'History' :
                      activeTab === 'tests' ? 'Tests & Runners' : activeTab}</span>
             </div>
             <ChevronDown className={cn("w-3.5 h-3.5 text-[var(--text-secondary)] transition-transform duration-200", isNavDropdownOpen && "rotate-180")} />
@@ -1893,6 +1894,7 @@ export function Sidebar() {
                   { id: 'environments', label: 'Environments', icon: Globe },
                   { id: 'cookies', label: 'Cookies', icon: Cookie },
                   { id: 'deployments', label: 'Mocks', icon: Rocket },
+                  { id: 'monitors', label: 'Monitors', icon: Activity },
                   { id: 'history', label: 'History', icon: History },
                   { id: 'tests', label: 'Tests', icon: Play }
                 ].map((item) => (
@@ -1900,6 +1902,7 @@ export function Sidebar() {
                     key={item.id}
                     onClick={() => {
                       setActiveTab(item.id as any);
+                      if (item.id === 'monitors') setActiveView('monitors');
                       setIsNavDropdownOpen(false);
                     }}
                     className={cn(
@@ -2562,11 +2565,22 @@ export function Sidebar() {
           <div className="p-4 text-xs text-[var(--text-secondary)] text-center bg-[var(--bg-input)] rounded mx-2 mt-2 border border-[var(--border-subtle)]">
             <Cookie className="w-6 h-6 mx-auto mb-2 opacity-50" />
             <p>Cookie manager is open in the main view.</p>
-            <button 
+            <button
               onClick={() => setActiveView('cookies')}
-              className="mt-3 px-3 py-1.5 bg-[var(--primary)] text-white rounded font-bold transition-colors hover:bg-[var(--primary-hover)] w-full"
+              className="mt-3 px-3 py-1.5 bg-[var(--primary)] text-white rounded font-bold hover:bg-[var(--primary-hover)] w-full cursor-pointer"
             >
               Open Cookie Manager
+            </button>
+          </div>
+        ) : activeTab === 'monitors' ? (
+          <div className="p-4 text-xs text-[var(--text-secondary)] text-center bg-[var(--bg-input)] rounded mx-2 mt-2 border border-[var(--border-subtle)]">
+            <Activity className="w-6 h-6 mx-auto mb-2 opacity-50" />
+            <p>Scheduled monitors run collections on an interval and alert on failures.</p>
+            <button
+              onClick={() => setActiveView('monitors')}
+              className="mt-3 px-3 py-1.5 bg-[var(--primary)] text-white rounded font-bold hover:bg-[var(--primary-hover)] w-full cursor-pointer"
+            >
+              Open Monitors
             </button>
           </div>
         ) : activeTab === 'deployments' ? (

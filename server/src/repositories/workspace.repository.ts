@@ -2,9 +2,11 @@ import { prisma } from '../db';
 
 export class WorkspaceRepository {
   async findMany(userId?: string) {
+    const notDeleted = { deletedAt: null } as any;
     if (userId) {
       return prisma.workspace.findMany({
         where: {
+          ...notDeleted,
           OR: [
             { ownerId: String(userId) },
             {
@@ -16,13 +18,15 @@ export class WorkspaceRepository {
         }
       });
     }
-    return prisma.workspace.findMany();
+    return prisma.workspace.findMany({ where: notDeleted });
   }
 
   async findById(id: string) {
-    return prisma.workspace.findUnique({
+    const ws = await prisma.workspace.findUnique({
       where: { id }
     });
+    if (!ws || (ws as any).deletedAt) return null;
+    return ws;
   }
 
   async create(id: string, name: string, ownerId: string) {
@@ -137,9 +141,30 @@ export class WorkspaceRepository {
     });
   }
 
+  /** Soft delete workspace (PRD #50). Members/children stay for restore. */
   async delete(id: string) {
-    return prisma.workspace.delete({
-      where: { id }
+    return prisma.workspace.update({
+      where: { id },
+      data: { deletedAt: new Date() } as any,
+    });
+  }
+
+  async restore(id: string) {
+    return prisma.workspace.update({
+      where: { id },
+      data: { deletedAt: null } as any,
+    });
+  }
+
+  async findTrashByUser(userId: string) {
+    return prisma.workspace.findMany({
+      where: {
+        deletedAt: { not: null },
+        OR: [
+          { ownerId: String(userId) },
+          { members: { some: { userId: String(userId) } } },
+        ],
+      } as any,
     });
   }
 }

@@ -462,7 +462,7 @@ npm run bridge
               {isIndo ? 'Membangun Aplikasi Desktop Electron (Multi-Platform Otomatis)' : 'Building Standalone Electron Installer (Auto Multi-Platform)'}
             </h4>
             <p className="text-xs text-[var(--text-secondary)]">
-              {isIndo ? 'Perintah build:electron secara otomatis membundel installer untuk semua platform sekaligus (Windows .exe, macOS .dmg/.zip, dan Linux .AppImage/.tar.gz):' : 'The build:electron command automatically packages installers for all platforms simultaneously (Windows .exe, macOS .dmg/.zip, and Linux .AppImage/.tar.gz):'}
+              {isIndo ? 'Perintah build:electron secara otomatis membundel installer untuk semua platform sekaligus (Windows portable .exe/.zip, macOS .zip, dan Linux .AppImage/.tar.gz):' : 'The build:electron command automatically packages installers for all platforms simultaneously (Windows portable .exe/.zip, macOS .zip, and Linux .AppImage/.tar.gz):'}
             </p>
             <div className="bg-[var(--bg-panel)] p-3 rounded border border-[var(--border-subtle)] space-y-2">
               <pre className="text-xs font-mono text-[var(--text-primary)] leading-relaxed">
@@ -470,8 +470,9 @@ npm run bridge
 npm run build:electron
 
 # Atau pilih platform tertentu:
-npm run build:electron:win    # Khusus Windows (.exe NSIS)
-npm run build:electron:mac    # Khusus macOS (.dmg / .zip)
+npm run build:electron:win    # Khusus Windows (portable .exe + .zip, tanpa Wine)
+npm run build:electron:win:nsis  # Installer NSIS (butuh Wine di Linux / build di Windows)
+npm run build:electron:mac    # Khusus macOS (.zip; .dmg hanya di Mac/CI)
 npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
               </pre>
             </div>

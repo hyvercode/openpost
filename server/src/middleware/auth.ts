@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
 import { JWT_SECRET } from '../config';
 
-export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized: Missing token' });
@@ -11,7 +11,20 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
 
   const token = authHeader.split('Bearer ')[1];
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    const userId = decoded?.uid || decoded?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    }
+    // Token revocation check (PRD #48): logout / password change /
+    // account deletion bump tokenVersion, invalidating old tokens.
+    const user = await prisma.user.findUnique({ where: { uid: userId } });
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    }
+    if (typeof decoded.tv === 'number' && (user as any).tokenVersion !== undefined && decoded.tv !== (user as any).tokenVersion) {
+      return res.status(401).json({ error: 'Unauthorized: session revoked, please log in again' });
+    }
     (req as any).user = decoded;
     next();
   } catch (error) {

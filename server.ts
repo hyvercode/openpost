@@ -2,8 +2,6 @@ import "dotenv/config";
 // Validate security-critical config FIRST (fail-fast in production).
 import "./server/src/config";
 import express from "express";
-import ipaddr from "ipaddr.js";
-import dns from "dns/promises";
 import cors from "cors";
 import helmet from "helmet";
 import axios from "axios";
@@ -24,9 +22,23 @@ import userRoutes from './server/src/routes/user.routes';
 import authRoutes from './server/src/routes/auth.routes';
 import commentRoutes from './server/src/routes/comment.routes';
 import versionRoutes from './server/src/routes/version.routes';
+import monitorRoutes from './server/src/routes/monitor.routes';
+import adminRoutes from './server/src/routes/admin.routes';
 import { prisma } from './server/src/db';
 import { requireAuth } from './server/src/middleware/auth';
 import { rateLimiter } from './server/src/middleware/rateLimiter';
+import { meter } from './server/src/services/usage.service';
+import { getUsage } from './server/src/services/usage.service';
+
+function meterProxyCall(req: any): void {
+  const userId = req?.user?.uid || req?.user?.userId;
+  meter(userId, 'proxy_call').catch(() => {});
+}
+
+function meterAiCall(req: any): void {
+  const userId = req?.user?.uid || req?.user?.userId;
+  meter(userId, 'ai_call').catch(() => {});
+}
 
 // Resolve the application root across dev and packaged (Electron) layouts:
 // - dev (tsx server.ts):        cwd = <project>/
@@ -108,8 +120,63 @@ async function startServer() {
   app.use('/api/users', userRoutes);
   app.use('/api/comments', commentRoutes);
   app.use('/api/versions', versionRoutes);
+  app.use('/api/monitors', monitorRoutes);
+  app.use('/api/admin', adminRoutes);
 
-  app.post("/api/generate-code", async (req, res) => {
+  // AI: generate pm.* test assertions from a real response (PRD #56).
+  app.post("/api/generate-tests", requireAuth, rateLimiter(20), async (req, res) => {
+    try {
+      const { method, url, status, responseBody } = req.body || {};
+      if (!method || !url || status === undefined) {
+        return res.status(400).json({ error: "method, url and status are required" });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "Gemini API key is not configured" });
+      }
+
+      let bodyPreview = '';
+      try {
+        const parsed = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
+        bodyPreview = JSON.stringify(parsed).slice(0, 3000);
+      } catch {
+        bodyPreview = String(responseBody || '').slice(0, 3000);
+      }
+
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const prompt = `Generate Postman-style test assertions (pm.* JavaScript) for the following HTTP response.
+Return ONLY raw JavaScript code, no markdown fences, no explanations.
+
+Rules:
+- Use pm.test("description", function () { ... }) blocks.
+- Use pm.expect(...).to.equal / .to.be.a / .to.be.below / .to.include etc.
+- Available: pm.response.code, pm.response.json(), pm.response.text(), pm.response.responseTime.
+- Generate 3-6 meaningful assertions: status code, key fields existence and types, and a response-time check under 2000ms.
+- Do not invent fields not present in the body.
+
+Request: ${method} ${url}
+Status: ${status}
+Body: ${bodyPreview}
+`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: prompt
+      });
+
+      let script = response.text || "";
+      script = script.replace(/^```[a-z]*\n/i, "").replace(/\n```$/i, "").trim();
+
+      meterAiCall(req);
+      res.json({ script });
+    } catch (error: any) {
+      console.error("Test generation error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate tests" });
+    }
+  });
+
+  // NOTE: auth is required — these burn paid Gemini quota (PRD #58).
+  app.post("/api/generate-code", requireAuth, rateLimiter(20), async (req, res) => {
     try {
       const { requestConfig, language } = req.body;
       if (!requestConfig) {
@@ -139,6 +206,7 @@ Body: ${JSON.stringify(requestConfig.body || {})}
       let code = response.text || "";
       code = code.replace(/^```[a-z]*\n/i, "").replace(/\n```$/i, "").trim();
 
+      meterAiCall(req);
       res.json({ code });
     } catch (error: any) {
       console.error("Code generation error:", error);
@@ -146,7 +214,7 @@ Body: ${JSON.stringify(requestConfig.body || {})}
     }
   });
 
-  app.post("/api/collections/generate-docs", async (req, res) => {
+  app.post("/api/collections/generate-docs", requireAuth, rateLimiter(20), async (req, res) => {
     try {
       const { collectionName, folders, requests, targetType, targetName } = req.body;
       if (!collectionName) {
@@ -224,10 +292,22 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       });
 
       const markdown = response.text || "";
+      meterAiCall(req);
       res.json({ markdown });
     } catch (error: any) {
       console.error("Documentation generation error:", error);
       res.status(500).json({ error: error.message || "Failed to generate documentation" });
+    }
+  });
+
+  // Current-month usage for the authenticated user (PRD #58).
+  app.get("/api/usage/me", requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).user?.uid || (req as any).user?.userId;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+      res.json(await getUsage(userId, String(req.query.month || '')));
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch usage' });
     }
   });
 
@@ -298,69 +378,9 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
   app.all("/api/proxy", requireAuth, rateLimiter(60), async (req, res) => {
     const startTime = performance.now();
 
-    // --- SSRF guard helpers (single source of truth for URL safety) ---
-    const BLOCKED_HOST_SUFFIXES = ['.internal', '.local', '.localhost', '.lan', '.home', '.corp'];
-    // Cloud metadata endpoints (IMDS) — not covered by private-range checks.
-    const BLOCKED_IPS = new Set([
-      '169.254.169.254', // AWS / GCP / Azure / DigitalOcean IMDS
-      '100.100.100.100', // Alibaba Cloud IMDS
-      'fd00:ec2::254',   // AWS IPv6 IMDS
-    ]);
-
-    function ipIsBlocked(ipStr: string): boolean {
-      if (BLOCKED_IPS.has(ipStr)) return true;
-      let parsed: any = null;
-      try { parsed = ipaddr.parse(ipStr); } catch { try { parsed = (ipaddr as any).process(ipStr); } catch { return true; } }
-      if (!parsed) return true;
-      // Normalize IPv4-mapped IPv6 (::ffff:127.0.0.1) before range check.
-      const range = typeof parsed.range === 'function' ? parsed.range() : 'unicast';
-      if (range !== 'unicast' && range !== 'global') return true;
-      return false;
-    }
-
-    async function assertUrlSafe(rawUrl: string): Promise<{ urlObj: URL; targetIp: string }> {
-      let urlObj: URL;
-      try {
-        urlObj = new URL(rawUrl);
-      } catch {
-        throw Object.assign(new Error('Invalid URL'), { status: 400 });
-      }
-      // Only http/https — reject file:, gopher:, dict:, ftp:, etc.
-      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
-        throw Object.assign(new Error('Only http(s) URLs are allowed'), { status: 400 });
-      }
-      if (urlObj.username || urlObj.password) {
-        throw Object.assign(new Error('Credentials in URL are not allowed'), { status: 400 });
-      }
-      const host = urlObj.hostname.toLowerCase();
-      if (!host || host === 'localhost' || BLOCKED_HOST_SUFFIXES.some((s) => host === s.slice(1) || host.endsWith(s))) {
-        throw Object.assign(new Error('Access to internal or local networks is blocked'), { status: 403 });
-      }
-      // Resolve ALL addresses (A + AAAA) — block if ANY is non-public (DNS rebinding defense).
-      let records: Array<{ address: string }>;
-      try {
-        const [v4, v6] = await Promise.all([
-          dns.resolve4(host).catch(() => [] as string[]),
-          dns.resolve6(host).catch(() => [] as string[]),
-        ]);
-        records = [...v4.map((a) => ({ address: a })), ...v6.map((a) => ({ address: a }))];
-        if (records.length === 0) {
-          const fallback = await dns.lookup(host);
-          records = [{ address: fallback.address }];
-        }
-      } catch {
-        throw Object.assign(new Error('DNS resolution failed'), { status: 400 });
-      }
-      for (const r of records) {
-        if (ipIsBlocked(r.address)) {
-          throw Object.assign(
-            new Error('SSRF Protection: Access to internal or local networks is blocked.'),
-            { status: 403, suggestion: 'To test local APIs, please use the Desktop Agent Bridge.' }
-          );
-        }
-      }
-      return { urlObj, targetIp: records[0].address };
-    }
+    // SSRF guards live in server/src/services/ssrf.ts (shared with monitors,
+    // covered by server/tests/security.test.ts).
+    const { assertUrlSafe, createPinnedLookup } = await import('./server/src/services/ssrf');
 
     try {
       const targetUrl = (req.headers["x-target-url"] as string) || req.body?.url;
@@ -368,7 +388,16 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         return res.status(400).json({ error: "Missing or invalid x-target-url header or url in request body" });
       }
 
-      const { urlObj, targetIp } = await assertUrlSafe(targetUrl);
+      let urlObj: URL;
+      let targetIp: string;
+      try {
+        ({ urlObj, targetIp } = await assertUrlSafe(targetUrl));
+      } catch (e: any) {
+        return res.status(e?.status || 403).json({
+          error: e?.message || 'Target blocked by SSRF policy',
+          ...(e?.suggestion ? { suggestion: e.suggestion } : {}),
+        });
+      }
 
       const isBodyConfig = req.body && req.body.url && req.body.method;
       const rawMethod = (isBodyConfig ? req.body.method : req.method) || 'GET';
@@ -409,16 +438,7 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
 
       // Pin DNS: every connection (including redirects) resolves through this
       // lookup, which only ever returns the pre-validated IP.
-      const pinnedLookup = (hostname: string, options: any, callback: any) => {
-        if (hostname === urlObj.hostname && targetIp) {
-          const family = targetIp.includes(':') ? 6 : 4;
-          callback(null, targetIp, family);
-        } else {
-          // Redirects to a different host go through full re-validation below
-          // via beforeRedirect; anything else is denied.
-          callback(new Error('DNS resolution denied by SSRF policy'));
-        }
-      };
+      const pinnedLookup = createPinnedLookup(urlObj.hostname, targetIp);
 
       if (proxyConfig && proxyConfig.enabled && proxyConfig.url) {
         const proxyUrl = String(proxyConfig.url).includes('://') ? String(proxyConfig.url) : `${proxyConfig.protocol}://${proxyConfig.url}`;
@@ -493,14 +513,7 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
           currentUrl = nextUrl;
           currentIp = checked.targetIp;
           // Re-pin DNS to the new hop's validated IP.
-          const hopIp = checked.targetIp;
-          const hopLookup = (hostname: string, options: any, callback: any) => {
-            if (hostname === checked.urlObj.hostname) {
-              callback(null, hopIp, hopIp.includes(':') ? 6 : 4);
-            } else {
-              callback(new Error('DNS resolution denied by SSRF policy'));
-            }
-          };
+          const hopLookup = createPinnedLookup(checked.urlObj.hostname, checked.targetIp);
           if (!proxyConfig?.enabled) {
             config.httpAgent = new http.Agent({ lookup: hopLookup });
             config.httpsAgent = new https.Agent({ lookup: hopLookup });
@@ -531,6 +544,9 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       const isBufferResponse = Buffer.isBuffer(responseData) || responseData instanceof ArrayBuffer;
       const dataToSend = isBufferResponse ? Buffer.from(responseData).toString("base64") : responseData;
       const size = isBufferResponse ? Buffer.from(responseData).length : (typeof responseData === 'string' ? Buffer.byteLength(responseData) : JSON.stringify(responseData).length);
+
+      // Usage metering (PRD #58): fire-and-forget, never blocks the response.
+      meterProxyCall(req);
 
       res.json({
         status: response.status,
@@ -860,6 +876,15 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
 
   app.listen(Number(PORT) || 3000, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+    // Scheduled monitors (PRD #52). Disabled in Electron desktop child
+    // (OPENPOST_EMBEDDED) to avoid duplicate schedulers; opt-out via
+    // DISABLE_MONITORS=1.
+    if (!process.env.DISABLE_MONITORS && !process.env.OPENPOST_EMBEDDED) {
+      import('./server/src/services/monitor.service').then(({ startMonitorScheduler }) => {
+        startMonitorScheduler();
+        console.log('[monitor] scheduler started (60s tick)');
+      }).catch((e) => console.error('[monitor] scheduler failed to start:', e?.message));
+    }
   });
 }
 

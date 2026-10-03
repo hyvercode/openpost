@@ -10,9 +10,11 @@ const collectionController = new CollectionController();
 router.use(requireAuth);
 
 router.get('/shared/:id', collectionController.getSharedCollection);
+router.get('/trash/:workspaceId', collectionController.getTrash);
 router.get('/:workspaceId', collectionController.getCollectionsByWorkspace);
 router.post('/', collectionController.createCollection);
 router.put('/:id', collectionController.updateCollection);
 router.delete('/:id', collectionController.deleteCollection);
+router.post('/:id/restore', collectionController.restoreCollection);
 
 export default router;

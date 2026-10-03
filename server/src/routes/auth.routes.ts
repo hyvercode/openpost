@@ -38,5 +38,7 @@ router.post(
 );
 router.post('/reset-password', authLimiter, validateBody(resetPasswordSchema), authController.resetPassword);
 router.post('/change-password', requireAuth, validateBody(changePasswordSchema), authController.changePassword);
+router.post('/logout', requireAuth, authController.logout);
+router.delete('/account', requireAuth, authController.deleteAccount);
 
 export default router;

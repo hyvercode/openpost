@@ -3,6 +3,55 @@ import { useStore } from '../store/useStore';
 import { Workspace, ApiCollection, Environment, Deployment, CollectionVersion } from '../types';
 import { syncEngine } from './syncEngine';
 
+/**
+ * Optimistic locking helpers (PRD #51).
+ * If the record carries the `updatedAt` we last saw, send it as
+ * `expectedUpdatedAt` so the server can reject stale writes with 409.
+ */
+function withExpectedVersion<T extends object>(payload: T): T {
+  const updatedAt = (payload as Record<string, unknown>).updatedAt;
+  if (typeof updatedAt === 'string') {
+    return { ...payload, expectedUpdatedAt: updatedAt };
+  }
+  return payload;
+}
+
+/**
+ * Open the existing ConflictResolutionModal on 409. 'Keep Cloud' resolves
+ * with the server version; 'Keep Local' force-saves over it.
+ */
+function resolveUpdateConflict<T>(
+  _kind: string,
+  _id: string,
+  localPayload: unknown,
+  cloud: unknown,
+  forceSave: (payload: Record<string, unknown>) => Promise<T>
+): Promise<T> {
+  const { setConflictData, setIsConflictModalOpen } = useStore.getState();
+  return new Promise<T>((resolve, reject) => {
+    setConflictData({
+      local: localPayload,
+      cloud,
+      onResolve: async (resolution: 'local' | 'cloud') => {
+        try {
+          if (resolution === 'local') {
+            const result = await forceSave({
+              ...(localPayload as Record<string, unknown>),
+              force: true,
+            });
+            resolve(result);
+          } else {
+            resolve(cloud as T);
+          }
+        } catch (e) {
+          reject(e);
+        }
+      },
+    });
+    setIsConflictModalOpen(true);
+  });
+}
+
 export const api = axios.create({
   baseURL: ((import.meta as any).env?.VITE_API_URL || '') + '/api',
 });
@@ -82,6 +131,16 @@ export const apiService = {
 
   async changePassword(currentPassword: string, password: string) {
     const res = await api.post('/auth/change-password', { currentPassword, password });
+    return res.data;
+  },
+
+  async logout() {
+    const res = await api.post('/auth/logout');
+    return res.data;
+  },
+
+  async deleteAccount() {
+    const res = await api.delete('/auth/account');
     return res.data;
   },
 
@@ -165,8 +224,17 @@ export const apiService = {
   },
 
   async updateCollection(id: string, collection: Partial<ApiCollection>): Promise<ApiCollection> {
-    const res = await api.put(`/collections/${id}`, collection);
-    return res.data;
+    try {
+      const res = await api.put(`/collections/${id}`, withExpectedVersion(collection));
+      return res.data;
+    } catch (err: any) {
+      if (err?.response?.status === 409 && err.response.data?.conflict) {
+        return resolveUpdateConflict('collection', id, collection, err.response.data.conflict, (payload) =>
+          api.put(`/collections/${id}`, payload).then((r) => r.data)
+        );
+      }
+      throw err;
+    }
   },
 
   async deleteCollection(id: string): Promise<void> {
@@ -259,12 +327,46 @@ export const apiService = {
   },
 
   async updateEnvironment(id: string, env: Partial<Environment>): Promise<Environment> {
-    const res = await api.put(`/environments/${id}`, env);
-    return res.data;
+    try {
+      const res = await api.put(`/environments/${id}`, withExpectedVersion(env));
+      return res.data;
+    } catch (err: any) {
+      if (err?.response?.status === 409 && err.response.data?.conflict) {
+        return resolveUpdateConflict('environment', id, env, err.response.data.conflict, (payload) =>
+          api.put(`/environments/${id}`, payload).then((r) => r.data)
+        );
+      }
+      throw err;
+    }
   },
 
   async deleteEnvironment(id: string): Promise<void> {
     await api.delete(`/environments/${id}`);
+  },
+
+  // Monitors (PRD #52)
+  async getMonitors(workspaceId: string): Promise<any[]> {
+    const res = await api.get(`/monitors/workspace/${workspaceId}`);
+    return res.data;
+  },
+  async createMonitor(workspaceId: string, data: Record<string, unknown>): Promise<any> {
+    const res = await api.post(`/monitors/workspace/${workspaceId}`, data);
+    return res.data;
+  },
+  async updateMonitor(id: string, data: Record<string, unknown>): Promise<any> {
+    const res = await api.put(`/monitors/${id}`, data);
+    return res.data;
+  },
+  async deleteMonitor(id: string): Promise<void> {
+    await api.delete(`/monitors/${id}`);
+  },
+  async runMonitorNow(id: string): Promise<any> {
+    const res = await api.post(`/monitors/${id}/run`);
+    return res.data;
+  },
+  async getMonitorRuns(id: string): Promise<any[]> {
+    const res = await api.get(`/monitors/${id}/runs`);
+    return res.data;
   },
 
   // Deployments

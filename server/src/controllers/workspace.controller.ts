@@ -51,10 +51,44 @@ export class WorkspaceController {
   deleteWorkspace = async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
-      await this.workspaceService.deleteWorkspace(id);
-      res.json({ success: true, message: 'Workspace deleted' });
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      await this.workspaceService.deleteWorkspace(id, actor);
+      res.json({ success: true, message: 'Workspace moved to trash' });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to delete workspace', details: error.message });
+      res.status(500).json({ error: 'Failed to delete workspace' });
+    }
+  };
+
+  restoreWorkspace = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      const restored = await this.workspaceService.restoreWorkspace(id, actor);
+      res.json(restored);
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to restore workspace' });
+    }
+  };
+
+  getTrash = async (req: Request, res: Response) => {
+    try {
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      if (!actor) return res.status(401).json({ error: 'Unauthorized' });
+      const trash = await this.workspaceService.getTrash(actor);
+      res.json(trash);
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch trash' });
+    }
+  };
+
+  getAuditLog = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const limit = Math.min(parseInt(String(req.query.limit || '100'), 10) || 100, 500);
+      const log = await this.workspaceService.getAuditLog(id, limit);
+      res.json(log);
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to fetch audit log' });
     }
   };
 
@@ -72,10 +106,11 @@ export class WorkspaceController {
     try {
       const { id } = req.params;
       const { email, role } = req.body;
-      const invitation = await this.workspaceService.inviteMember(id, email, role || 'MEMBER');
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      const invitation = await this.workspaceService.inviteMember(id, email, role || 'VIEWER', actor);
       res.status(201).json(invitation);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to invite member', details: error.message });
+      res.status(400).json({ error: error.message || 'Failed to invite member' });
     }
   };
 
@@ -83,20 +118,22 @@ export class WorkspaceController {
     try {
       const { id, userId } = req.params;
       const { role, status } = req.body;
-      const updated = await this.workspaceService.updateMember(id, userId, { role, status });
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      const updated = await this.workspaceService.updateMember(id, userId, { role, status }, actor);
       res.json(updated);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to update member', details: error.message });
+      res.status(400).json({ error: error.message || 'Failed to update member' });
     }
   };
 
   removeMember = async (req: Request, res: Response) => {
     try {
       const { id, userId } = req.params;
-      await this.workspaceService.removeMember(id, userId);
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      await this.workspaceService.removeMember(id, userId, actor);
       res.json({ success: true, message: 'Member removed' });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to remove member', details: error.message });
+      res.status(400).json({ error: error.message || 'Failed to remove member' });
     }
   };
 

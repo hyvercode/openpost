@@ -1,5 +1,6 @@
 import { EnvironmentRepository, EnvironmentData } from '../repositories/environment.repository';
 import { v4 as uuidv4 } from 'uuid';
+import { audit } from './audit.service';
 
 export class EnvironmentService {
   private environmentRepository = new EnvironmentRepository();
@@ -32,7 +33,29 @@ export class EnvironmentService {
     return this.environmentRepository.update(id, data);
   }
 
-  async deleteEnvironment(id: string) {
-    return this.environmentRepository.delete(id);
+  async deleteEnvironment(id: string, actorUserId?: string) {
+    const existing = await this.environmentRepository.findById(id);
+    const result = await this.environmentRepository.delete(id);
+    await audit('environment.delete', {
+      workspaceId: existing?.workspaceId,
+      userId: actorUserId,
+      entityType: 'environment',
+      entityId: id,
+      detail: existing?.name,
+    });
+    return result;
+  }
+
+  async restoreEnvironment(id: string, actorUserId?: string) {
+    const result = await this.environmentRepository.restore(id);
+    const record = await this.environmentRepository.findById(id);
+    await audit('environment.restore', {
+      workspaceId: record?.workspaceId,
+      userId: actorUserId,
+      entityType: 'environment',
+      entityId: id,
+      detail: record?.name,
+    });
+    return result;
   }
 }

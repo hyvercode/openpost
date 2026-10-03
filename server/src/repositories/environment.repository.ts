@@ -6,6 +6,9 @@ export interface EnvironmentData {
   name: string;
   variables?: any;
   position?: number;
+  /** Optimistic-locking fields (never persisted directly). */
+  expectedUpdatedAt?: string;
+  force?: boolean;
 }
 
 export class EnvironmentRepository {
@@ -18,14 +21,14 @@ export class EnvironmentRepository {
 
   async findByWorkspaceId(workspaceId: string) {
     const envs = await prisma.environment.findMany({
-      where: { workspaceId }
+      where: { workspaceId, deletedAt: null } as any
     });
     return envs.map(this.parseEnv);
   }
 
   async findById(id: string) {
     const env = await prisma.environment.findUnique({ where: { id } });
-    if (!env) return null;
+    if (!env || (env as any).deletedAt) return null;
     return this.parseEnv(env);
   }
 
@@ -43,21 +46,44 @@ export class EnvironmentRepository {
   }
 
   async update(id: string, data: Partial<EnvironmentData>) {
+    // Optimistic locking (PRD #51) — see collection.repository.ts.
+    if (data.expectedUpdatedAt && !data.force) {
+      const current = await prisma.environment.findUnique({ where: { id } });
+      const currentTs = current?.updatedAt ? new Date(current.updatedAt).getTime() : 0;
+      const expectedTs = new Date(data.expectedUpdatedAt).getTime();
+      if (current && !Number.isNaN(expectedTs) && currentTs !== expectedTs) {
+        const err: any = new Error('Conflict: environment changed on server');
+        err.code = 'CONFLICT';
+        err.current = this.parseEnv(current);
+        throw err;
+      }
+    }
+    const { expectedUpdatedAt: _e, force: _f, ...rest } = data;
     const updated = await prisma.environment.update({
       where: { id },
       data: {
-        ...(data.name !== undefined && { name: data.name }),
-        ...(data.variables !== undefined && { variables: JSON.stringify(data.variables) }),
-        ...(data.position !== undefined && { position: data.position })
+        ...(rest.name !== undefined && { name: rest.name }),
+        ...(rest.variables !== undefined && { variables: JSON.stringify(rest.variables) }),
+        ...(rest.position !== undefined && { position: rest.position })
       }
     });
     return this.parseEnv(updated);
   }
 
+  /** Soft delete (PRD #50). */
   async delete(id: string) {
-    const deleted = await prisma.environment.delete({
-      where: { id }
+    const deleted = await prisma.environment.update({
+      where: { id },
+      data: { deletedAt: new Date() } as any
     });
     return this.parseEnv(deleted);
+  }
+
+  async restore(id: string) {
+    const restored = await prisma.environment.update({
+      where: { id },
+      data: { deletedAt: null } as any
+    });
+    return this.parseEnv(restored);
   }
 }

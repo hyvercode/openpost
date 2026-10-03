@@ -152,6 +152,7 @@ app.whenReady().then(() => {
   const serverEnv = {
     ...process.env,
     OPENPOST_APP_ROOT: appRootEnv,
+    OPENPOST_EMBEDDED: '1',
     ELECTRON_RUN_AS_NODE: '1',
     NODE_ENV: 'production',
     PORT: port.toString()

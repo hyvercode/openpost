@@ -686,7 +686,28 @@ export const SettingsView: React.FC = () => {
                     Danger Zone
                   </h3>
                   <p className="text-xs text-[var(--danger)]">Once you delete your account, there is no going back. Please be certain.</p>
-                  <button className="bg-[var(--danger)] text-white px-4 py-2 rounded text-sm font-bold hover:bg-[var(--danger)] transition-colors">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const confirmed = window.confirm(
+                        'Delete your account and all workspaces you own? This cannot be undone.'
+                      );
+                      if (!confirmed) return;
+                      const doubleCheck = window.prompt('Type DELETE to confirm account deletion:');
+                      if (doubleCheck !== 'DELETE') {
+                        addToast('Account deletion cancelled', 'info');
+                        return;
+                      }
+                      try {
+                        await apiService.deleteAccount();
+                        localStorage.removeItem('auth_token');
+                        window.location.reload();
+                      } catch (error: any) {
+                        addToast(error.response?.data?.error || 'Failed to delete account', 'error');
+                      }
+                    }}
+                    className="bg-[var(--danger)] text-white px-4 py-2 rounded text-sm font-bold cursor-pointer"
+                  >
                     Delete Account
                   </button>
                 </div>

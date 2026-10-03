@@ -116,7 +116,11 @@ export class AuthService {
       throw new Error('Your email address has not been confirmed yet. Please check your inbox for the confirmation email before logging in.');
     }
 
-    const token = jwt.sign({ userId: user.uid }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const token = jwt.sign(
+      { userId: user.uid, tv: (user as any).tokenVersion ?? 0 },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
     return { user: { uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL }, token };
   }
 
@@ -228,7 +232,11 @@ export class AuthService {
       }
     }
 
-    const token = jwt.sign({ userId: user.uid, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const token = jwt.sign(
+      { userId: user.uid, email: user.email, tv: (user as any).tokenVersion ?? 0 },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
 
     return {
       user: {
@@ -291,6 +299,8 @@ export class AuthService {
       where: { uid: userId },
       data: {
         password: hashedPassword,
+        // Invalidate all other sessions after password change.
+        tokenVersion: { increment: 1 },
       },
     });
 
@@ -314,9 +324,37 @@ export class AuthService {
         password: hashedPassword,
         resetToken: null,
         resetTokenExpires: null,
+        // Invalidate all sessions after password reset.
+        tokenVersion: { increment: 1 },
       },
     });
 
+    return { success: true };
+  }
+
+  /** Logout: bump tokenVersion so the current (and all) tokens stop working. */
+  async logout(userId: string) {
+    await prisma.user.update({
+      where: { uid: userId },
+      data: { tokenVersion: { increment: 1 } },
+    });
+    return { success: true };
+  }
+
+  /**
+   * Delete account + owned data (PRD #48).
+   * Owned workspaces are deleted (cascade removes members, collections,
+   * environments, deployments, invitations, versions). Memberships in
+   * others' workspaces and own comments are removed first.
+   */
+  async deleteAccount(userId: string) {
+    const owned = await prisma.workspace.findMany({ where: { ownerId: userId } });
+    for (const ws of owned) {
+      await prisma.workspace.delete({ where: { id: ws.id } });
+    }
+    await prisma.workspaceMember.deleteMany({ where: { userId } });
+    await prisma.comment.deleteMany({ where: { userId } });
+    await prisma.user.delete({ where: { uid: userId } });
     return { success: true };
   }
 }

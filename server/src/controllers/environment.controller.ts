@@ -36,12 +36,15 @@ export class EnvironmentController {
     try {
       const { id } = req.params;
       if (!(await assertRecordAccess(req, res, () => this.environmentService.getEnvironmentById(id)))) return;
-      const { name, variables, position } = req.body;
+      const { name, variables, position, expectedUpdatedAt, force } = req.body;
       const updated = await this.environmentService.updateEnvironment(id, {
-        name, variables, position
-      });
+        name, variables, position, expectedUpdatedAt, force,
+      } as any);
       res.json(updated);
     } catch (error: any) {
+      if (error?.code === 'CONFLICT') {
+        return res.status(409).json({ error: error.message, conflict: error.current });
+      }
       res.status(500).json({ error: 'Failed to update environment' });
     }
   };
@@ -50,10 +53,22 @@ export class EnvironmentController {
     try {
       const { id } = req.params;
       if (!(await assertRecordAccess(req, res, () => this.environmentService.getEnvironmentById(id)))) return;
-      await this.environmentService.deleteEnvironment(id);
-      res.json({ success: true, message: 'Environment deleted' });
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      await this.environmentService.deleteEnvironment(id, actor);
+      res.json({ success: true, message: 'Environment moved to trash' });
     } catch (error: any) {
       res.status(500).json({ error: 'Failed to delete environment' });
+    }
+  };
+
+  restoreEnvironment = async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const actor = (req as any).user?.uid || (req as any).user?.userId;
+      const restored = await this.environmentService.restoreEnvironment(id, actor);
+      res.json(restored);
+    } catch (error: any) {
+      res.status(500).json({ error: 'Failed to restore environment' });
     }
   };
 }

@@ -7,8 +7,7 @@ Selamat datang di perilisan perdana **API Tester Pro v1.0.0**! Aplikasi API Test
 ## 🚀 Ringkasan Fitur v1.0.0
 
 ### 1. Manajemen Workspace & Kolaborasi Tim
-- **Role-Based Workspaces**: Kelola workspace pribadi maupun tim dengan pembagian peran (Owner / Member).
-- **Firebase Realtime Sync**: Sinkronisasi koleksi API dan lingkungan secara instan di antara anggota tim.
+- **Role-Based Workspaces**: Kelola workspace pribadi maupun tim dengan pembagian peran (Owner / Admin / Editor / Viewer) yang ditegakkan di sisi server, lengkap dengan undangan terverifikasi email dan deteksi konflik edit bersamaan.
 - **Undangan Tim & Anggota**: Tambah dan kelola anggota workspace secara langsung.
 
 ### 2. Eksekusi Request & Integrasi Environment Variables
