@@ -15,15 +15,15 @@ interface CustomizeCollectionModalProps {
 }
 
 export const COLORS = [
-  { name: 'Default', hex: '', class: 'bg-zinc-400 hover:bg-zinc-500' },
-  { name: 'Red', hex: '#ef4444', class: 'bg-red-500 hover:bg-red-600' },
-  { name: 'Orange', hex: '#f97316', class: 'bg-orange-500 hover:bg-orange-600' },
-  { name: 'Yellow', hex: '#eab308', class: 'bg-yellow-500 hover:bg-yellow-600' },
-  { name: 'Green', hex: '#22c55e', class: 'bg-emerald-500 hover:bg-emerald-600' },
-  { name: 'Blue', hex: '#3b82f6', class: 'bg-blue-500 hover:bg-blue-600' },
-  { name: 'Indigo', hex: '#6366f1', class: 'bg-indigo-500 hover:bg-indigo-600' },
-  { name: 'Purple', hex: '#a855f7', class: 'bg-purple-500 hover:bg-purple-600' },
-  { name: 'Pink', hex: '#ec4899', class: 'bg-pink-500 hover:bg-pink-600' },
+  { name: 'Default', hex: '', class: 'bg-[var(--text-tertiary)] hover:bg-[var(--text-tertiary)]' },
+  { name: 'Red', hex: 'var(--danger)', class: 'bg-[var(--danger)] hover:bg-[var(--danger)]' },
+  { name: 'Orange', hex: 'var(--primary)', class: 'bg-[var(--primary)] hover:bg-[var(--primary-hover)]' },
+  { name: 'Yellow', hex: 'var(--warning)', class: 'bg-[var(--warning)] hover:bg-[var(--warning)]' },
+  { name: 'Green', hex: '#22c55e', class: 'bg-[var(--success)] hover:bg-[var(--success)]' },
+  { name: 'Blue', hex: '#3b82f6', class: 'bg-[var(--info)] hover:bg-[var(--info)]' },
+  { name: 'Indigo', hex: '#6366f1', class: 'bg-[var(--primary)] hover:bg-[var(--primary)]' },
+  { name: 'Purple', hex: '#a855f7', class: 'bg-[var(--primary)] hover:bg-purple-600' },
+  { name: 'Pink', hex: 'var(--primary)', class: 'bg-pink-500 hover:bg-pink-600' },
 ];
 
 export const ICONS = [
@@ -72,7 +72,7 @@ export function CustomizeCollectionModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 animate-fade-in p-4">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl p-6 w-full max-w-sm shadow-2xl flex flex-col gap-5">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded p-6 w-full max-w-sm shadow-[var(--shadow-subtle)] flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <h3 className="text-[var(--text-primary)] text-sm font-bold tracking-tight">{title}</h3>
           <button 
@@ -112,7 +112,7 @@ export function CustomizeCollectionModal({
                   onClick={() => setColor(c.hex)}
                   title={c.name}
                   className={cn(
-                    "w-6 h-6 rounded-full transition-all flex items-center justify-center relative hover:scale-110 border border-black/10 shadow-sm",
+                    "w-6 h-6 rounded-full transition-colors flex items-center justify-center relative hover:scale-110 border border-black/10 ",
                     c.class,
                     isSelected ? "ring-2 ring-offset-2 ring-[var(--primary)] ring-offset-[var(--bg-panel)]" : ""
                   )}
@@ -129,7 +129,7 @@ export function CustomizeCollectionModal({
         {/* Icon Grid Choice */}
         <div className="flex flex-col gap-2">
           <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Custom Icon</label>
-          <div className="grid grid-cols-6 gap-1.5 bg-[var(--bg-hover)]/40 p-2 border border-[var(--border-subtle)] rounded-lg">
+          <div className="grid grid-cols-6 gap-1.5 bg-[var(--bg-hover)]/40 p-2 border border-[var(--border-subtle)] rounded">
             {ICONS.map((i) => {
               const IconComp = i.component;
               const isSelected = icon === i.name;
@@ -140,7 +140,7 @@ export function CustomizeCollectionModal({
                   onClick={() => setIcon(i.name)}
                   title={i.name}
                   className={cn(
-                    "p-2 rounded flex items-center justify-center border transition-all text-[var(--text-secondary)]",
+                    "p-2 rounded flex items-center justify-center border transition-colors text-[var(--text-secondary)]",
                     isSelected 
                       ? "bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--primary)] font-bold scale-105" 
                       : "border-transparent hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
@@ -155,7 +155,7 @@ export function CustomizeCollectionModal({
 
         {/* Preview Segment */}
         <div className="border-t border-[var(--border-subtle)] pt-4">
-          <div className="bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded-lg px-3 py-2 flex items-center gap-2 select-none">
+          <div className="bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded px-3 py-2 flex items-center gap-2 select-none">
             <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mr-2">Preview:</span>
             <div className="flex items-center gap-2">
               {(() => {
@@ -180,7 +180,7 @@ export function CustomizeCollectionModal({
             type="button"
             onClick={() => { if (name.trim()) onSubmit(name.trim(), color, icon); }} 
             disabled={!name.trim()}
-            className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[#e65a2d] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors"
+            className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors"
           >
             Save Changes
           </button>

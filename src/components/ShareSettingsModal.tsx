@@ -47,10 +47,10 @@ export function ShareSettingsModal({ isOpen, collectionId, onClose }: ShareSetti
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl w-full max-w-lg shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded w-full max-w-lg shadow-[var(--shadow-subtle)] flex flex-col overflow-hidden animate-slide-up">
         <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-2 text-[var(--text-primary)]">
-            <Share2 className="w-5 h-5 text-emerald-500" />
+            <Share2 className="w-5 h-5 text-[var(--success)]" />
             <h2 className="font-bold">Share & Visibility Settings</h2>
           </div>
           <button onClick={onClose} className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded">
@@ -67,7 +67,7 @@ export function ShareSettingsModal({ isOpen, collectionId, onClose }: ShareSetti
             <SettingRow 
               title="Collection Sharing"
               description="Allow importing this collection into other workspaces."
-              icon={<Share2 className="w-5 h-5 text-emerald-500" />}
+              icon={<Share2 className="w-5 h-5 text-[var(--success)]" />}
               visibility={collection.shareVisibility || 'private'}
               url={shareUrl}
               onToggle={() => handleToggle('shareVisibility', collection.shareVisibility || 'private')}
@@ -79,7 +79,7 @@ export function ShareSettingsModal({ isOpen, collectionId, onClose }: ShareSetti
             <SettingRow 
               title="Mock Server"
               description="Access the mock API endpoints for this collection."
-              icon={<Server className="w-5 h-5 text-blue-500" />}
+              icon={<Server className="w-5 h-5 text-[var(--info)]" />}
               visibility={collection.mockVisibility || 'private'}
               url={mockUrl}
               onToggle={() => handleToggle('mockVisibility', collection.mockVisibility || 'private')}
@@ -91,7 +91,7 @@ export function ShareSettingsModal({ isOpen, collectionId, onClose }: ShareSetti
             <SettingRow 
               title="Documentation"
               description="View the interactive API documentation."
-              icon={<BookOpen className="w-5 h-5 text-purple-500" />}
+              icon={<BookOpen className="w-5 h-5 text-[var(--primary)]" />}
               visibility={collection.docVisibility || 'private'}
               url={docUrl}
               onToggle={() => handleToggle('docVisibility', collection.docVisibility || 'private')}
@@ -109,10 +109,10 @@ export function ShareSettingsModal({ isOpen, collectionId, onClose }: ShareSetti
 function SettingRow({ title, description, icon, visibility, url, onToggle, onCopy, copied, loading }: any) {
   const isPublic = visibility === 'public';
   return (
-    <div className="border border-[var(--border-subtle)] rounded-lg p-4 bg-[var(--bg-surface)]">
+    <div className="border border-[var(--border-subtle)] rounded p-4 bg-[var(--bg-surface)]">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-[var(--bg-base)] rounded-lg border border-[var(--border-subtle)]">
+          <div className="p-2 bg-[var(--bg-base)] rounded border border-[var(--border-subtle)]">
             {icon}
           </div>
           <div>
@@ -125,7 +125,7 @@ function SettingRow({ title, description, icon, visibility, url, onToggle, onCop
           disabled={loading}
           className={cn(
             "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors border",
-            isPublic ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20" : "bg-gray-500/10 text-[var(--text-secondary)] border-[var(--border-strong)] hover:bg-[var(--bg-hover)]"
+            isPublic ? "bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/20 hover:bg-[var(--success)]/20" : "bg-[var(--text-tertiary)]/10 text-[var(--text-secondary)] border-[var(--border-strong)] hover:bg-[var(--bg-hover)]"
           )}
         >
           {isPublic ? <Globe className="w-3.5 h-3.5" /> : <Lock className="w-3.5 h-3.5" />}
@@ -141,7 +141,7 @@ function SettingRow({ title, description, icon, visibility, url, onToggle, onCop
           onClick={onCopy}
           className="shrink-0 p-1.5 border border-[var(--border-subtle)] bg-[var(--bg-base)] hover:bg-[var(--bg-hover)] rounded text-[var(--text-primary)] transition-colors"
         >
-          {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+          {copied ? <Check className="w-4 h-4 text-[var(--success)]" /> : <Copy className="w-4 h-4" />}
         </button>
       </div>
     </div>

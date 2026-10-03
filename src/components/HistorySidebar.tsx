@@ -156,7 +156,7 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
   const renderSkeleton = () => (
     <div className="space-y-2 p-1 animate-pulse select-none">
       {[1, 2, 3, 4].map((idx) => (
-        <div key={idx} className="p-2.5 border border-[var(--border-subtle)] rounded-lg bg-[var(--bg-hover)]/20 space-y-2">
+        <div key={idx} className="p-2.5 border border-[var(--border-subtle)] rounded bg-[var(--bg-hover)]/20 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-4 w-10 bg-[var(--border-strong)]/40 rounded" />
@@ -184,7 +184,7 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
         {workspaceHistory.length > 0 && (
           <button
             onClick={() => setConfirmClearOpen(true)}
-            className="text-[10px] text-red-500 hover:text-red-400 font-semibold px-2 py-1 rounded hover:bg-red-500/10 transition-colors flex items-center gap-1"
+            className="text-[10px] text-[var(--danger)] hover:text-[var(--danger)] font-semibold px-2 py-1 rounded hover:bg-[var(--danger)]/10 transition-colors flex items-center gap-1"
             title="Clear All History"
           >
             <Trash2 className="w-3 h-3" />
@@ -203,9 +203,9 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
                 key={m}
                 onClick={() => setSelectedMethod(m)}
                 className={cn(
-                  "px-2 py-0.5 rounded text-[9px] font-bold tracking-wider transition-all shrink-0 cursor-pointer",
+                  "px-2 py-0.5 rounded text-[9px] font-bold tracking-wider transition-colors shrink-0 cursor-pointer",
                   selectedMethod === m
-                    ? "bg-[var(--primary)] text-white shadow-2xs"
+                    ? "bg-[var(--primary)] text-white "
                     : "bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 )}
               >
@@ -234,7 +234,7 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
                 onClick={() => setStatusFilter('SUCCESS')}
                 className={cn(
                   "px-1.5 py-0.5 rounded text-[9px] font-semibold transition-colors",
-                  statusFilter === 'SUCCESS' ? "bg-emerald-500/20 text-emerald-500" : "text-[var(--text-secondary)] hover:text-emerald-500"
+                  statusFilter === 'SUCCESS' ? "bg-[var(--success)]/20 text-[var(--success)]" : "text-[var(--text-secondary)] hover:text-[var(--success)]"
                 )}
               >
                 2xx Success
@@ -243,7 +243,7 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
                 onClick={() => setStatusFilter('ERROR')}
                 className={cn(
                   "px-1.5 py-0.5 rounded text-[9px] font-semibold transition-colors",
-                  statusFilter === 'ERROR' ? "bg-red-500/20 text-red-500" : "text-[var(--text-secondary)] hover:text-red-500"
+                  statusFilter === 'ERROR' ? "bg-[var(--danger)]/20 text-[var(--danger)]" : "text-[var(--text-secondary)] hover:text-[var(--danger)]"
                 )}
               >
                 Errors
@@ -261,28 +261,28 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
           {filteredHistory.map((item) => {
             const isSuccess = item.responseStatus && item.responseStatus >= 200 && item.responseStatus < 400;
             const statusColor = item.responseStatus === 0
-              ? 'text-gray-400 border-gray-500/30 bg-gray-500/10'
+              ? 'text-[var(--text-tertiary)] border-[var(--text-tertiary)]/30 bg-[var(--text-tertiary)]/10'
               : isSuccess
-                ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10'
-                : 'text-red-500 border-red-500/30 bg-red-500/10';
+                ? 'text-[var(--success)] border-[var(--success)]/30 bg-[var(--success)]/10'
+                : 'text-[var(--danger)] border-[var(--danger)]/30 bg-[var(--danger)]/10';
 
-            const methodColor = item.method === 'GET' ? 'text-blue-500 bg-blue-500/10 border-blue-500/20'
-              : item.method === 'POST' ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
-              : item.method === 'PUT' ? 'text-amber-500 bg-amber-500/10 border-amber-500/20'
-              : item.method === 'DELETE' ? 'text-red-500 bg-red-500/10 border-red-500/20'
-              : 'text-purple-500 bg-purple-500/10 border-purple-500/20';
+            const methodColor = item.method === 'GET' ? 'text-[var(--info)] bg-[var(--info)]/10 border-[var(--info)]/20'
+              : item.method === 'POST' ? 'text-[var(--success)] bg-[var(--success)]/10 border-[var(--success)]/20'
+              : item.method === 'PUT' ? 'text-[var(--warning)] bg-[var(--warning)]/10 border-[var(--warning)]/20'
+              : item.method === 'DELETE' ? 'text-[var(--danger)] bg-[var(--danger)]/10 border-[var(--danger)]/20'
+              : 'text-[var(--primary)] bg-[var(--primary)]/10 border-[var(--primary)]/20';
 
             const latencyColor = (item.timeMs || 0) < 300
-              ? 'text-emerald-500'
+              ? 'text-[var(--success)]'
               : (item.timeMs || 0) < 800
-                ? 'text-amber-500'
-                : 'text-red-500';
+                ? 'text-[var(--warning)]'
+                : 'text-[var(--danger)]';
 
             return (
               <div
                 key={item.id}
                 onClick={() => handleLoadIntoEditor(item)}
-                className="group/hist flex flex-col gap-1.5 p-2.5 rounded-lg border border-[var(--border-subtle)] hover:border-[var(--primary)]/50 bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer relative shadow-2xs"
+                className="group/hist flex flex-col gap-1.5 p-2.5 rounded border border-[var(--border-subtle)] hover:border-[var(--primary)]/50 bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer relative "
               >
                 {/* Top row: Status, Method, Name, and Quick Actions */}
                 <div className="flex items-center justify-between gap-2">
@@ -302,10 +302,10 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
                   <div className="flex items-center gap-1 opacity-0 group-hover/hist:opacity-100 transition-opacity shrink-0">
                     <button
                       onClick={(e) => handleReRun(item, e)}
-                      className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[10px] font-bold transition-all border border-emerald-500/30 shadow-2xs cursor-pointer"
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--success)]/10 hover:bg-[var(--success)]/20 text-[var(--success)] text-[10px] font-bold transition-colors border border-[var(--success)]/30  cursor-pointer"
                       title="Re-run request immediately"
                     >
-                      <Play className="w-3 h-3 fill-emerald-500/30" />
+                      <Play className="w-3 h-3 fill-[var(--success)]/30" />
                       <span>Re-run</span>
                     </button>
 
@@ -315,7 +315,7 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
                       title="Copy as cURL"
                     >
                       {copiedId === item.id ? (
-                        <Check className="w-3 h-3 text-emerald-500" />
+                        <Check className="w-3 h-3 text-[var(--success)]" />
                       ) : (
                         <Copy className="w-3 h-3" />
                       )}
@@ -327,7 +327,7 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
                         removeHistoryItem(item.id);
                         addToast('History item removed', 'success', 1500);
                       }}
-                      className="p-1 rounded text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                      className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
                       title="Delete from history"
                     >
                       <Trash2 className="w-3 h-3" />

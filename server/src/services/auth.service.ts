@@ -2,10 +2,8 @@ import { prisma } from '../db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
 import { EmailService } from './email.service';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-for-dev';
+import { JWT_SECRET, JWT_EXPIRES_IN } from '../config';
 
 export class AuthService {
   private emailService = new EmailService();
@@ -42,7 +40,9 @@ export class AuthService {
       message: 'Registration successful! Please check your email inbox to confirm your account before logging in.',
       email: user.email,
       requiresVerification: true,
-      verificationLink // Included for development/testing convenience
+      // NOTE: verificationLink is deliberately NOT returned — it is a
+      // single-use credential sent only via email. Returning it here would
+      // leak it to logs/devtools/history.
     };
   }
 
@@ -95,10 +95,9 @@ export class AuthService {
       console.error('Failed to send verification email:', error);
     }
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: 'A new confirmation email has been sent. Please check your inbox.',
-      verificationLink 
     };
   }
 
@@ -117,7 +116,7 @@ export class AuthService {
       throw new Error('Your email address has not been confirmed yet. Please check your inbox for the confirmation email before logging in.');
     }
 
-    const token = jwt.sign({ userId: user.uid }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user.uid }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
     return { user: { uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL }, token };
   }
 
@@ -128,38 +127,40 @@ export class AuthService {
   }
 
   async googleAuth(data: { credential?: string; email?: string; displayName?: string; photoURL?: string; googleId?: string }) {
-    let email = data.email?.trim().toLowerCase();
-    let displayName = data.displayName?.trim();
-    let photoURL = data.photoURL?.trim();
-
-    // If Google ID Token (credential) is passed, verify with Google TokenInfo API
-    if (data.credential) {
-      try {
-        const verifyRes = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${data.credential}`, {
-          timeout: 8000
-        });
-        if (verifyRes.data && verifyRes.data.email) {
-          email = verifyRes.data.email.toLowerCase();
-          displayName = displayName || verifyRes.data.name || verifyRes.data.given_name;
-          photoURL = photoURL || verifyRes.data.picture;
-        }
-      } catch (err: any) {
-        console.warn('Google token verification via tokeninfo failed, checking JWT payload:', err?.message);
-        try {
-          const decoded = jwt.decode(data.credential) as any;
-          if (decoded && decoded.email) {
-            email = decoded.email.toLowerCase();
-            displayName = displayName || decoded.name || decoded.given_name;
-            photoURL = photoURL || decoded.picture;
-          }
-        } catch (decodeErr) {
-          console.error('Failed to decode Google credential JWT:', decodeErr);
-        }
-      }
+    // SECURITY: email/displayName/photoURL from the request body are NEVER
+    // trusted. The Google ID token (credential) MUST be present and its
+    // signature verified server-side. Previously the code fell back to
+    // unverified `jwt.decode()` / raw body email, allowing account takeover
+    // with a self-made token.
+    if (!data.credential) {
+      throw new Error('Google credential is required');
     }
 
-    if (!email) {
-      throw new Error('Valid Google email address is required');
+    let email: string | undefined;
+    let displayName: string | undefined;
+    let photoURL: string | undefined;
+
+    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      throw new Error('Google login is not configured (GOOGLE_CLIENT_ID missing)');
+    }
+
+    try {
+      const { OAuth2Client } = await import('google-auth-library');
+      const client = new OAuth2Client(clientId);
+      const ticket = await client.verifyIdToken({
+        idToken: data.credential,
+        audience: clientId,
+      });
+      const payload = ticket.getPayload();
+      if (!payload?.email) {
+        throw new Error('Google token has no email');
+      }
+      email = payload.email.toLowerCase();
+      displayName = payload.name || payload.given_name;
+      photoURL = payload.picture;
+    } catch (err: any) {
+      throw new Error('Invalid Google credential: ' + (err?.message || 'verification failed'));
     }
 
     let user = await prisma.user.findUnique({ where: { email } });
@@ -227,7 +228,7 @@ export class AuthService {
       }
     }
 
-    const token = jwt.sign({ userId: user.uid, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ userId: user.uid, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
     return {
       user: {
@@ -275,19 +276,24 @@ export class AuthService {
     return { success: true };
   }
 
-  async changePassword(userId: string, newPassword: string) {
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
     const user = await prisma.user.findUnique({ where: { uid: userId } });
-    if (!user) throw new Error('User not found');
-    
+    if (!user || !user.password) throw new Error('User not found');
+
+    // Require the current password — a stolen token alone must not be
+    // enough to permanently take over the account.
+    const matches = await bcrypt.compare(currentPassword, user.password);
+    if (!matches) throw new Error('Current password is incorrect');
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
+
     await prisma.user.update({
       where: { uid: userId },
       data: {
         password: hashedPassword,
       },
     });
-    
+
     return { success: true };
   }
 

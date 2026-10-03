@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { 
   X, BookOpen, TerminalSquare, Server, Code2, Play, Shield, 
-  Cookie, FileCode, Search, Copy, Check, Sparkles, ChevronRight,
+  Cookie, FileCode, Search, Copy, Check, ChevronRight,
   Lightbulb, Zap, ArrowRight
 } from 'lucide-react';
 import { cn } from '../utils';
@@ -25,7 +25,7 @@ export function HelpGuideModal() {
   const sections: { id: SectionId; label: string; icon: any }[] = [
     { id: 'scripting', label: 'Scripting Sandbox (pm.*)', icon: TerminalSquare },
     { id: 'mock-server', label: 'Mock Servers & API Simulation', icon: Server },
-    { id: 'graphql', label: 'GraphQL Schema & Explorer', icon: Sparkles },
+    { id: 'graphql', label: 'GraphQL Schema & Explorer', icon: FileCode },
     { id: 'runner', label: 'Automated Runner & CSV Data', icon: Play },
     { id: 'desktop-agent', label: 'Desktop Agent & Local Testing', icon: Shield },
     { id: 'import-export', label: 'OpenAPI & Postman Import/Export', icon: Code2 },
@@ -33,13 +33,13 @@ export function HelpGuideModal() {
   ];
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 sm:p-6 animate-fadeIn">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70  p-4 sm:p-6 animate-fadeIn">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded w-full max-w-5xl h-[85vh] flex flex-col shadow-[var(--shadow-subtle)] overflow-hidden">
         
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)]">
+            <div className="p-2 rounded bg-[var(--primary)]/10 text-[var(--primary)]">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
@@ -49,7 +49,7 @@ export function HelpGuideModal() {
           </div>
           <button
             onClick={() => setIsHelpModalOpen(false)}
-            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-lg transition-colors"
+            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -71,9 +71,9 @@ export function HelpGuideModal() {
                   key={sec.id}
                   onClick={() => setActiveSection(sec.id)}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold text-left transition-all",
+                    "flex items-center gap-3 px-3 py-2.5 rounded text-xs font-semibold text-left transition-colors",
                     isActive
-                      ? "bg-[var(--primary)] text-white shadow-sm"
+                      ? "bg-[var(--primary)] text-white "
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
                   )}
                 >
@@ -102,16 +102,16 @@ export function HelpGuideModal() {
                 </div>
 
                 {/* Card 1: Pre-request script */}
-                <div className="bg-[var(--bg-surface)] p-5 rounded-lg border border-[var(--border-subtle)] space-y-3">
+                <div className="bg-[var(--bg-surface)] p-5 rounded border border-[var(--border-subtle)] space-y-3">
                   <h4 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-amber-500" />
+                    <Zap className="w-4 h-4 text-[var(--warning)]" />
                     Pre-request Scripts
                   </h4>
                   <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                     Runs right before the request payload is constructed. Use it to dynamically generate timestamps, sign headers, or set environment variables.
                   </p>
                   <div className="relative">
-                    <pre className="bg-[var(--bg-input)] border border-[var(--border-strong)] p-3 rounded-lg text-xs font-mono text-[var(--text-primary)] overflow-x-auto">
+                    <pre className="bg-[var(--bg-input)] border border-[var(--border-strong)] p-3 rounded text-xs font-mono text-[var(--text-primary)] overflow-x-auto">
 {`// Set environment variables dynamically
 pm.environment.set("timestamp", Date.now());
 pm.environment.set("requestId", "REQ_" + Math.random().toString(36).substring(7));
@@ -121,25 +121,25 @@ pm.request.headers.add({ key: "X-Custom-Header", value: "CustomValue" });`}
                     </pre>
                     <button
                       onClick={() => handleCopy(`pm.environment.set("timestamp", Date.now());\npm.environment.set("requestId", "REQ_" + Math.random().toString(36).substring(7));\npm.request.headers.add({ key: "X-Custom-Header", value: "CustomValue" });`, 'pre-req')}
-                      className="absolute top-2 right-2 p-1.5 bg-[var(--bg-hover)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                      className="absolute top-2 right-2 p-1.5 bg-[var(--bg-hover)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                       title="Copy Code"
                     >
-                      {copiedCode === 'pre-req' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedCode === 'pre-req' ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
 
                 {/* Card 2: Tests script */}
-                <div className="bg-[var(--bg-surface)] p-5 rounded-lg border border-[var(--border-subtle)] space-y-3">
+                <div className="bg-[var(--bg-surface)] p-5 rounded border border-[var(--border-subtle)] space-y-3">
                   <h4 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-500" />
+                    <Check className="w-4 h-4 text-[var(--success)]" />
                     Test Scripts & Assertions
                   </h4>
                   <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                     Runs after the HTTP response is received. Write assertions using <code className="text-[var(--primary)] font-mono">pm.test</code> and inspect responses using <code className="text-[var(--primary)] font-mono">pm.response.json()</code>.
                   </p>
                   <div className="relative">
-                    <pre className="bg-[var(--bg-input)] border border-[var(--border-strong)] p-3 rounded-lg text-xs font-mono text-[var(--text-primary)] overflow-x-auto">
+                    <pre className="bg-[var(--bg-input)] border border-[var(--border-strong)] p-3 rounded text-xs font-mono text-[var(--text-primary)] overflow-x-auto">
 {`// 1. Verify Status Code
 pm.test("Status code is 200", function () {
     pm.expect(pm.response.code).to.equal(200);
@@ -161,16 +161,16 @@ pm.test("Response time is under 500ms", function () {
                     </pre>
                     <button
                       onClick={() => handleCopy(`pm.test("Status code is 200", function () {\n    pm.expect(pm.response.code).to.equal(200);\n});\n\nconst jsonData = pm.response.json();\npm.environment.set("authToken", jsonData.token);`, 'test-script')}
-                      className="absolute top-2 right-2 p-1.5 bg-[var(--bg-hover)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                      className="absolute top-2 right-2 p-1.5 bg-[var(--bg-hover)] hover:bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                       title="Copy Code"
                     >
-                      {copiedCode === 'test-script' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedCode === 'test-script' ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg flex items-start gap-3">
-                  <Lightbulb className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                <div className="bg-[var(--info)]/10 border border-[var(--info)]/20 p-4 rounded flex items-start gap-3">
+                  <Lightbulb className="w-5 h-5 text-[var(--info)] shrink-0 mt-0.5" />
                   <div className="text-xs text-blue-200 leading-relaxed">
                     <strong>Pro Tip:</strong> Snippet buttons are built into the <strong>Scripts</strong> tab in the Request Panel. Click any preset snippet (e.g. <em>Status code: 200</em> or <em>Set Environment Variable</em>) to insert template code instantly.
                   </div>
@@ -193,7 +193,7 @@ pm.test("Response time is under 500ms", function () {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-[var(--bg-surface)] p-5 rounded-lg border border-[var(--border-subtle)] space-y-3">
+                  <div className="bg-[var(--bg-surface)] p-5 rounded border border-[var(--border-subtle)] space-y-3">
                     <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
                       <span className="w-6 h-6 rounded bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-xs">1</span>
                       Define Mock Response
@@ -203,7 +203,7 @@ pm.test("Response time is under 500ms", function () {
                     </p>
                   </div>
 
-                  <div className="bg-[var(--bg-surface)] p-5 rounded-lg border border-[var(--border-subtle)] space-y-3">
+                  <div className="bg-[var(--bg-surface)] p-5 rounded border border-[var(--border-subtle)] space-y-3">
                     <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)]">
                       <span className="w-6 h-6 rounded bg-[var(--primary)]/20 text-[var(--primary)] flex items-center justify-center text-xs">2</span>
                       Toggle Mock Response
@@ -214,7 +214,7 @@ pm.test("Response time is under 500ms", function () {
                   </div>
                 </div>
 
-                <div className="bg-[var(--bg-surface)] p-5 rounded-lg border border-[var(--border-subtle)] space-y-3">
+                <div className="bg-[var(--bg-surface)] p-5 rounded border border-[var(--border-subtle)] space-y-3">
                   <h4 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                     <Server className="w-4 h-4 text-[var(--primary)]" />
                     Mock Server Management View
@@ -231,7 +231,7 @@ pm.test("Response time is under 500ms", function () {
               <div className="space-y-6">
                 <div>
                   <div className="flex items-center gap-2 text-[var(--primary)] text-xs font-bold uppercase tracking-wider mb-1">
-                    <Sparkles className="w-4 h-4" />
+                    <FileCode className="w-4 h-4" />
                     <span>GraphQL Studio</span>
                   </div>
                   <h3 className="text-xl font-bold text-[var(--text-primary)]">GraphQL Schema Explorer & Live Validation</h3>
@@ -241,21 +241,21 @@ pm.test("Response time is under 500ms", function () {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="bg-[var(--bg-surface)] p-4 rounded-lg border border-[var(--border-subtle)] space-y-2">
+                  <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">1. Schema Introspection</h4>
                     <p className="text-xs text-[var(--text-secondary)]">
                       Set method to <strong>GQL</strong> or select <strong>GraphQL</strong> in the Body tab. Click <strong>Introspect Schema</strong> to automatically fetch types, fields, queries, and mutations from the GraphQL server.
                     </p>
                   </div>
 
-                  <div className="bg-[var(--bg-surface)] p-4 rounded-lg border border-[var(--border-subtle)] space-y-2">
+                  <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">2. Visual Query Builder</h4>
                     <p className="text-xs text-[var(--text-secondary)]">
                       Open the <strong>Schema Explorer</strong> panel on the right. Expand types and click fields to visually insert queries and mutations directly into the GraphQL query editor.
                     </p>
                   </div>
 
-                  <div className="bg-[var(--bg-surface)] p-4 rounded-lg border border-[var(--border-subtle)] space-y-2">
+                  <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">3. GraphQL Variables & History</h4>
                     <p className="text-xs text-[var(--text-secondary)]">
                       Provide JSON variables in the <strong>Variables</strong> pane below the query editor. History items are saved automatically so you can reload previous queries easily.
@@ -279,7 +279,7 @@ pm.test("Response time is under 500ms", function () {
                   </p>
                 </div>
 
-                <div className="bg-[var(--bg-surface)] p-5 rounded-lg border border-[var(--border-subtle)] space-y-3">
+                <div className="bg-[var(--bg-surface)] p-5 rounded border border-[var(--border-subtle)] space-y-3">
                   <h4 className="text-sm font-bold text-[var(--text-primary)]">Data-Driven Testing Setup</h4>
                   <ol className="text-xs text-[var(--text-secondary)] space-y-2 list-decimal list-inside leading-relaxed">
                     <li>Click <strong>Run Collection</strong> on any collection or folder in the sidebar.</li>
@@ -305,7 +305,7 @@ pm.test("Response time is under 500ms", function () {
                   </p>
                 </div>
 
-                <div className="bg-[var(--bg-surface)] p-5 rounded-lg border border-[var(--border-subtle)] space-y-4">
+                <div className="bg-[var(--bg-surface)] p-5 rounded border border-[var(--border-subtle)] space-y-4">
                   <h4 className="text-sm font-bold text-[var(--text-primary)]">How to test local APIs:</h4>
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
@@ -346,7 +346,7 @@ pm.test("Response time is under 500ms", function () {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-[var(--bg-surface)] p-4 rounded-lg border border-[var(--border-subtle)] space-y-2">
+                  <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">Supported Imports</h4>
                     <ul className="text-xs text-[var(--text-secondary)] space-y-1.5 list-disc list-inside">
                       <li><strong>OpenAPI 3.0 / Swagger JSON & YAML</strong></li>
@@ -356,7 +356,7 @@ pm.test("Response time is under 500ms", function () {
                     </ul>
                   </div>
 
-                  <div className="bg-[var(--bg-surface)] p-4 rounded-lg border border-[var(--border-subtle)] space-y-2">
+                  <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">Export Options</h4>
                     <ul className="text-xs text-[var(--text-secondary)] space-y-1.5 list-disc list-inside">
                       <li><strong>Full Workspace Backup (JSON)</strong></li>
@@ -386,9 +386,9 @@ pm.test("Response time is under 500ms", function () {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="bg-[var(--bg-surface)] p-4 rounded-lg border border-[var(--border-subtle)] space-y-2">
+                  <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
-                      <Cookie className="w-4 h-4 text-amber-500" />
+                      <Cookie className="w-4 h-4 text-[var(--warning)]" />
                       Cookies Manager
                     </h4>
                     <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
@@ -396,7 +396,7 @@ pm.test("Response time is under 500ms", function () {
                     </p>
                   </div>
 
-                  <div className="bg-[var(--bg-surface)] p-4 rounded-lg border border-[var(--border-subtle)] space-y-2">
+                  <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] flex items-center gap-2">
                       <Search className="w-4 h-4 text-[var(--primary)]" />
                       Universal Command Palette (<kbd className="font-mono bg-[var(--bg-hover)] px-1 rounded text-[10px]">⌘K</kbd> / <kbd className="font-mono bg-[var(--bg-hover)] px-1 rounded text-[10px]">Ctrl+K</kbd>)
@@ -419,7 +419,7 @@ pm.test("Response time is under 500ms", function () {
           </div>
           <button
             onClick={() => setIsHelpModalOpen(false)}
-            className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg text-xs font-bold hover:opacity-90 transition-opacity"
+            className="px-4 py-2 bg-[var(--primary)] text-white rounded text-xs font-bold hover:opacity-90 transition-opacity"
           >
             Got it, close guide
           </button>

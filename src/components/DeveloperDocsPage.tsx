@@ -13,7 +13,6 @@ import {
   Copy, 
   Check, 
   ExternalLink, 
-  Sparkles, 
   ShieldCheck, 
   Play, 
   Zap, 
@@ -81,9 +80,7 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
   };
 
   const cycleTheme = () => {
-    const themes: Theme[] = ['default', 'light', 'dark'];
-    const nextIndex = (themes.indexOf(theme) + 1) % themes.length;
-    setTheme(themes[nextIndex]);
+    setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
   // Check backend health on mount
@@ -149,7 +146,7 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
       title: 'Platform Architecture & Engine',
       titleId: 'Arsitektur & Desain Sistem',
       badge: 'Core',
-      badgeColor: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+      badgeColor: 'bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/20',
       summary: 'High-performance API client architecture combining React 19, Express backend proxy, and SQLite/PostgreSQL embedded storage.',
       summaryId: 'Arsitektur klien API berkinerja tinggi yang menggabungkan React 19, proxy backend Express, dan penyimpanan SQLite/PostgreSQL.',
       content: (
@@ -161,8 +158,8 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center font-bold">
+            <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
+              <div className="w-8 h-8 rounded bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center font-bold">
                 <Globe className="w-4 h-4" />
               </div>
               <h4 className="text-xs font-bold text-[var(--text-primary)]">Frontend Layer</h4>
@@ -171,8 +168,8 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">
+            <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
+              <div className="w-8 h-8 rounded bg-[var(--warning)]/10 text-[var(--warning)] flex items-center justify-center font-bold">
                 <Cpu className="w-4 h-4" />
               </div>
               <h4 className="text-xs font-bold text-[var(--text-primary)]">Proxy & Execution Engine</h4>
@@ -181,8 +178,8 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">
+            <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
+              <div className="w-8 h-8 rounded bg-[var(--success)]/10 text-[var(--success)] flex items-center justify-center font-bold">
                 <Database className="w-4 h-4" />
               </div>
               <h4 className="text-xs font-bold text-[var(--text-primary)]">Persistence Layer</h4>
@@ -192,9 +189,9 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+          <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
             <h4 className="text-xs font-bold text-[var(--text-primary)] mb-2 flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              <ShieldCheck className="w-4 h-4 text-[var(--success)]" />
               <span>{isIndo ? 'Prinsip Keamanan & Privasi' : 'Security & Privacy Principles'}</span>
             </h4>
             <ul className="text-xs text-[var(--text-secondary)] space-y-2 list-disc list-inside">
@@ -212,7 +209,7 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
       title: 'Authentication & Session API',
       titleId: 'API Autentikasi & Sesi',
       badge: 'POST',
-      badgeColor: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+      badgeColor: 'bg-[var(--info)]/10 text-[var(--info)] border-[var(--info)]/20',
       summary: 'Endpoints for registering users, signing in with passwords or Google OAuth, and verifying JWT sessions.',
       summaryId: 'Endpoint untuk pendaftaran pengguna, login password atau Google OAuth, dan verifikasi sesi token JWT.',
       content: (
@@ -223,15 +220,15 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
             </h4>
 
             {/* Register */}
-            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
+            <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
               <div className="flex items-center gap-2.5">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-500 border border-blue-500/30">POST</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--info)]/20 text-[var(--info)] border border-[var(--info)]/30">POST</span>
                 <code className="text-xs font-mono font-semibold text-[var(--text-primary)]">/api/auth/register</code>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
                 {isIndo ? 'Mendaftarkan akun baru dengan email, kata sandi, dan nama lengkap.' : 'Register a new user account with email, password, and full name.'}
               </p>
-              <div className="bg-[var(--bg-panel)] p-3 rounded-lg border border-[var(--border-subtle)]">
+              <div className="bg-[var(--bg-panel)] p-3 rounded border border-[var(--border-subtle)]">
                 <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">Request Body (JSON)</div>
                 <pre className="text-xs font-mono text-[var(--text-primary)] overflow-x-auto">
 {`{
@@ -244,15 +241,15 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
             </div>
 
             {/* Login */}
-            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
+            <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
               <div className="flex items-center gap-2.5">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-500 border border-blue-500/30">POST</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--info)]/20 text-[var(--info)] border border-[var(--info)]/30">POST</span>
                 <code className="text-xs font-mono font-semibold text-[var(--text-primary)]">/api/auth/login</code>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
                 {isIndo ? 'Masuk dengan kredensial email & password untuk memperoleh JWT token.' : 'Authenticate with email & password credentials to receive a JWT session token.'}
               </p>
-              <div className="bg-[var(--bg-panel)] p-3 rounded-lg border border-[var(--border-subtle)]">
+              <div className="bg-[var(--bg-panel)] p-3 rounded border border-[var(--border-subtle)]">
                 <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">Response (200 OK)</div>
                 <pre className="text-xs font-mono text-[var(--text-primary)] overflow-x-auto">
 {`{
@@ -268,9 +265,9 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
             </div>
 
             {/* Google Auth */}
-            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
+            <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
               <div className="flex items-center gap-2.5">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-500 border border-blue-500/30">POST</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--info)]/20 text-[var(--info)] border border-[var(--info)]/30">POST</span>
                 <code className="text-xs font-mono font-semibold text-[var(--text-primary)]">/api/auth/google</code>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
@@ -287,7 +284,7 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
       title: 'Proxy & Request Execution Engine',
       titleId: 'Mesin Proxy & Eksekusi HTTP',
       badge: 'CORS Bypass',
-      badgeColor: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+      badgeColor: 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20',
       summary: 'High-speed request forwarder that bypasses browser Same-Origin Policy and forwards cookies, headers, and multipart files.',
       summaryId: 'Penerus request kecepatan tinggi yang mem-bypass SOP browser dan meneruskan cookie, header kustom, serta file multipart.',
       content: (
@@ -298,13 +295,13 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
               : 'The `/api/proxy/execute` endpoint acts as the backend execution bridge. It lets you test APIs that do not include permissive CORS headers or internal local network services without browser security blocks.'}
           </p>
 
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
+          <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
             <div className="flex items-center gap-2.5">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30">POST</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--warning)]/20 text-[var(--warning)] border border-[var(--warning)]/30">POST</span>
               <code className="text-xs font-mono font-semibold text-[var(--text-primary)]">/api/proxy/execute</code>
             </div>
 
-            <div className="bg-[var(--bg-panel)] p-3 rounded-lg border border-[var(--border-subtle)]">
+            <div className="bg-[var(--bg-panel)] p-3 rounded border border-[var(--border-subtle)]">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">cURL Example</span>
                 <button
@@ -314,7 +311,7 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
   -d '{"url": "https://api.github.com/users/octocat", "method": "GET"}'`, 'curl-proxy')}
                   className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer"
                 >
-                  {copiedId === 'curl-proxy' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedId === 'curl-proxy' ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedId === 'curl-proxy' ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
@@ -338,7 +335,7 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
       title: 'Postman Compatible pm.* API',
       titleId: 'API Skrip Kompatibel pm.*',
       badge: 'pm.* Sandbox',
-      badgeColor: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+      badgeColor: 'bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/20',
       summary: 'Complete guide for writing pre-request and test assertion scripts compatible with Postman collections.',
       summaryId: 'Panduan lengkap penulisan skrip pre-request dan pengujian asersi otomatis yang kompatibel dengan koleksi Postman.',
       content: (
@@ -349,7 +346,7 @@ export const DeveloperDocsPage: React.FC<DeveloperDocsPageProps> = ({
               : 'OpenPost includes full support for the Postman `pm.*` sandbox specification, including Chai assertion libraries (`pm.expect()`, `pm.test()`), dynamic random generators, and environment mutations.'}
           </p>
 
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
+          <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
                 <Terminal className="w-4 h-4 text-[var(--primary)]" />
@@ -378,12 +375,12 @@ pm.test("Response latency is below 350ms", function () {
 });`, 'pm-test-example')}
                 className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer"
               >
-                {copiedId === 'pm-test-example' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedId === 'pm-test-example' ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copiedId === 'pm-test-example' ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
 
-            <pre className="text-xs font-mono text-[var(--text-primary)] bg-[var(--bg-panel)] p-3.5 rounded-lg border border-[var(--border-subtle)] overflow-x-auto leading-relaxed">
+            <pre className="text-xs font-mono text-[var(--text-primary)] bg-[var(--bg-panel)] p-3.5 rounded border border-[var(--border-subtle)] overflow-x-auto leading-relaxed">
 {`// 1. Assert status code
 pm.test("Status code is 200", function () {
     pm.response.to.have.status(200);
@@ -405,7 +402,7 @@ pm.test("Response latency is below 350ms", function () {
             </pre>
           </div>
 
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
+          <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
             <h4 className="text-xs font-bold text-[var(--text-primary)]">
               {isIndo ? 'Variabel Dinamis Otomatis' : 'Built-in Dynamic Variables'}
             </h4>
@@ -437,7 +434,7 @@ pm.test("Response latency is below 350ms", function () {
       title: 'Local Agent Bridge (Port 8765)',
       titleId: 'Jembatan Agen Lokal (Port 8765)',
       badge: 'Standalone',
-      badgeColor: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+      badgeColor: 'bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/20',
       summary: 'Run requests directly against localhost or intranet servers using the zero-CORS lightweight background agent.',
       summaryId: 'Jalankan request langsung ke localhost atau server intranet tanpa CORS menggunakan agen background ringan.',
       content: (
@@ -448,11 +445,11 @@ pm.test("Response latency is below 350ms", function () {
               : 'The OpenPost Desktop Agent operates locally on port 8765. It provides a native network bridge that dispatches HTTP/HTTPS requests with zero browser CORS constraints, enabling direct development against local microservices or VPN-restricted internal APIs.'}
           </p>
 
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
+          <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
             <h4 className="text-xs font-bold text-[var(--text-primary)]">
               {isIndo ? 'Menjalankan Desktop Agent secara Mandiri' : 'Starting the Agent Bridge Manually'}
             </h4>
-            <div className="bg-[var(--bg-panel)] p-3 rounded-lg border border-[var(--border-subtle)]">
+            <div className="bg-[var(--bg-panel)] p-3 rounded border border-[var(--border-subtle)]">
               <pre className="text-xs font-mono text-[var(--text-primary)]">
 npm run bridge
 # Output: [OpenPost Agent] Local bridge listening on http://127.0.0.1:8765
@@ -460,14 +457,14 @@ npm run bridge
             </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
+          <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3">
             <h4 className="text-xs font-bold text-[var(--text-primary)]">
               {isIndo ? 'Membangun Aplikasi Desktop Electron (Multi-Platform Otomatis)' : 'Building Standalone Electron Installer (Auto Multi-Platform)'}
             </h4>
             <p className="text-xs text-[var(--text-secondary)]">
               {isIndo ? 'Perintah build:electron secara otomatis membundel installer untuk semua platform sekaligus (Windows .exe, macOS .dmg/.zip, dan Linux .AppImage/.tar.gz):' : 'The build:electron command automatically packages installers for all platforms simultaneously (Windows .exe, macOS .dmg/.zip, and Linux .AppImage/.tar.gz):'}
             </p>
-            <div className="bg-[var(--bg-panel)] p-3 rounded-lg border border-[var(--border-subtle)] space-y-2">
+            <div className="bg-[var(--bg-panel)] p-3 rounded border border-[var(--border-subtle)] space-y-2">
               <pre className="text-xs font-mono text-[var(--text-primary)] leading-relaxed">
 {`# Auto-build untuk semua platform sekaligus (Windows, macOS, Linux):
 npm run build:electron
@@ -488,7 +485,7 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
       title: 'Diagnostics & System Health API',
       titleId: 'API Diagnostik & Status Sistem',
       badge: 'GET /api/health',
-      badgeColor: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+      badgeColor: 'bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/20',
       summary: 'Endpoint diagnostic to verify server health, database connectivity, and runtime uptime.',
       summaryId: 'Endpoint diagnostik untuk memverifikasi kesehatan server, konektivitas database, dan waktu aktif runtime.',
       content: (
@@ -499,10 +496,10 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
               : 'Use the interactive console below to perform a live diagnostic check against your backend server.'}
           </p>
 
-          <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
+          <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/30">GET</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/30">GET</span>
                 <code className="text-xs font-mono font-semibold text-[var(--text-primary)]">/api/health</code>
               </div>
 
@@ -510,7 +507,7 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
                 type="button"
                 onClick={handleTestHealth}
                 disabled={testingEndpoint}
-                className="px-3 py-1.5 rounded-lg bg-[var(--primary)] hover:opacity-90 text-white text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer shadow-md shadow-[var(--primary)]/20"
+                className="px-3 py-1.5 rounded bg-[var(--primary)] hover:opacity-90 text-white text-xs font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/20"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>{testingEndpoint ? (isIndo ? 'Menghubungi...' : 'Testing...') : (isIndo ? 'Kirim Request Uji Coba' : 'Run Test Request')}</span>
@@ -518,9 +515,9 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
             </div>
 
             {testResponse && (
-              <div className="bg-[var(--bg-panel)] p-3.5 rounded-lg border border-[var(--border-subtle)] space-y-2">
+              <div className="bg-[var(--bg-panel)] p-3.5 rounded border border-[var(--border-subtle)] space-y-2">
                 <div className="flex items-center justify-between text-[11px] pb-2 border-b border-[var(--border-subtle)]">
-                  <span className="font-bold text-emerald-500">Status: {testResponse.status} {testResponse.statusText}</span>
+                  <span className="font-bold text-[var(--success)]">Status: {testResponse.status} {testResponse.statusText}</span>
                   <span className="text-[var(--text-secondary)] font-mono">Latency: {testResponse.duration}</span>
                 </div>
                 <pre className="text-xs font-mono text-[var(--text-primary)] overflow-x-auto">
@@ -538,33 +535,33 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
       title: 'Comprehensive Keyboard Shortcuts',
       titleId: 'Daftar Lengkap Pintasan Keyboard',
       badge: 'Productivity',
-      badgeColor: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+      badgeColor: 'bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/20',
       summary: 'Speed up your API testing workflow with native keyboard combinations.',
       summaryId: 'Tingkatkan kecepatan workflow pengujian API Anda dengan kombinasi tombol native.',
       content: (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
+            <div className="p-3 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
               <span className="text-[var(--text-secondary)]">{isIndo ? 'Kirim Request Aktif' : 'Send Active Request'}</span>
               <kbd className="px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] font-mono font-bold text-[var(--text-primary)]">Ctrl + Enter</kbd>
             </div>
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
+            <div className="p-3 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
               <span className="text-[var(--text-secondary)]">{isIndo ? 'Simpan Request' : 'Save Request'}</span>
               <kbd className="px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] font-mono font-bold text-[var(--text-primary)]">Ctrl + S</kbd>
             </div>
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
+            <div className="p-3 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
               <span className="text-[var(--text-secondary)]">{isIndo ? 'Pencarian Cepat / Navigasi' : 'Quick Search / Jump'}</span>
               <kbd className="px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] font-mono font-bold text-[var(--text-primary)]">Ctrl + K</kbd>
             </div>
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
+            <div className="p-3 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
               <span className="text-[var(--text-secondary)]">{isIndo ? 'Buka Tab Baru' : 'New Request Tab'}</span>
               <kbd className="px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] font-mono font-bold text-[var(--text-primary)]">Ctrl + T</kbd>
             </div>
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
+            <div className="p-3 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
               <span className="text-[var(--text-secondary)]">{isIndo ? 'Tutup Tab Aktif' : 'Close Active Tab'}</span>
               <kbd className="px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] font-mono font-bold text-[var(--text-primary)]">Ctrl + W</kbd>
             </div>
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
+            <div className="p-3 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex items-center justify-between">
               <span className="text-[var(--text-secondary)]">{isIndo ? 'Ganti Environment Cepat' : 'Switch Environment'}</span>
               <kbd className="px-2 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] font-mono font-bold text-[var(--text-primary)]">Ctrl + E</kbd>
             </div>
@@ -589,29 +586,18 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
   const activeSection = sections.find(s => s.id === selectedTopic) || sections[0];
 
   return (
-    <div className={`min-h-screen flex flex-col font-sans transition-colors duration-300 ${
-      theme === 'light' ? 'theme-light bg-[var(--bg-base)] text-[var(--text-primary)]' : 
-      theme === 'dark' ? 'theme-dark bg-[var(--bg-base)] text-[var(--text-primary)]' : 
-      'theme-default bg-[var(--bg-base)] text-[var(--text-primary)]'
+    <div className={`min-h-screen flex flex-col ${
+      (theme === 'dark' ? 'theme-dark' : 'theme-light') + ' bg-[var(--bg-base)] text-[var(--text-primary)]'
     }`}>
-      {/* Background Glow */}
-      <div className={`fixed inset-0 pointer-events-none -z-10 transition-opacity duration-500 ${
-        theme === 'light' 
-          ? 'bg-gradient-to-br from-slate-50 via-zinc-100 to-amber-50/20' 
-          : theme === 'dark' 
-          ? 'bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617]' 
-          : 'bg-gradient-to-br from-[#200017] via-[#3B0A29] to-[#14000E]'
-      }`} />
-
       {/* Top Header Navigation */}
-      <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/90 backdrop-blur-md transition-colors duration-200">
+      <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/90  transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Left: Back Button & Branding */}
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={onBack}
-              className="px-3 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shadow-xs"
+              className="px-3 py-1.5 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer "
               title={isIndo ? 'Kembali' : 'Go Back'}
             >
               <ArrowLeft className="w-4 h-4 text-[var(--primary)]" />
@@ -621,7 +607,7 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
             <div className="h-5 w-px bg-[var(--border-subtle)] hidden sm:block" />
 
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shadow-md shadow-[var(--primary)]/20">
+              <div className="w-8 h-8 rounded bg-[var(--primary)] flex items-center justify-center text-white shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/20">
                 <BookOpen className="w-4 h-4" />
               </div>
               <div>
@@ -643,8 +629,8 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
             {/* Live Backend Indicator */}
             <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[11px]">
               <span className={`w-2 h-2 rounded-full ${
-                apiHealth === 'healthy' ? 'bg-emerald-500 animate-pulse' : 
-                apiHealth === 'checking' ? 'bg-amber-500' : 'bg-rose-500'
+                apiHealth === 'healthy' ? 'bg-[var(--success)] animate-pulse' : 
+                apiHealth === 'checking' ? 'bg-[var(--warning)]' : 'bg-[var(--danger)]'
               }`} />
               <span className="text-[var(--text-secondary)] font-medium">
                 {apiHealth === 'healthy' ? 'API Online' : apiHealth === 'checking' ? 'Connecting...' : 'API Offline'}
@@ -652,13 +638,13 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
             </div>
 
             {/* Language Switcher */}
-            <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold">
+            <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)] text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => handleLangToggle('id')}
-                className={`px-2 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                className={`px-2 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
                   language === 'id' 
-                    ? 'bg-[var(--primary)] text-white shadow-xs' 
+                    ? 'bg-[var(--primary)] text-white ' 
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
                 title="Bahasa Indonesia"
@@ -668,9 +654,9 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
               <button
                 type="button"
                 onClick={() => handleLangToggle('en')}
-                className={`px-2 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                className={`px-2 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
                   language === 'en' 
-                    ? 'bg-[var(--primary)] text-white shadow-xs' 
+                    ? 'bg-[var(--primary)] text-white ' 
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
                 title="English"
@@ -683,13 +669,13 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
             <button
               type="button"
               onClick={cycleTheme}
-              className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+              className="p-2 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
               title={`Theme: ${theme.toUpperCase()}`}
             >
               {theme === 'light' ? (
-                <Sun className="w-4 h-4 text-amber-500" />
+                <Sun className="w-4 h-4 text-[var(--warning)]" />
               ) : theme === 'dark' ? (
-                <Moon className="w-4 h-4 text-indigo-400" />
+                <Moon className="w-4 h-4 text-[var(--icon-color)]" />
               ) : (
                 <MonitorSmartphone className="w-4 h-4 text-[var(--primary)]" />
               )}
@@ -710,7 +696,7 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={isIndo ? 'Cari topik atau endpoint...' : 'Search docs or endpoints...'}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-secondary)]/60 focus:outline-none focus:border-[var(--primary)] transition-all"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded text-[var(--text-primary)] placeholder-[var(--text-secondary)]/60 focus:outline-none focus:border-[var(--primary)] transition-colors"
             />
           </div>
 
@@ -727,9 +713,9 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
                   key={sec.id}
                   type="button"
                   onClick={() => setSelectedTopic(sec.id)}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-between cursor-pointer border ${
+                  className={`w-full text-left px-3 py-2.5 rounded text-xs font-medium transition-colors flex items-center justify-between cursor-pointer border ${
                     isSelected 
-                      ? 'bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm' 
+                      ? 'bg-[var(--primary)] text-white border-[var(--primary)] ' 
                       : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
                   }`}
                 >
@@ -748,9 +734,9 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
           </div>
 
           {/* Quick Help Card */}
-          <div className="p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2 mt-6">
+          <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2 mt-6">
             <div className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" />
+              <BookOpen className="w-3.5 h-3.5 text-[var(--primary)]" />
               <span>OpenPost Community</span>
             </div>
             <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
@@ -772,7 +758,7 @@ npm run build:electron:linux  # Khusus Linux (.AppImage / .tar.gz)`}
 
         {/* Right Main Content Pane */}
         <main className="lg:col-span-9 space-y-6">
-          <div className="p-6 sm:p-8 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-xl space-y-6 transition-colors duration-200">
+          <div className="p-6 sm:p-8 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-subtle)] space-y-6 transition-colors duration-200">
             {/* Header of Active Section */}
             <div className="border-b border-[var(--border-subtle)] pb-6 space-y-2">
               <div className="flex items-center gap-2">

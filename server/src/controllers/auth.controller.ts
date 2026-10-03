@@ -68,8 +68,8 @@ export class AuthController {
       });
       res.json(data);
     } catch (error: any) {
-      console.error('Google Auth Error:', error);
-      res.status(400).json({ error: error.message, stack: error.stack });
+      console.error('Google Auth Error:', error?.message);
+      res.status(400).json({ error: error.message });
     }
   };
 
@@ -119,13 +119,10 @@ export class AuthController {
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
-      
-      const { password } = req.body;
-      if (!password) {
-        return res.status(400).json({ error: 'New password is required' });
-      }
-      
-      const data = await this.authService.changePassword(userId, password);
+
+      // Validated by changePasswordSchema (currentPassword + password).
+      const { currentPassword, password } = req.body;
+      const data = await this.authService.changePassword(userId, currentPassword, password);
       res.json(data);
     } catch (error: any) {
       res.status(400).json({ error: error.message });

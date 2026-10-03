@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../store/useStore';
 import { cn } from '../utils';
+import { sanitizeHtml } from '../utils/sanitize';
 import { AlertCircle, Settings2, Plus } from 'lucide-react';
 import { getActiveGraphQLTheme, highlightGraphQLCode, GraphQLThemeConfig } from '../utils/graphqlTheme';
 
@@ -222,7 +223,7 @@ export function AutocompleteInput({
       const exists = variables.some(v => v.key === varName && v.enabled !== false);
       return `<span class="${cn(
         "rounded cursor-help",
-        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 outline outline-1 outline-dashed outline-gray-500/30"
+        exists ? "text-[var(--primary)] bg-[var(--primary)]/10" : "text-[var(--text-tertiary)] bg-[var(--text-tertiary)]/10 outline outline-1 outline-dashed outline-[var(--text-tertiary)]/30"
       )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
     });
     return escaped;
@@ -243,7 +244,7 @@ export function AutocompleteInput({
           "absolute inset-0 pointer-events-none whitespace-pre overflow-hidden border-transparent focus:border-transparent bg-transparent flex items-center"
         )}
         style={{ color: 'var(--text-primary)' }}
-        dangerouslySetInnerHTML={{ __html: highlightedCode || (props.placeholder ? `<span class="text-[var(--text-secondary)]">${props.placeholder}</span>` : '') }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(highlightedCode || (props.placeholder ? `<span class="text-[var(--text-secondary)]">${props.placeholder}</span>` : '')) }}
       />
       <input
         ref={inputRef}
@@ -263,7 +264,7 @@ export function AutocompleteInput({
       {showDropdown && createPortal(
         <div 
           ref={dropdownRef}
-          className="fixed z-[9999] mt-1 overflow-hidden rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-xl ring-1 ring-black ring-opacity-5"
+          className="fixed z-[9999] mt-1 overflow-hidden rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-[var(--shadow-subtle)] ring-1 ring-black ring-opacity-5"
           style={{ 
             top: `${dropdownPos.top}px`, 
             left: `${dropdownPos.left}px`, 
@@ -572,7 +573,7 @@ export function AutocompleteTextarea({
       const exists = variables.some(v => v.key === varName && v.enabled !== false);
       return `<span class="${cn(
         "rounded cursor-help",
-        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 outline outline-1 outline-dashed outline-gray-500/30"
+        exists ? "text-[var(--primary)] bg-[var(--primary)]/10" : "text-[var(--text-tertiary)] bg-[var(--text-tertiary)]/10 outline outline-1 outline-dashed outline-[var(--text-tertiary)]/30"
       )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
     });
 
@@ -595,7 +596,7 @@ export function AutocompleteTextarea({
           "absolute inset-0 pointer-events-none break-words whitespace-pre-wrap overflow-hidden border-transparent focus:border-transparent bg-transparent"
         )}
         style={{ color: 'var(--text-primary)' }}
-        dangerouslySetInnerHTML={{ __html: highlightedCode || (props.placeholder ? `<span class="text-[var(--text-secondary)]">${props.placeholder}</span>` : '') }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(highlightedCode || (props.placeholder ? `<span class="text-[var(--text-secondary)]">${props.placeholder}</span>` : '')) }}
       />
       <textarea
         ref={textareaRef}
@@ -615,7 +616,7 @@ export function AutocompleteTextarea({
       {showDropdown && createPortal(
         <div 
           ref={dropdownRef}
-          className="fixed z-[9999] mt-1 overflow-hidden rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-xl ring-1 ring-black ring-opacity-5"
+          className="fixed z-[9999] mt-1 overflow-hidden rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-[var(--shadow-subtle)] ring-1 ring-black ring-opacity-5"
           style={{ 
             top: `${dropdownPos.top}px`, 
             left: `${dropdownPos.left}px`, 

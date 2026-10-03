@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { WorkspaceController } from '../controllers/workspace.controller';
 import { requireAuth, requireWorkspaceAccess } from '../middleware/auth';
+import { validateBody, workspaceCreateSchema } from '../middleware/validation';
 
 const router = Router();
 const workspaceController = new WorkspaceController();
@@ -8,7 +9,7 @@ const workspaceController = new WorkspaceController();
 router.use(requireAuth);
 
 router.get('/', workspaceController.getWorkspaces);
-router.post('/', workspaceController.createWorkspace);
+router.post('/', validateBody(workspaceCreateSchema), workspaceController.createWorkspace);
 router.put('/:id', requireWorkspaceAccess, workspaceController.updateWorkspace);
 router.delete('/:id', requireWorkspaceAccess, workspaceController.deleteWorkspace);
 

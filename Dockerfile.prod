@@ -13,8 +13,11 @@ COPY prisma ./prisma/
 # Install semua dependencies (termasuk devDependencies untuk build)
 RUN npm install
 
-# Sediakan dummy DATABASE_URL agar `prisma generate` tidak error saat build
-ENV DATABASE_URL="postgresql://postgres:Hyvercode@123!@localhost:5432/openpost?schema=public"
+# Dummy DATABASE_URL khusus build-time agar `prisma generate` tidak error.
+# BUKAN kredensial asli — jangan taruh secret di Dockerfile (masuk layer image).
+# Kredensial runtime disuntik via environment (compose file / secrets manager).
+ARG BUILD_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/openpost?schema=public"
+ENV DATABASE_URL=${BUILD_DATABASE_URL}
 
 # Generate Prisma Client (Sesuaikan jika di package.json Anda namanya 'db:setup')
 RUN npx prisma generate
@@ -49,8 +52,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/agent ./agent
 COPY --from=builder /app/release ./release
 
-# Buat direktori data untuk SQLite dan uploads
-RUN mkdir -p /app/data /app/uploads && chmod -R 777 /app/data /app/uploads
+# Buat direktori data untuk SQLite dan uploads (bukan 777 — hanya owner).
+RUN mkdir -p /app/data /app/uploads && chown -R node:node /app/data /app/uploads && chmod 750 /app/data /app/uploads
+
+# Jangan jalan sebagai root.
+USER node
 
 # Set environment variables
 ENV NODE_ENV=production

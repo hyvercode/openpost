@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import { EnvironmentController } from '../controllers/environment.controller';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
 const environmentController = new EnvironmentController();
+
+router.use(requireAuth);
 
 router.get('/:workspaceId', environmentController.getEnvironmentsByWorkspace);
 router.post('/', environmentController.createEnvironment);

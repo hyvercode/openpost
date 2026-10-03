@@ -108,7 +108,7 @@ export function TabBar() {
             )}
             <span className="truncate flex-1">{tab.name}</span>
             {isDraft && (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Unsaved Draft Request" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] shrink-0" title="Unsaved Draft Request" />
             )}
             <button 
               onClick={(e) => handleClose(e, tab.id)}
@@ -133,7 +133,7 @@ export function TabBar() {
 
       {contextMenu && (
         <div 
-          className="fixed z-50 bg-[var(--bg-panel)] border border-[var(--border-subtle)] shadow-xl rounded-md py-1 flex flex-col min-w-[160px] text-xs"
+          className="fixed z-50 bg-[var(--bg-panel)] border border-[var(--border-subtle)] shadow-[var(--shadow-subtle)] rounded-md py-1 flex flex-col min-w-[160px] text-xs"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -160,7 +160,7 @@ export function TabBar() {
           </button>
           <div className="h-px w-full bg-[var(--border-subtle)] my-1" />
           <button 
-            className="flex items-center gap-2 px-3 py-1.5 text-left hover:bg-red-500/10 text-red-500 w-full transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 text-left hover:bg-[var(--danger)]/10 text-[var(--danger)] w-full transition-colors"
             onClick={() => {
               closeAllTabs();
               setContextMenu(null);

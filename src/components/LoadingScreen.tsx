@@ -9,8 +9,8 @@ export function LoadingScreen({ message = 'Loading OpenPost...' }: { message?: s
 
   return (
     <div className={cn(
-      "min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] flex flex-col items-center justify-center p-4 transition-colors duration-500",
-      theme === 'light' ? 'theme-light' : theme === 'dark' ? 'theme-dark' : 'theme-default'
+      "min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] flex flex-col items-center justify-center p-4 transition-colors ",
+      theme === 'dark' ? 'theme-dark' : 'theme-light'
     )}>
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
@@ -31,7 +31,7 @@ export function LoadingScreen({ message = 'Loading OpenPost...' }: { message?: s
             }}
             className="absolute inset-0 bg-[var(--primary)]/20 blur-3xl rounded-full"
           />
-          <div className="relative bg-[var(--bg-surface)] p-6 rounded-2xl border border-[var(--border-strong)] shadow-2xl">
+          <div className="relative bg-[var(--bg-surface)] p-6 rounded border border-[var(--border-strong)] shadow-[var(--shadow-subtle)]">
             <MonitorSmartphone className="w-16 h-16 text-[var(--primary)]" />
           </div>
           

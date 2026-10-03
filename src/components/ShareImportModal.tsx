@@ -321,12 +321,12 @@ export function ShareImportModal() {
   const targetFoldersList = currentTargetCollection?.folders || [];
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[999] animate-fade-in backdrop-blur-sm">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col font-sans text-xs max-h-[90vh]">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[999] animate-fade-in ">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] max-w-md w-full overflow-hidden flex flex-col font-sans text-xs max-h-[90vh]">
         
         {/* Header */}
         <div className="p-4 border-b border-[var(--border-subtle)] flex items-center gap-3 bg-[var(--bg-surface)]">
-          <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] shrink-0">
+          <div className="w-8 h-8 rounded bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] shrink-0">
             <Share2 className="w-4 h-4 animate-pulse" />
           </div>
           <div>
@@ -346,7 +346,7 @@ export function ShareImportModal() {
           )}
 
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 flex items-start gap-2.5">
+            <div className="p-3 bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded text-[var(--danger)] flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
                 <span className="font-semibold block mb-0.5">Import Error</span>
@@ -359,7 +359,7 @@ export function ShareImportModal() {
             <div className="space-y-4">
               
               {/* Item Info Box */}
-              <div className="p-3 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg">
+              <div className="p-3 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded">
                 <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider block mb-1">
                   Shared {shareType} Info
                 </span>
@@ -371,9 +371,9 @@ export function ShareImportModal() {
                       <h3 className="font-bold text-[var(--text-primary)] text-sm">{sharedCollection.name}</h3>
                       <p className="text-[var(--text-secondary)] mt-1">{sharedCollection.description || 'No description provided.'}</p>
                       <div className="flex gap-2.5 mt-2.5 text-[10px] text-[var(--text-secondary)] font-semibold">
-                        <span>📁 {(sharedCollection.folders || []).length} Folders</span>
+                        <span>{(sharedCollection.folders || []).length} Folders</span>
                         <span>•</span>
-                        <span>⚡ {(sharedCollection.requests || []).length} Requests</span>
+                        <span>{(sharedCollection.requests || []).length} Requests</span>
                       </div>
                     </div>
                   </div>
@@ -381,7 +381,7 @@ export function ShareImportModal() {
 
                 {shareType === 'folder' && sharedFolder && (
                   <div className="flex items-start gap-2.5">
-                    <Folder className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <Folder className="w-5 h-5 text-[var(--warning)] shrink-0 mt-0.5" />
                     <div>
                       <h3 className="font-bold text-[var(--text-primary)] text-sm">{sharedFolder.name}</h3>
                       <p className="text-[var(--text-secondary)] mt-1">From collection: {sharedCollection.name}</p>
@@ -393,10 +393,10 @@ export function ShareImportModal() {
                   <div className="flex items-start gap-2.5">
                     <div className="shrink-0 mt-0.5">
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        sharedRequest.method === 'GET' ? 'bg-green-500/15 text-[var(--text-get)]' :
-                        sharedRequest.method === 'POST' ? 'bg-blue-500/15 text-[var(--text-post)]' :
-                        sharedRequest.method === 'PUT' ? 'bg-yellow-500/15 text-[var(--text-put)]' :
-                        sharedRequest.method === 'DELETE' ? 'bg-red-500/15 text-[var(--text-delete)]' : 'bg-gray-500/15 text-gray-400'
+                        sharedRequest.method === 'GET' ? 'bg-[var(--success)]/15 text-[var(--text-get)]' :
+                        sharedRequest.method === 'POST' ? 'bg-[var(--info)]/15 text-[var(--text-post)]' :
+                        sharedRequest.method === 'PUT' ? 'bg-[var(--warning)]/15 text-[var(--text-put)]' :
+                        sharedRequest.method === 'DELETE' ? 'bg-[var(--danger)]/15 text-[var(--text-delete)]' : 'bg-[var(--text-tertiary)]/15 text-[var(--text-tertiary)]'
                       }`}>
                         {sharedRequest.method}
                       </span>
@@ -424,7 +424,7 @@ export function ShareImportModal() {
                     <select
                       value={targetWorkspaceId}
                       onChange={(e) => setTargetWorkspaceId(e.target.value)}
-                      className="w-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-focus)] transition-colors cursor-pointer font-semibold"
+                      className="w-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-focus)] transition-colors cursor-pointer font-semibold"
                     >
                       <option value="" disabled>-- Select Workspace --</option>
                       {workspaces.map(ws => (
@@ -445,7 +445,7 @@ export function ShareImportModal() {
                           setTargetCollectionId(e.target.value);
                           setTargetFolderId('root');
                         }}
-                        className="w-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-focus)] transition-colors cursor-pointer font-semibold"
+                        className="w-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-focus)] transition-colors cursor-pointer font-semibold"
                       >
                         <option value="" disabled>-- Select Collection --</option>
                         {collections.map(col => (
@@ -463,7 +463,7 @@ export function ShareImportModal() {
                         <select
                           value={targetFolderId}
                           onChange={(e) => setTargetFolderId(e.target.value)}
-                          className="w-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-focus)] transition-colors cursor-pointer font-semibold"
+                          className="w-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded px-3 py-2 text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--border-focus)] transition-colors cursor-pointer font-semibold"
                         >
                           <option value="root">Root Collection Level</option>
                           {targetFoldersList.map(f => (
@@ -483,7 +483,7 @@ export function ShareImportModal() {
         <div className="p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-between">
           <button
             onClick={handleClose}
-            className="px-4 py-2 rounded-lg border border-[var(--border-strong)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] font-bold transition-all"
+            className="px-4 py-2 rounded border border-[var(--border-strong)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] font-bold transition-colors"
             disabled={loading}
           >
             Cancel
@@ -491,7 +491,7 @@ export function ShareImportModal() {
           
           <button
             onClick={handleImport}
-            className="px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-[var(--primary)]/20"
+            className="px-4 py-2 rounded bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white font-bold transition-colors flex items-center gap-1.5 shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/20"
             disabled={loading || !sharedCollection}
           >
             {loading ? (

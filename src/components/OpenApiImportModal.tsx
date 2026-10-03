@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { FileCode, Upload, Check, AlertCircle, Loader, Sparkles, X, Code2 } from 'lucide-react';
+import { FileCode, Upload, Check, AlertCircle, Loader, X, Code2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../lib/api';
 import { parseOpenAPISpec } from '../utils/openapiImport';
@@ -74,13 +74,13 @@ export function OpenApiImportModal({ isOpen, onClose }: OpenApiImportModalProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[999] animate-fade-in backdrop-blur-sm">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col font-sans text-xs">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[999] animate-fade-in ">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] max-w-lg w-full overflow-hidden flex flex-col font-sans text-xs">
         
         {/* Header */}
         <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-surface)]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] shrink-0">
+            <div className="w-8 h-8 rounded bg-[var(--primary)]/10 flex items-center justify-center text-[var(--primary)] shrink-0">
               <Code2 className="w-4 h-4" />
             </div>
             <div>
@@ -90,7 +90,7 @@ export function OpenApiImportModal({ isOpen, onClose }: OpenApiImportModalProps)
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
+            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded hover:bg-[var(--bg-hover)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -126,7 +126,7 @@ export function OpenApiImportModal({ isOpen, onClose }: OpenApiImportModalProps)
         {/* Content Body */}
         <div className="p-5 space-y-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-500 text-xs flex items-start gap-2">
+            <div className="p-3 bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded text-[var(--danger)] text-xs flex items-start gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
@@ -135,7 +135,7 @@ export function OpenApiImportModal({ isOpen, onClose }: OpenApiImportModalProps)
           {activeTab === 'file' ? (
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-[var(--border-strong)] hover:border-[var(--primary)] rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-[var(--bg-surface)]/50 hover:bg-[var(--bg-surface)] transition-all group"
+              className="border-2 border-dashed border-[var(--border-strong)] hover:border-[var(--primary)] rounded p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-[var(--bg-surface)]/50 hover:bg-[var(--bg-surface)] transition-colors group"
             >
               <div className="w-12 h-12 rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                 <Upload className="w-6 h-6" />
@@ -156,7 +156,7 @@ export function OpenApiImportModal({ isOpen, onClose }: OpenApiImportModalProps)
                 value={specContent}
                 onChange={(e) => setSpecContent(e.target.value)}
                 placeholder="Paste raw OpenAPI 3.0/3.1 or Swagger 2.0 JSON/YAML specification here..."
-                className="w-full h-52 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg p-3 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] transition-colors leading-relaxed"
+                className="w-full h-52 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded p-3 font-mono text-xs text-[var(--text-code)] outline-none focus:border-[var(--border-focus)] transition-colors leading-relaxed"
                 spellCheck={false}
               />
             </div>
@@ -167,7 +167,7 @@ export function OpenApiImportModal({ isOpen, onClose }: OpenApiImportModalProps)
         <div className="p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-between">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-[var(--border-strong)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] font-bold transition-all"
+            className="px-4 py-2 rounded border border-[var(--border-strong)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] font-bold transition-colors"
             disabled={loading}
           >
             Cancel
@@ -177,7 +177,7 @@ export function OpenApiImportModal({ isOpen, onClose }: OpenApiImportModalProps)
             <button
               onClick={() => handleProcessImport(specContent)}
               disabled={loading || !specContent.trim()}
-              className="px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-[var(--primary)]/20 disabled:opacity-50"
+              className="px-4 py-2 rounded bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white font-bold transition-colors flex items-center gap-1.5 shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/20 disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -187,7 +187,7 @@ export function OpenApiImportModal({ isOpen, onClose }: OpenApiImportModalProps)
               ) : (
                 <>
                   <span>Import Spec</span>
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <FileCode className="w-3.5 h-3.5" />
                 </>
               )}
             </button>

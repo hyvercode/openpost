@@ -5,13 +5,14 @@
 export const isDesktopEnvironment = (): boolean => {
   if (typeof window === 'undefined') return false;
 
-  // 1. Electron window flag set by preload script
-  if ((window as any).isElectron || (window as any).isDesktop) {
+  // 1. Secure preload bridge (contextBridge, preferred).
+  const bridged = (window as any).openpost;
+  if (bridged && bridged.isDesktop === true) {
     return true;
   }
 
-  // 2. Electron process object
-  if (typeof (window as any).process !== 'undefined' && (window as any).process?.versions?.electron) {
+  // 2. Legacy preload flags (read-only booleans, kept for back-compat).
+  if ((window as any).isElectron === true || (window as any).isDesktop === true) {
     return true;
   }
 
@@ -23,24 +24,9 @@ export const isDesktopEnvironment = (): boolean => {
     }
   }
 
-  // 4. URL query parameter flag (e.g. ?isDesktop=true or ?desktop=true)
-  try {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('isDesktop') === 'true' || params.get('desktop') === 'true') {
-      return true;
-    }
-  } catch {
-    // Ignore in non-browser environments
-  }
-
-  // 5. Explicit local storage override for development testing
-  try {
-    if (localStorage.getItem('openpost_desktop_mode') === 'true') {
-      return true;
-    }
-  } catch {
-    // Ignore local storage errors
-  }
+  // NOTE: URL query params (?isDesktop=true) and localStorage overrides are
+  // deliberately NOT trusted here — anyone can set them, so they must never
+  // gate security-sensitive behavior. They only ever enabled UI conveniences.
 
   return false;
 };

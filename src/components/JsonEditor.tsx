@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { cn, replaceEnvironmentVariables } from '../utils';
+import { sanitizeHtml } from '../utils/sanitize';
 import { useStore } from '../store/useStore';
 import { Play, Copy, Check, FileCode, RefreshCw, Minimize2, Trash2, HelpCircle, Code, AlertTriangle } from 'lucide-react';
 
@@ -247,17 +248,17 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
     let highlighted = escaped.replace(
       /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
       (match) => {
-        let cls = 'text-amber-500 font-semibold'; // Default: numbers (Yellow-amber)
+        let cls = 'text-[var(--warning)] font-semibold'; // Default: numbers (Yellow-amber)
         if (match.startsWith('"')) {
           if (match.endsWith(':')) {
-            cls = 'text-sky-400 font-medium'; // Key (Sky blue)
+            cls = 'text-[var(--info)] font-medium'; // Key (Sky blue)
           } else {
-            cls = 'text-emerald-400 font-normal'; // String (Emerald green)
+            cls = 'text-[var(--success)] font-normal'; // String (Emerald green)
           }
         } else if (match === 'true' || match === 'false') {
           cls = 'text-violet-400 font-bold'; // Boolean (Purple)
         } else if (match === 'null') {
-          cls = 'text-gray-500 font-normal italic'; // Null (Gray italic)
+          cls = 'text-[var(--text-tertiary)] font-normal italic'; // Null (Gray italic)
         }
         return `<span class="${cls}">${match}</span>`;
       }
@@ -270,7 +271,7 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
       const exists = envVars.some(v => v.key === varName && v.enabled);
       return `<span class="${cn(
         "rounded cursor-help",
-        exists ? "text-orange-400 bg-orange-400/10" : "text-gray-400 bg-gray-400/10 outline outline-1 outline-dashed outline-gray-500/30"
+        exists ? "text-[var(--primary)] bg-[var(--primary)]/10" : "text-[var(--text-tertiary)] bg-[var(--text-tertiary)]/10 outline outline-1 outline-dashed outline-[var(--text-tertiary)]/30"
       )}" title="${exists ? 'Environment Variable' : 'Undefined Variable'}">${match}</span>`;
     });
 
@@ -315,7 +316,7 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
   }, [value]);
 
   return (
-    <div className={cn("flex flex-col flex-1 h-full min-h-[220px] rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-input)] overflow-hidden shadow-sm", className)}>
+    <div className={cn("flex flex-col flex-1 h-full min-h-[220px] rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] overflow-hidden ", className)}>
       
       {/* Visual Header / Toolbar */}
       <div className="flex flex-wrap items-center justify-between px-3 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-panel)]/40 gap-2 select-none">
@@ -325,13 +326,13 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
           <Code className="w-4 h-4 text-[var(--primary)]" />
           <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">JSON Body</span>
           {jsonError ? (
-            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 border border-red-500/25 rounded text-[11px] text-red-400 font-medium">
-              <AlertTriangle className="w-3 h-3 text-red-500 animate-pulse" />
+            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-[var(--danger)]/10 border border-[var(--danger)]/25 rounded text-[11px] text-[var(--danger)] font-medium">
+              <AlertTriangle className="w-3 h-3 text-[var(--danger)] animate-pulse" />
               <span>Invalid JSON</span>
             </div>
           ) : value.trim() ? (
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/25 rounded text-[11px] text-green-400 font-medium">
-              <Check className="w-3 h-3 text-green-500" />
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-[var(--success)]/10 border border-[var(--success)]/25 rounded text-[11px] text-[var(--success)] font-medium">
+              <Check className="w-3 h-3 text-[var(--success)]" />
               <span>Valid JSON</span>
             </div>
           ) : null}
@@ -344,14 +345,14 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
             <button
               type="button"
               onClick={() => setShowTemplates(!showTemplates)}
-              className="px-2 py-1 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded transition-all flex items-center gap-1.5"
+              className="px-2 py-1 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded transition-colors flex items-center gap-1.5"
             >
               <FileCode className="w-3.5 h-3.5" />
               <span>Templates</span>
             </button>
 
             {showTemplates && (
-              <div className="absolute right-0 mt-1.5 w-64 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-1">
+              <div className="absolute right-0 mt-1.5 w-64 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] py-1 z-50 animate-in fade-in slide-in-from-top-1">
                 <div className="px-3 py-1.5 border-b border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                   Insert Quick JSON
                 </div>
@@ -399,14 +400,14 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
             onClick={handleCopy}
             className="p-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded transition-colors"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
 
           <button
             type="button"
             title="Clear all text"
             onClick={handleClear}
-            className="p-1.5 text-xs text-[var(--text-secondary)] hover:text-red-400 hover:bg-red-500/10 border border-[var(--border-strong)] hover:border-red-500/25 rounded transition-colors"
+            className="p-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 border border-[var(--border-strong)] hover:border-[var(--danger)]/25 rounded transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -427,7 +428,7 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
               key={num} 
               className={cn(
                 "h-5 transition-colors duration-200",
-                errorLine === num ? "bg-red-500/20 text-red-400 font-bold" : ""
+                errorLine === num ? "bg-[var(--danger)]/20 text-[var(--danger)] font-bold" : ""
               )}
             >
               {num}
@@ -447,7 +448,7 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
               fontSize: '13px',
               lineHeight: '20px',
             }}
-            dangerouslySetInnerHTML={{ __html: highlightedCode || `<span class="text-[var(--text-secondary)]/40">${placeholder}</span>` }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(highlightedCode || `<span class="text-[var(--text-secondary)]/40">${placeholder}</span>`) }}
           />
 
           {/* Interactive Textarea in frontend */}
@@ -475,10 +476,10 @@ export const JsonEditor: React.FC<JsonEditorProps> = ({
 
       {/* Visual Error Message banner at footer */}
       {jsonError && (
-        <div className="px-3 py-2 bg-red-500/5 border-t border-red-500/10 text-xs font-mono text-red-400 flex items-start gap-2 select-text shrink-0">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-500" />
+        <div className="px-3 py-2 bg-[var(--danger)]/5 border-t border-[var(--danger)]/10 text-xs font-mono text-[var(--danger)] flex items-start gap-2 select-text shrink-0">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-[var(--danger)]" />
           <div className="flex-1">
-            <span className="font-bold text-red-500">JSON Syntax Error:</span> {jsonError}
+            <span className="font-bold text-[var(--danger)]">JSON Syntax Error:</span> {jsonError}
           </div>
         </div>
       )}

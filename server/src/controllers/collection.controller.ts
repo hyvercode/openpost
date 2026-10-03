@@ -1,7 +1,9 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../db";
+import { JWT_SECRET } from "../config";
 import { Request, Response } from 'express';
 import { CollectionService } from '../services/collection.service';
+import { assertWorkspaceAccess, assertRecordAccess } from '../middleware/ownership';
 
 export class CollectionController {
   private collectionService = new CollectionService();
@@ -24,7 +26,7 @@ export class CollectionController {
         }
         const token = authHeader.split('Bearer ')[1];
         try {
-          const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key-for-dev');
+          const decoded: any = jwt.verify(token, JWT_SECRET);
           const userId = decoded.uid || decoded.userId;
           const membership = await prisma.workspaceMember.findUnique({
             where: {
@@ -52,10 +54,11 @@ export class CollectionController {
   getCollectionsByWorkspace = async (req: Request, res: Response) => {
     try {
       const { workspaceId } = req.params;
+      if (!(await assertWorkspaceAccess(req, res, workspaceId))) return;
       const collections = await this.collectionService.getCollectionsByWorkspace(workspaceId);
       res.json(collections);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch collections', details: error.message });
+      res.status(500).json({ error: 'Failed to fetch collections' });
     }
   };
 
@@ -65,35 +68,38 @@ export class CollectionController {
       if (!workspaceId || !name) {
         return res.status(400).json({ error: 'WorkspaceId and name are required' });
       }
+      if (!(await assertWorkspaceAccess(req, res, workspaceId))) return;
       const newCollection = await this.collectionService.createCollection({
         id, workspaceId, name, description, color, icon, position, mockConfig, folders, requests, shareVisibility, mockVisibility, docVisibility
       });
       res.status(201).json(newCollection);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to create collection', details: error.message });
+      res.status(500).json({ error: 'Failed to create collection' });
     }
   };
 
   updateCollection = async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      if (!(await assertRecordAccess(req, res, () => this.collectionService.getCollectionById(id)))) return;
       const { name, description, color, icon, position, mockConfig, folders, requests, shareVisibility, mockVisibility, docVisibility } = req.body;
       const updatedCollection = await this.collectionService.updateCollection(id, {
         name, description, color, icon, position, mockConfig, folders, requests, shareVisibility, mockVisibility, docVisibility
       });
       res.json(updatedCollection);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to update collection', details: error.message });
+      res.status(500).json({ error: 'Failed to update collection' });
     }
   };
 
   deleteCollection = async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
+      if (!(await assertRecordAccess(req, res, () => this.collectionService.getCollectionById(id)))) return;
       await this.collectionService.deleteCollection(id);
       res.json({ success: true, message: 'Collection deleted' });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to delete collection', details: error.message });
+      res.status(500).json({ error: 'Failed to delete collection' });
     }
   };
 }

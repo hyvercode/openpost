@@ -312,7 +312,7 @@ export function generateChangelogMarkdown(diff: CollectionDiffResult, newVersion
   const removed = diff.endpoints.filter(e => e.changeType === 'removed');
 
   if (breaking.length > 0) {
-    lines.push(`### ⚠️ Breaking Changes (${breaking.length})`);
+    lines.push(`### Breaking Changes (${breaking.length})`);
     for (const item of breaking) {
       const fieldNotes = item.fieldDiffs.filter(f => f.isBreaking).map(f => f.label).join(', ');
       lines.push(`- **\`${item.method}\` ${item.url}** - *${item.name}*: ${fieldNotes || 'Breaking modification'}`);
@@ -321,7 +321,7 @@ export function generateChangelogMarkdown(diff: CollectionDiffResult, newVersion
   }
 
   if (added.length > 0) {
-    lines.push(`### 🚀 New Endpoints (${added.length})`);
+    lines.push(`### New Endpoints (${added.length})`);
     for (const item of added) {
       lines.push(`- **\`${item.method}\` ${item.url}** - ${item.name}`);
     }
@@ -329,7 +329,7 @@ export function generateChangelogMarkdown(diff: CollectionDiffResult, newVersion
   }
 
   if (modified.length > 0) {
-    lines.push(`### 🛠️ Modified Endpoints (${modified.length})`);
+    lines.push(`### Modified Endpoints (${modified.length})`);
     for (const item of modified) {
       const fieldList = item.fieldDiffs.map(f => f.label).join('; ');
       lines.push(`- **\`${item.method}\` ${item.url}** - ${item.name} (${fieldList})`);
@@ -338,7 +338,7 @@ export function generateChangelogMarkdown(diff: CollectionDiffResult, newVersion
   }
 
   if (removed.length > 0) {
-    lines.push(`### 🗑️ Removed / Deprecated Endpoints (${removed.length})`);
+    lines.push(`### Removed / Deprecated Endpoints (${removed.length})`);
     for (const item of removed) {
       lines.push(`- **\`${item.method}\` ${item.url}** - ${item.name}`);
     }

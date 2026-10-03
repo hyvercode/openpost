@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Palette, Check, Sparkles, SlidersHorizontal, Moon, Sun } from 'lucide-react';
+import { Palette, Check, SlidersHorizontal, Moon, Sun } from 'lucide-react';
 import { 
   GRAPHQL_THEMES, 
   GraphQLThemeId, 
@@ -46,7 +46,7 @@ export function GraphQLThemeSelector() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all border",
+          "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border",
           isOpen
             ? "bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--primary)]"
             : "bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] border-[var(--border-subtle)] text-[var(--text-primary)]"
@@ -64,7 +64,7 @@ export function GraphQLThemeSelector() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-1.5 w-80 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg shadow-2xl z-50 overflow-hidden text-xs animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute right-0 mt-1.5 w-80 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] z-50 overflow-hidden text-xs animate-in fade-in slide-in-from-top-1 duration-150">
           <div className="p-3 border-b border-[var(--border-subtle)] bg-[var(--bg-panel)] flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SlidersHorizontal className="w-4 h-4 text-[var(--primary)]" />
@@ -88,9 +88,9 @@ export function GraphQLThemeSelector() {
                   key={id}
                   onClick={() => handleSelect(id)}
                   className={cn(
-                    "p-2.5 rounded-md border cursor-pointer transition-all flex flex-col gap-1.5 group",
+                    "p-2.5 rounded-md border cursor-pointer transition-colors flex flex-col gap-1.5 group",
                     isSelected
-                      ? "border-[var(--primary)] bg-[var(--primary)]/10 shadow-sm"
+                      ? "border-[var(--primary)] bg-[var(--primary)]/10 "
                       : "border-[var(--border-subtle)] bg-[var(--bg-base)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-hover)]"
                   )}
                 >
@@ -99,9 +99,9 @@ export function GraphQLThemeSelector() {
                       <span className="font-bold text-[var(--text-primary)] text-xs flex items-center gap-1.5">
                         {theme.name}
                         {theme.isDark ? (
-                          <Moon className="w-3 h-3 text-indigo-400 opacity-70" />
+                          <Moon className="w-3 h-3 text-[var(--icon-color)] opacity-70" />
                         ) : (
-                          <Sun className="w-3 h-3 text-amber-400 opacity-70" />
+                          <Sun className="w-3 h-3 text-[var(--warning)] opacity-70" />
                         )}
                       </span>
                     </div>
@@ -132,7 +132,7 @@ export function GraphQLThemeSelector() {
 
           <div className="p-2 bg-[var(--bg-panel)] border-t border-[var(--border-subtle)] text-[10px] text-[var(--text-secondary)] flex items-center justify-between">
             <span className="flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-400" />
+              <Palette className="w-3 h-3" />
               Persisted across sessions
             </span>
             <button

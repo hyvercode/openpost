@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key-for-dev';
+import { JWT_SECRET } from '../config';
 
 export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;

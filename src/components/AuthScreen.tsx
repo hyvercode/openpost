@@ -20,7 +20,6 @@ import {
   Globe,
   ChevronDown,
   ChevronRight,
-  Sparkles,
   Laptop,
   Check,
   Github,
@@ -98,11 +97,10 @@ export function AuthScreen() {
   };
 
   const cycleTheme = () => {
-    const order: Theme[] = ['default', 'light', 'dark'];
-    const next = order[(order.indexOf(theme) + 1) % order.length];
+    const next: Theme = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     addToast(
-      next === 'light' ? 'Mode Terang (Light Mode)' : next === 'dark' ? 'Mode Gelap (Slate Dark)' : 'Tema Aubergine (Default)',
+      next === 'light' ? 'Ubuntu Light' : 'Ubuntu Dark',
       'info',
       2000
     );
@@ -120,7 +118,6 @@ export function AuthScreen() {
 
   // Verification states
   const [registeredEmail, setRegisteredEmail] = useState('');
-  const [verificationDevLink, setVerificationDevLink] = useState<string | null>(null);
 
   // Detected OS
   const [detectedOS, setDetectedOS] = useState<'windows' | 'mac' | 'linux'>('windows');
@@ -176,7 +173,6 @@ export function AuthScreen() {
 
   const processGoogleAuth = async ({
     idToken,
-    accessToken,
   }: {
     idToken?: string;
     accessToken?: string;
@@ -184,31 +180,20 @@ export function AuthScreen() {
     setLoading(true);
     setError(null);
     try {
-      let email = '';
-      let displayName = '';
-      let photoURL = '';
-
-      if (accessToken) {
-        try {
-          const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          });
-          if (userinfoRes.ok) {
-            const data = await userinfoRes.json();
-            email = data.email;
-            displayName = data.name || data.given_name;
-            photoURL = data.picture;
-          }
-        } catch (fetchErr) {
-          console.warn('Could not fetch userinfo from Google with accessToken:', fetchErr);
-        }
+      // SECURITY: only the Google ID token is sent — the backend verifies its
+      // signature server-side and derives the identity from it. Never send
+      // raw email/displayName: the backend rejects requests without a valid
+      // credential.
+      if (!idToken) {
+        throw new Error(
+          language === 'id'
+            ? 'Login Google membutuhkan ID token. Silakan gunakan tombol Sign in with Google.'
+            : 'Google login requires an ID token. Please use the Sign in with Google button.'
+        );
       }
 
       const res = await api.post('/auth/google', {
-        credential: idToken || undefined,
-        email: email || undefined,
-        displayName: displayName || undefined,
-        photoURL: photoURL || undefined,
+        credential: idToken,
       });
 
       const { user, token, message } = res.data;
@@ -325,9 +310,6 @@ export function AuthScreen() {
       const res = await api.post('/auth/resend-verification', { email: targetEmail });
       const msg = res.data?.message || (language === 'id' ? "Email konfirmasi baru telah dikirim." : "Confirmation email sent.");
       setSuccess(msg);
-      if (res.data?.verificationLink) {
-        setVerificationDevLink(res.data.verificationLink);
-      }
       addToast(msg, "success", 4000);
     } catch (err: any) {
       setError(err.response?.data?.error || "Failed to resend confirmation email.");
@@ -363,9 +345,6 @@ export function AuthScreen() {
         const res = await api.post('/auth/register', { email, password });
         
         setRegisteredEmail(email);
-        if (res.data?.verificationLink) {
-          setVerificationDevLink(res.data.verificationLink);
-        }
         setAuthMode('email-confirmation-pending');
         setSuccess(language === 'id' ? "Akun berhasil dibuat! Silakan cek email Anda untuk konfirmasi." : "Account created! Please check your email to activate.");
         addToast(language === 'id' ? "Registrasi sukses! Silakan konfirmasi email." : "Registration successful! Please confirm your email.", "info", 6000);
@@ -420,7 +399,7 @@ export function AuthScreen() {
     <motion.div
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden transition-colors duration-200"
+      className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded p-6 sm:p-8 shadow-[var(--shadow-subtle)] relative overflow-hidden transition-colors duration-200"
     >
       {/* Auth Mode Header / Tabs */}
       {authMode === 'login' || authMode === 'register' ? (
@@ -483,7 +462,7 @@ export function AuthScreen() {
 
       {/* Error Message Banner */}
       {error && (
-        <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-start gap-2.5">
+        <div className="mb-4 p-3 rounded bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)] text-xs flex items-start gap-2.5">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span className="leading-snug">{error}</span>
         </div>
@@ -491,7 +470,7 @@ export function AuthScreen() {
 
       {/* Success Message Banner */}
       {success && (
-        <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs flex items-start gap-2.5">
+        <div className="mb-4 p-3 rounded bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)] text-xs flex items-start gap-2.5">
           <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
           <span className="leading-snug">{success}</span>
         </div>
@@ -500,8 +479,8 @@ export function AuthScreen() {
       {/* Email Confirmation Pending Mode */}
       {authMode === 'email-confirmation-pending' ? (
         <div className="space-y-4">
-          <div className="p-4 rounded-xl bg-[var(--bg-input)] border border-[var(--border-subtle)] text-center space-y-3">
-            <div className="w-10 h-10 bg-amber-500/15 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+          <div className="p-4 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] text-center space-y-3">
+            <div className="w-10 h-10 bg-[var(--warning)]/15 text-[var(--warning)] rounded-full flex items-center justify-center mx-auto">
               <Send className="w-5 h-5" />
             </div>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
@@ -510,27 +489,12 @@ export function AuthScreen() {
             </p>
           </div>
 
-          {verificationDevLink && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs">
-              <div className="font-bold text-amber-500 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{language === 'id' ? 'Tautan Pengujian:' : 'Development Test Link:'}</span>
-              </div>
-              <a 
-                href={verificationDevLink}
-                className="block p-2 bg-black/40 rounded border border-white/5 text-[var(--primary)] hover:underline font-mono text-[11px] break-all"
-              >
-                {verificationDevLink}
-              </a>
-            </div>
-          )}
-
           <div className="flex gap-2 pt-2">
             <button
               type="button"
               onClick={() => handleResendVerification(registeredEmail || email)}
               disabled={loading}
-              className="flex-1 h-10 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-[var(--border-subtle)] cursor-pointer"
+              className="flex-1 h-10 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-[var(--border-subtle)] cursor-pointer"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
               <span>{language === 'id' ? 'Kirim Ulang' : 'Resend Email'}</span>
@@ -538,7 +502,7 @@ export function AuthScreen() {
             <button
               type="button"
               onClick={() => setAuthMode('login')}
-              className="flex-1 h-10 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              className="flex-1 h-10 bg-[var(--primary)] hover:opacity-90 text-white rounded text-xs font-bold transition-colors shadow-[var(--shadow-subtle)] cursor-pointer"
             >
               {language === 'id' ? 'Kembali' : 'Back to Sign In'}
             </button>
@@ -563,7 +527,7 @@ export function AuthScreen() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@company.com"
-                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded py-2.5 pl-10 pr-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-colors font-medium"
                 />
               </div>
             </div>
@@ -596,7 +560,7 @@ export function AuthScreen() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-colors font-medium"
                 />
                 <button
                   type="button"
@@ -625,7 +589,7 @@ export function AuthScreen() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-xl py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-all font-medium"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded py-2.5 pl-10 pr-10 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]/40 focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/30 transition-colors font-medium"
                 />
                 <button
                   type="button"
@@ -642,7 +606,7 @@ export function AuthScreen() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-11 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-[var(--primary)]/25 active:scale-95 cursor-pointer mt-2"
+            className="w-full h-11 bg-[var(--primary)] hover:opacity-90 text-white rounded font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/25 cursor-pointer mt-2"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -672,7 +636,7 @@ export function AuthScreen() {
                 type="button"
                 onClick={handleDirectGoogleAuth}
                 disabled={loading}
-                className="w-full h-11 bg-white hover:bg-zinc-100 text-zinc-900 rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-md active:scale-95 cursor-pointer border border-zinc-200 group"
+                className="w-full h-11 bg-white hover:bg-zinc-100 text-zinc-900 rounded font-bold text-xs flex items-center justify-center gap-2.5 transition-colors shadow-[var(--shadow-subtle)] cursor-pointer border border-zinc-200 group"
               >
                 <svg className="w-4 h-4 shrink-0 transition-transform group-hover:scale-110" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -687,7 +651,7 @@ export function AuthScreen() {
 
               <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] px-1 pt-0.5">
                 <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] inline-block" />
                   Google OAuth 2.0
                 </span>
                 <button
@@ -755,36 +719,19 @@ export function AuthScreen() {
   // Standalone Desktop Build View (Bypasses mini landing page completely!)
   if (isDesktop) {
     return (
-      <div className={`min-h-screen font-sans flex flex-col justify-between transition-colors duration-300 ${
-        theme === 'light' ? 'theme-light bg-[var(--bg-base)] text-[var(--text-primary)]' : 
-        theme === 'dark' ? 'theme-dark bg-[var(--bg-base)] text-[var(--text-primary)]' : 
-        'theme-default bg-[var(--bg-base)] text-[var(--text-primary)]'
+      <div className={`min-h-screen font-sans flex flex-col justify-between transition-colors  ${
+        (theme === 'dark' ? 'theme-dark' : 'theme-light') + ' bg-[var(--bg-base)] text-[var(--text-primary)]'
       }`}>
-        {/* Background Gradient & Ambient Glow */}
-        <div className={`fixed inset-0 pointer-events-none -z-10 transition-opacity duration-500 ${
-          theme === 'light' 
-            ? 'bg-gradient-to-br from-slate-50 via-zinc-100 to-amber-50/20' 
-            : theme === 'dark' 
-            ? 'bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617]' 
-            : 'bg-gradient-to-br from-[#200017] via-[#3B0A29] to-[#14000E]'
-        }`} />
-        
-        <div className={`fixed top-0 left-1/2 -translate-x-1/2 w-[900px] h-[450px] blur-3xl -z-10 pointer-events-none transition-opacity duration-500 ${
-          theme === 'light'
-            ? 'bg-gradient-to-b from-[#DD4814]/10 to-transparent'
-            : 'bg-gradient-to-b from-[#E95420]/15 to-transparent'
-        }`} />
-
         {/* Minimal Desktop Top Bar */}
-        <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/85 backdrop-blur-md transition-colors duration-200">
+        <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/85  transition-colors duration-200">
           <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shadow-md shadow-[var(--primary)]/25">
+              <div className="w-7 h-7 rounded bg-[var(--primary)] flex items-center justify-center text-white shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/25">
                 <Server className="w-3.5 h-3.5" />
               </div>
               <div className="flex items-baseline gap-2">
                 <span className="font-bold text-base tracking-tight text-[var(--text-primary)]">OpenPost</span>
-                <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                <span className="text-[10px] font-semibold text-[var(--success)] bg-[var(--success)]/10 px-1.5 py-0.5 rounded border border-[var(--success)]/20">
                   Desktop v1.0.0
                 </span>
               </div>
@@ -792,13 +739,13 @@ export function AuthScreen() {
 
             <div className="flex items-center gap-2">
               {/* Language Switcher */}
-              <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold">
+              <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)] text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => handleLanguageChange('id')}
-                  className={`px-2 py-0.5 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
                     language === 'id' 
-                      ? 'bg-[var(--primary)] text-white shadow-xs' 
+                      ? 'bg-[var(--primary)] text-white ' 
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                   title="Bahasa Indonesia"
@@ -808,9 +755,9 @@ export function AuthScreen() {
                 <button
                   type="button"
                   onClick={() => handleLanguageChange('en')}
-                  className={`px-2 py-0.5 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                  className={`px-2 py-0.5 rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
                     language === 'en' 
-                      ? 'bg-[var(--primary)] text-white shadow-xs' 
+                      ? 'bg-[var(--primary)] text-white ' 
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                   title="English"
@@ -823,13 +770,13 @@ export function AuthScreen() {
               <button
                 type="button"
                 onClick={cycleTheme}
-                className="p-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                className="p-1.5 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
                 title={`Theme: ${theme.toUpperCase()}`}
               >
                 {theme === 'light' ? (
-                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  <Sun className="w-3.5 h-3.5 text-[var(--warning)]" />
                 ) : theme === 'dark' ? (
-                  <Moon className="w-3.5 h-3.5 text-sky-400" />
+                  <Moon className="w-3.5 h-3.5 text-[var(--info)]" />
                 ) : (
                   <MonitorSmartphone className="w-3.5 h-3.5 text-[var(--primary)]" />
                 )}
@@ -844,7 +791,7 @@ export function AuthScreen() {
             {renderAuthCard()}
 
             <div className="text-center text-[11px] text-[var(--text-secondary)] flex items-center justify-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
               <span>
                 {language === 'id' 
                   ? 'Klien Desktop Mandiri · Penyimpanan SQLite Lokal · Zero CORS' 
@@ -869,32 +816,15 @@ export function AuthScreen() {
   }
 
   return (
-    <div className={`min-h-screen font-sans flex flex-col transition-colors duration-300 ${
-      theme === 'light' ? 'theme-light bg-[var(--bg-base)] text-[var(--text-primary)]' : 
-      theme === 'dark' ? 'theme-dark bg-[var(--bg-base)] text-[var(--text-primary)]' : 
-      'theme-default bg-[var(--bg-base)] text-[var(--text-primary)]'
+    <div className={`min-h-screen flex flex-col ${
+      (theme === 'dark' ? 'theme-dark' : 'theme-light') + ' bg-[var(--bg-base)] text-[var(--text-primary)]'
     }`}>
-      {/* Background Gradient & Ambient Glow */}
-      <div className={`fixed inset-0 pointer-events-none -z-10 transition-opacity duration-500 ${
-        theme === 'light' 
-          ? 'bg-gradient-to-br from-slate-50 via-zinc-100 to-amber-50/20' 
-          : theme === 'dark' 
-          ? 'bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#020617]' 
-          : 'bg-gradient-to-br from-[#200017] via-[#3B0A29] to-[#14000E]'
-      }`} />
-      
-      <div className={`fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[450px] blur-3xl -z-10 pointer-events-none transition-opacity duration-500 ${
-        theme === 'light'
-          ? 'bg-gradient-to-b from-[#DD4814]/10 to-transparent'
-          : 'bg-gradient-to-b from-[#E95420]/15 to-transparent'
-      }`} />
-
       {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/85 backdrop-blur-md transition-colors duration-200">
+      <header className="sticky top-0 z-40 w-full border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/85  transition-colors duration-200">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[var(--primary)] flex items-center justify-center text-white shadow-md shadow-[var(--primary)]/25">
+            <div className="w-8 h-8 rounded bg-[var(--primary)] flex items-center justify-center text-white shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/25">
               <Server className="w-4 h-4" />
             </div>
             <div className="flex items-baseline gap-2">
@@ -960,13 +890,13 @@ export function AuthScreen() {
           {/* Controls: Language Switcher, Theme Switcher & Action CTA */}
           <div className="flex items-center gap-2.5">
             {/* Language Switcher */}
-            <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded-lg border border-[var(--border-subtle)] text-xs font-semibold">
+            <div className="flex items-center bg-[var(--bg-surface)] p-0.5 rounded border border-[var(--border-subtle)] text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => handleLanguageChange('id')}
-                className={`px-2 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                className={`px-2 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
                   language === 'id' 
-                    ? 'bg-[var(--primary)] text-white shadow-xs' 
+                    ? 'bg-[var(--primary)] text-white ' 
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
                 title="Bahasa Indonesia"
@@ -976,9 +906,9 @@ export function AuthScreen() {
               <button
                 type="button"
                 onClick={() => handleLanguageChange('en')}
-                className={`px-2 py-1 rounded-md transition-all flex items-center gap-1 cursor-pointer ${
+                className={`px-2 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer ${
                   language === 'en' 
-                    ? 'bg-[var(--primary)] text-white shadow-xs' 
+                    ? 'bg-[var(--primary)] text-white ' 
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 }`}
                 title="English"
@@ -991,13 +921,13 @@ export function AuthScreen() {
             <button
               type="button"
               onClick={cycleTheme}
-              className="p-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer flex items-center gap-1"
+              className="p-2 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer flex items-center gap-1"
               title={`Theme: ${theme.toUpperCase()} (Click to toggle)`}
             >
               {theme === 'light' ? (
-                <Sun className="w-4 h-4 text-amber-500" />
+                <Sun className="w-4 h-4 text-[var(--warning)]" />
               ) : theme === 'dark' ? (
-                <Moon className="w-4 h-4 text-sky-400" />
+                <Moon className="w-4 h-4 text-[var(--info)]" />
               ) : (
                 <MonitorSmartphone className="w-4 h-4 text-[var(--primary)]" />
               )}
@@ -1011,7 +941,7 @@ export function AuthScreen() {
                 const formElement = document.getElementById('auth-card');
                 formElement?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="px-3.5 py-1.5 rounded-lg bg-[var(--primary)] hover:opacity-90 text-white text-xs font-bold transition-all shadow-md shadow-[var(--primary)]/20 active:scale-95 cursor-pointer"
+              className="px-3.5 py-1.5 rounded bg-[var(--primary)] hover:opacity-90 text-white text-xs font-bold transition-colors shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/20 cursor-pointer"
             >
               {t.nav.getStarted}
             </button>
@@ -1043,16 +973,16 @@ export function AuthScreen() {
           </p>
 
           {/* Desktop Download Highlight Box */}
-          <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] backdrop-blur-md shadow-xl space-y-4 max-w-xl transition-colors duration-200">
+          <div className="p-6 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)]  shadow-[var(--shadow-subtle)] space-y-4 max-w-xl transition-colors duration-200">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/15 border border-[var(--primary)]/30 flex items-center justify-center text-[var(--primary)]">
+                <div className="w-8 h-8 rounded bg-[var(--primary)]/15 border border-[var(--primary)]/30 flex items-center justify-center text-[var(--primary)]">
                   <Laptop className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                     <span>{t.desktopCard.title}</span>
-                    <span className="text-[10px] font-semibold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                    <span className="text-[10px] font-semibold text-[var(--success)] bg-[var(--success)]/10 px-1.5 py-0.5 rounded border border-[var(--success)]/20">
                       {t.desktopCard.standalone}
                     </span>
                   </div>
@@ -1068,7 +998,7 @@ export function AuthScreen() {
               <button
                 type="button"
                 onClick={() => setShowDownloadModal(true)}
-                className="h-11 px-5 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-[var(--primary)]/25 active:scale-95 cursor-pointer"
+                className="h-11 px-5 bg-[var(--primary)] hover:opacity-90 text-white rounded font-bold text-xs flex items-center justify-center gap-2.5 transition-colors shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/25 cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 <span>{t.desktopCard.downloadFor} {osInfo.name} ({osInfo.ext})</span>
@@ -1077,7 +1007,7 @@ export function AuthScreen() {
               <button
                 type="button"
                 onClick={() => setShowDownloadModal(true)}
-                className="h-11 px-4 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded-xl font-medium text-xs flex items-center justify-center gap-1.5 border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                className="h-11 px-4 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] rounded font-medium text-xs flex items-center justify-center gap-1.5 border border-[var(--border-subtle)] transition-colors cursor-pointer"
               >
                 <span>{t.desktopCard.otherPlatforms}</span>
                 <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
@@ -1086,18 +1016,18 @@ export function AuthScreen() {
 
             {/* Natural Badges */}
             <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-wrap items-center gap-y-1 gap-x-3 text-[11px] text-[var(--text-secondary)]">
-              <div className="flex items-center gap-1.5 text-emerald-500 font-medium">
+              <div className="flex items-center gap-1.5 text-[var(--success)] font-medium">
                 <Check className="w-3.5 h-3.5 shrink-0" />
                 <span>{t.desktopCard.zeroCors}</span>
               </div>
               <span aria-hidden="true" className="opacity-30">·</span>
               <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
-                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <Check className="w-3.5 h-3.5 text-[var(--success)] shrink-0" />
                 <span>{t.desktopCard.completeOffline}</span>
               </div>
               <span aria-hidden="true" className="opacity-30">·</span>
               <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
-                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <Check className="w-3.5 h-3.5 text-[var(--success)] shrink-0" />
                 <span>{t.desktopCard.noAccountNeeded}</span>
               </div>
             </div>
@@ -1105,7 +1035,7 @@ export function AuthScreen() {
 
           {/* Micro Value Proposition Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2 max-w-xl">
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] transition-colors duration-200">
+            <div className="p-3 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] transition-colors duration-200">
               <div className="text-[var(--primary)] text-xs font-bold mb-1 flex items-center gap-1.5">
                 <Zap className="w-3.5 h-3.5" />
                 <span>{t.valueProps.multiProtocol}</span>
@@ -1115,8 +1045,8 @@ export function AuthScreen() {
               </p>
             </div>
 
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] transition-colors duration-200">
-              <div className="text-amber-500 text-xs font-bold mb-1 flex items-center gap-1.5">
+            <div className="p-3 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] transition-colors duration-200">
+              <div className="text-[var(--warning)] text-xs font-bold mb-1 flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5" />
                 <span>{t.valueProps.mockServers}</span>
               </div>
@@ -1125,8 +1055,8 @@ export function AuthScreen() {
               </p>
             </div>
 
-            <div className="p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] col-span-2 sm:col-span-1 transition-colors duration-200">
-              <div className="text-emerald-500 text-xs font-bold mb-1 flex items-center gap-1.5">
+            <div className="p-3 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] col-span-2 sm:col-span-1 transition-colors duration-200">
+              <div className="text-[var(--success)] text-xs font-bold mb-1 flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>{t.valueProps.zeroTelemetry}</span>
               </div>
@@ -1146,7 +1076,7 @@ export function AuthScreen() {
       {/* Architecture Overview Section (Targeted by nav link: a:nth-of-type(2)) */}
       <section 
         id="overview" 
-        className={`w-full border-t border-[var(--border-subtle)] py-16 px-6 transition-all duration-500 ${
+        className={`w-full border-t border-[var(--border-subtle)] py-16 px-6 transition-colors  ${
           highlightedSection === 'overview' ? 'ring-2 ring-[var(--primary)] bg-[var(--primary)]/5' : 'bg-[var(--bg-surface)]/60'
         }`}
       >
@@ -1168,8 +1098,8 @@ export function AuthScreen() {
           {/* Architecture Visual Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Box 1: Client */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center">
+            <div className="p-6 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-subtle)] space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
+              <div className="w-10 h-10 rounded bg-[var(--info)]/15 text-[var(--info)] flex items-center justify-center">
                 <Laptop className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
@@ -1184,8 +1114,8 @@ export function AuthScreen() {
             </div>
 
             {/* Box 2: Express Server */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center">
+            <div className="p-6 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-subtle)] space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
+              <div className="w-10 h-10 rounded bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center">
                 <Server className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
@@ -1200,8 +1130,8 @@ export function AuthScreen() {
             </div>
 
             {/* Box 3: Dual Storage */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center">
+            <div className="p-6 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-subtle)] space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
+              <div className="w-10 h-10 rounded bg-[var(--success)]/15 text-[var(--success)] flex items-center justify-center">
                 <Database className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
@@ -1216,8 +1146,8 @@ export function AuthScreen() {
             </div>
 
             {/* Box 4: Agent Bridge */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-md space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center">
+            <div className="p-6 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] shadow-[var(--shadow-subtle)] space-y-3 relative group hover:border-[var(--primary)]/50 transition-colors">
+              <div className="w-10 h-10 rounded bg-[var(--warning)]/15 text-[var(--warning)] flex items-center justify-center">
                 <Cpu className="w-5 h-5" />
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">
@@ -1233,11 +1163,11 @@ export function AuthScreen() {
           </div>
 
           {/* Interactive Live Verification Card */}
-          <div className="p-6 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="p-6 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)] flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-1 text-center md:text-left">
               <div className="text-sm font-bold text-[var(--text-primary)] flex items-center justify-center md:justify-start gap-2">
                 <span>Want to test the backend API right now?</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
                 The local backend server is running and responding to real API queries.
@@ -1255,7 +1185,7 @@ export function AuthScreen() {
                     addToast(`Health check error: ${e.message}`, 'error', 3000);
                   }
                 }}
-                className="px-4 py-2 rounded-xl bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-xs font-mono text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer flex items-center gap-2"
+                className="px-4 py-2 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-xs font-mono text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer flex items-center gap-2"
               >
                 <span>GET /api/health</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[var(--primary)]" />
@@ -1264,7 +1194,7 @@ export function AuthScreen() {
               <button
                 type="button"
                 onClick={() => setShowDownloadModal(true)}
-                className="px-4 py-2 rounded-xl bg-[var(--primary)] text-white text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                className="px-4 py-2 rounded bg-[var(--primary)] text-white text-xs font-bold transition-colors shadow-[var(--shadow-subtle)] cursor-pointer"
               >
                 {t.nav.downloadDesktop}
               </button>
@@ -1276,7 +1206,7 @@ export function AuthScreen() {
       {/* Feature Overview Strip */}
       <section 
         id="features" 
-        className={`w-full border-t border-[var(--border-subtle)] py-16 px-6 transition-all duration-500 ${
+        className={`w-full border-t border-[var(--border-subtle)] py-16 px-6 transition-colors  ${
           highlightedSection === 'features' ? 'ring-2 ring-[var(--primary)] bg-[var(--primary)]/5' : 'bg-[var(--bg-base)]'
         }`}
       >
@@ -1292,8 +1222,8 @@ export function AuthScreen() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Feature 1 */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
-              <div className="w-9 h-9 rounded-xl bg-[var(--primary)]/15 border border-[var(--primary)]/30 flex items-center justify-center text-[var(--primary)]">
+            <div className="p-6 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
+              <div className="w-9 h-9 rounded bg-[var(--primary)]/15 border border-[var(--primary)]/30 flex items-center justify-center text-[var(--primary)]">
                 <Zap className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">{t.features.feat1Title}</h3>
@@ -1303,8 +1233,8 @@ export function AuthScreen() {
             </div>
 
             {/* Feature 2 */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
-              <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-500">
+            <div className="p-6 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
+              <div className="w-9 h-9 rounded bg-[var(--warning)]/15 border border-[var(--warning)]/30 flex items-center justify-center text-[var(--warning)]">
                 <Layers className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">{t.features.feat2Title}</h3>
@@ -1314,8 +1244,8 @@ export function AuthScreen() {
             </div>
 
             {/* Feature 3 */}
-            <div className="p-6 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
+            <div className="p-6 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-3 transition-colors duration-200">
+              <div className="w-9 h-9 rounded bg-[var(--success)]/15 border border-[var(--success)]/30 flex items-center justify-center text-[var(--success)]">
                 <Laptop className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-bold text-[var(--text-primary)]">{t.features.feat3Title}</h3>

@@ -1,4 +1,4 @@
-export type Theme = 'default' | 'light' | 'dark';
+export type Theme = 'light' | 'dark';
 
 export interface User {
   uid: string;

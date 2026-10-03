@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { X, Settings2, Plus, Eye, EyeOff, Save, Check, Lock, Unlock, Trash2, Globe, Layers, Sparkles } from 'lucide-react';
+import { X, Settings2, Plus, Eye, EyeOff, Save, Check, Lock, Unlock, Trash2, Globe, Layers } from 'lucide-react';
 import { KeyValue, Environment } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
@@ -156,13 +156,13 @@ export function QuickEnvironmentModal() {
   );
 
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60  p-4">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] w-full max-w-3xl flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)]">
+            <div className="w-8 h-8 rounded bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)]">
               <Settings2 className="w-4 h-4" />
             </div>
             <div>
@@ -179,7 +179,7 @@ export function QuickEnvironmentModal() {
           </div>
           <button 
             onClick={() => setIsQuickEnvModalOpen(false)}
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors"
+            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1.5 rounded hover:bg-[var(--bg-hover)] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -215,7 +215,7 @@ export function QuickEnvironmentModal() {
                       key={env.id}
                       onClick={() => setSelectedEnvId(env.id)}
                       className={cn(
-                        "group flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all border",
+                        "group flex items-center justify-between p-2 rounded text-xs cursor-pointer transition-colors border",
                         isSelected 
                           ? "bg-[var(--primary)]/10 text-[var(--primary)] font-semibold border-[var(--primary)]/30" 
                           : "text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border-transparent"
@@ -224,13 +224,13 @@ export function QuickEnvironmentModal() {
                       <div className="flex items-center gap-2 truncate">
                         <span className={cn(
                           "w-2 h-2 rounded-full shrink-0",
-                          isActive ? "bg-emerald-500 animate-pulse" : "bg-gray-400 opacity-40"
+                          isActive ? "bg-[var(--success)] animate-pulse" : "bg-[var(--text-tertiary)] opacity-40"
                         )} />
                         <span className="truncate">{env.name}</span>
                       </div>
                       
                       {isActive ? (
-                        <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">Active</span>
+                        <span className="text-[9px] bg-[var(--success)]/20 text-[var(--success)] px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">Active</span>
                       ) : (
                         <button
                           onClick={(e) => {
@@ -284,7 +284,7 @@ export function QuickEnvironmentModal() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto border border-[var(--border-subtle)] rounded-lg bg-[var(--bg-base)]">
+                <div className="flex-1 overflow-y-auto border border-[var(--border-subtle)] rounded bg-[var(--bg-base)]">
                   <div className="flex border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">
                     <div className="w-8 shrink-0 py-1.5 text-center">En</div>
                     <div className="flex-1 py-1.5 px-2 border-l border-[var(--border-subtle)]">Key</div>
@@ -331,7 +331,7 @@ export function QuickEnvironmentModal() {
                                 onClick={() => toggleReveal(item.id)}
                                 className="absolute right-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                               >
-                                {isRevealed ? <EyeOff className="w-3.5 h-3.5 text-amber-400" /> : <Eye className="w-3.5 h-3.5" />}
+                                {isRevealed ? <EyeOff className="w-3.5 h-3.5 text-[var(--warning)]" /> : <Eye className="w-3.5 h-3.5" />}
                               </button>
                             )}
                           </div>
@@ -342,7 +342,7 @@ export function QuickEnvironmentModal() {
                               className={cn(
                                 "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-sans border transition-colors",
                                 isSecret 
-                                  ? "bg-amber-500/10 text-amber-400 border-amber-500/30" 
+                                  ? "bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/30" 
                                   : "bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-subtle)]"
                               )}
                             >
@@ -371,7 +371,7 @@ export function QuickEnvironmentModal() {
                 <p className="text-xs mb-4 max-w-xs">Select or create an environment from the left sidebar to start defining key-value variables.</p>
                 <button
                   onClick={handleCreateNewEnvironment}
-                  className="px-4 py-2 bg-[var(--primary)] text-white font-bold text-xs rounded-lg shadow-sm hover:opacity-90"
+                  className="px-4 py-2 bg-[var(--primary)] text-white font-bold text-xs rounded  hover:opacity-90"
                 >
                   Create Environment
                 </button>
@@ -405,7 +405,7 @@ export function QuickEnvironmentModal() {
             <button
               onClick={handleSave}
               disabled={isSaving || !selectedEnv}
-              className="px-4 py-1.5 bg-[var(--primary)] hover:opacity-90 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="px-4 py-1.5 bg-[var(--primary)] hover:opacity-90 text-white rounded text-xs font-bold  transition-colors flex items-center gap-1.5 disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5" />
               <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>

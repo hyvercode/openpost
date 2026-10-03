@@ -1,31 +1,68 @@
-// Desktop Agent Bridge
-// Run this locally with: node desktop-agent.js
+// Desktop Agent Bridge — hardened.
+// Run locally with: node desktop-agent.js
+//
+// SECURITY model: this bridge intentionally forwards requests to
+// localhost/private networks (that is its job), so it must ONLY accept
+// commands from the local user. Protections:
+//  1. Pairing token: printed once at startup; the web app must send it as
+//     `x-agent-token` on every /api/proxy call. Without it -> 403.
+//     (Configure once in the app settings; token persists in localStorage.)
+//  2. Strict origin allowlist (no wildcard fallback).
+//  3. Binds 127.0.0.1 only (unchanged).
+//  4. 5MB request body cap (DoS), 30s upstream timeout.
+//  5. Target must be http(s); credentials in URL rejected; sensitive
+//     request headers (authorization/cookie) stripped.
+//  6. TLS verified by default; set AGENT_ALLOW_SELF_SIGNED=1 to allow
+//     self-signed certs for local dev (logged loudly).
 
 const http = require('http');
 const https = require('https');
-const url = require('url');
+const crypto = require('crypto');
 
-const PORT = 8765;
+const PORT = parseInt(process.env.AGENT_PORT || '8765', 10);
+const MAX_BODY_BYTES = 5 * 1024 * 1024;
+const UPSTREAM_TIMEOUT_MS = 30000;
+const ALLOW_SELF_SIGNED = process.env.AGENT_ALLOW_SELF_SIGNED === '1';
+
+// Pairing token: explicit env wins, else random per start (printed to console).
+const PAIRING_TOKEN = process.env.AGENT_TOKEN || crypto.randomBytes(24).toString('hex');
+
+const ALLOWED_ORIGIN_PREFIXES = ['http://localhost:', 'http://127.0.0.1:'];
+const ALLOWED_ORIGIN_SUFFIXES = ['.run.app'];
+
+function isTrustedOrigin(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGIN_PREFIXES.some((p) => origin.startsWith(p))) return true;
+  try {
+    const host = new URL(origin).hostname;
+    if (ALLOWED_ORIGIN_SUFFIXES.some((s) => host.endsWith(s))) return true;
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function send(res, status, obj) {
+  const body = JSON.stringify(obj);
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(body);
+}
 
 const server = http.createServer((req, res) => {
-  // Only allow specific trusted origins to use this bridge
   const origin = req.headers.origin;
-  const isTrustedOrigin = origin && (
-    origin.startsWith('http://localhost:') || 
-    origin.startsWith('http://127.0.0.1:') || 
-    origin.endsWith('.run.app')
-  );
+  const trusted = isTrustedOrigin(origin);
 
-  if (!isTrustedOrigin && origin) {
-    res.writeHead(403);
-    res.end(JSON.stringify({ error: 'Origin not allowed for security reasons.' }));
+  if (origin && !trusted) {
+    send(res, 403, { error: 'Origin not allowed for security reasons.' });
     return;
   }
 
-  // Add CORS headers for the web app to communicate with the bridge
-  res.setHeader('Access-Control-Allow-Origin', isTrustedOrigin ? origin : '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-target-url, Authorization');
+  // Never fall back to '*' — non-browser callers simply get no CORS headers.
+  if (trusted) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-target-url, x-agent-token');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(200);
@@ -34,112 +71,161 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method === 'GET' && req.url === '/ping') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', agent: 'DesktopAgentBridge' }));
+    send(res, 200, { status: 'ok', agent: 'DesktopAgentBridge', pairingRequired: true });
     return;
   }
 
   if (req.method === 'POST' && req.url === '/api/proxy') {
+    // Pairing-token gate.
+    const token = req.headers['x-agent-token'];
+    if (token !== PAIRING_TOKEN) {
+      send(res, 403, {
+        error: 'Invalid or missing agent pairing token.',
+        hint: 'Copy the pairing token printed by desktop-agent.js into the app settings.',
+      });
+      return;
+    }
+
+    let received = 0;
     let body = '';
-    req.on('data', chunk => {
+    let aborted = false;
+    req.on('data', (chunk) => {
+      received += chunk.length;
+      if (received > MAX_BODY_BYTES) {
+        aborted = true;
+        send(res, 413, { error: 'Request body too large (max 5MB)' });
+        req.destroy();
+        return;
+      }
       body += chunk.toString();
     });
     req.on('end', () => {
+      if (aborted) return;
+      let payload;
       try {
-        const payload = JSON.parse(body);
-        const targetUrl = req.headers['x-target-url'] || payload.url;
-        
-        if (!targetUrl) {
-          res.writeHead(400);
-          res.end(JSON.stringify({ error: 'Missing x-target-url header or url in payload' }));
-          return;
-        }
-
-        const parsedUrl = new URL(targetUrl);
-        const client = parsedUrl.protocol === 'https:' ? https : http;
-
-        const options = {
-          hostname: parsedUrl.hostname,
-          port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-          path: parsedUrl.pathname + parsedUrl.search,
-          method: payload.method || 'GET',
-          headers: payload.headers || {},
-          rejectUnauthorized: false // Allow self-signed certs for local testing
-        };
-
-        // Remove problematic headers
-        delete options.headers['host'];
-        delete options.headers['content-length'];
-
-        const startTime = performance.now();
-
-        const proxyReq = client.request(options, (proxyRes) => {
-          let responseData = [];
-          proxyRes.on('data', chunk => {
-            responseData.push(chunk);
-          });
-          proxyRes.on('end', () => {
-            const buffer = Buffer.concat(responseData);
-            const isJson = proxyRes.headers['content-type']?.includes('application/json');
-            let data = buffer.toString('utf8');
-            try {
-              if (isJson) data = JSON.parse(data);
-            } catch (e) {}
-
-            const endTime = performance.now();
-            
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-              status: proxyRes.statusCode,
-              statusText: proxyRes.statusMessage,
-              headers: proxyRes.headers,
-              data: data,
-              timeMs: Math.round(endTime - startTime),
-              size: buffer.length,
-              timings: {
-                 dns: 0, connect: 0, ssl: 0, send: 0, receive: 0,
-                 total: Math.round(endTime - startTime)
-              }
-            }));
-          });
-        });
-
-        proxyReq.on('error', (e) => {
-          const endTime = performance.now();
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-             status: 0,
-             statusText: 'Agent Bridge Connection Failed',
-             headers: {},
-             data: { error: e.message, message: 'Desktop agent failed to connect to target.' },
-             timeMs: Math.round(endTime - startTime),
-             size: 0,
-             timings: { dns: 0, connect: 0, ssl: 0, send: 0, receive: 0, total: 0 }
-          }));
-        });
-
-        if (payload.body) {
-           let writeBody = payload.body;
-           if (typeof writeBody === 'object') {
-             writeBody = JSON.stringify(writeBody);
-           }
-           proxyReq.write(writeBody);
-        }
-        
-        proxyReq.end();
-
-      } catch (e) {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: e.message }));
+        payload = JSON.parse(body || '{}');
+      } catch {
+        send(res, 400, { error: 'Invalid JSON body' });
+        return;
       }
+      const targetUrl = req.headers['x-target-url'] || payload.url;
+
+      if (!targetUrl || typeof targetUrl !== 'string') {
+        send(res, 400, { error: 'Missing x-target-url header or url in payload' });
+        return;
+      }
+
+      let parsedUrl;
+      try {
+        parsedUrl = new URL(targetUrl);
+      } catch {
+        send(res, 400, { error: 'Invalid target URL' });
+        return;
+      }
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        send(res, 400, { error: 'Only http(s) target URLs are allowed' });
+        return;
+      }
+      if (parsedUrl.username || parsedUrl.password) {
+        send(res, 400, { error: 'Credentials in URL are not allowed' });
+        return;
+      }
+
+      const client = parsedUrl.protocol === 'https:' ? https : http;
+      const method = String(payload.method || 'GET').toUpperCase();
+      if (!/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/.test(method)) {
+        send(res, 400, { error: 'Unsupported HTTP method' });
+        return;
+      }
+
+      const outHeaders = { ...(payload.headers || {}) };
+      for (const h of ['host', 'content-length', 'transfer-encoding', 'connection', 'authorization', 'cookie', 'proxy-authorization']) {
+        delete outHeaders[h];
+        // also case-insensitive variants commonly sent
+        delete outHeaders[h.charAt(0).toUpperCase() + h.slice(1)];
+      }
+
+      const options = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
+        method,
+        headers: outHeaders,
+        timeout: UPSTREAM_TIMEOUT_MS,
+        rejectUnauthorized: !ALLOW_SELF_SIGNED,
+      };
+
+      const startTime = Date.now();
+
+      const proxyReq = client.request(options, (proxyRes) => {
+        const chunks = [];
+        let size = 0;
+        proxyRes.on('data', (chunk) => {
+          size += chunk.length;
+          if (size > MAX_BODY_BYTES) {
+            proxyReq.destroy();
+            send(res, 502, { error: 'Upstream response too large (max 5MB)' });
+            return;
+          }
+          chunks.push(chunk);
+        });
+        proxyRes.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          const isJson = (proxyRes.headers['content-type'] || '').includes('application/json');
+          let data = buffer.toString('utf8');
+          try {
+            if (isJson) data = JSON.parse(data);
+          } catch (e) { /* keep raw */ }
+
+          send(res, 200, {
+            status: proxyRes.statusCode,
+            statusText: proxyRes.statusMessage,
+            headers: proxyRes.headers,
+            data,
+            timeMs: Date.now() - startTime,
+            size: buffer.length,
+            timings: { total: Date.now() - startTime },
+          });
+        });
+      });
+
+      proxyReq.on('timeout', () => {
+        proxyReq.destroy();
+        send(res, 504, { error: 'Upstream request timed out (30s)' });
+      });
+
+      proxyReq.on('error', (e) => {
+        send(res, 200, {
+          status: 0,
+          statusText: 'Agent Bridge Connection Failed',
+          headers: {},
+          data: { error: 'Desktop agent failed to connect to target.' },
+          timeMs: Date.now() - startTime,
+          size: 0,
+          timings: { total: 0 },
+        });
+      });
+
+      if (payload.body) {
+        let writeBody = payload.body;
+        if (typeof writeBody === 'object') {
+          writeBody = JSON.stringify(writeBody);
+        }
+        proxyReq.write(String(writeBody).slice(0, MAX_BODY_BYTES));
+      }
+
+      proxyReq.end();
     });
   } else {
-    res.writeHead(404);
-    res.end('Not Found');
+    send(res, 404, { error: 'Not Found' });
   }
 });
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Desktop Agent Bridge running at http://127.0.0.1:${PORT}/`);
+  console.log(`Pairing token (keep secret, paste into the web app settings):\n  ${PAIRING_TOKEN}`);
+  if (ALLOW_SELF_SIGNED) {
+    console.warn('WARNING: AGENT_ALLOW_SELF_SIGNED=1 — TLS certificates are NOT verified.');
+  }
   console.log(`Select 'Desktop Agent' in the web application to route requests through this bridge.`);
 });

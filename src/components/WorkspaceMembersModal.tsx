@@ -163,10 +163,10 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-[var(--text-primary)]">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 text-[var(--text-primary)]">
         <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">Manage Workspace Members</h2>
-          <button onClick={onClose} className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded-lg cursor-pointer">
+          <button onClick={onClose} className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -183,13 +183,13 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="Enter email address"
-                  className="w-full bg-[var(--bg-hover)]/40 border border-[var(--border-strong)] rounded-lg py-2 pl-10 pr-4 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50 focus:border-[var(--primary)] transition-all"
+                  className="w-full bg-[var(--bg-hover)]/40 border border-[var(--border-strong)] rounded py-2 pl-10 pr-4 text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)]/60 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50 focus:border-[var(--primary)] transition-colors"
                 />
               </div>
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="bg-[var(--bg-hover)]/40 border border-[var(--border-strong)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50 cursor-pointer transition-all"
+                className="bg-[var(--bg-hover)]/40 border border-[var(--border-strong)] rounded px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/50 cursor-pointer transition-colors"
               >
                 <option value="MEMBER">Member</option>
                 <option value="ADMIN">Admin</option>
@@ -197,7 +197,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
               <button
                 type="submit"
                 disabled={isInviting || !inviteEmail}
-                className="bg-[var(--primary)] hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 min-w-[100px]"
+                className="bg-[var(--primary)] hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer shrink-0 min-w-[100px]"
               >
                 {isInviting ? (
                   <>
@@ -217,7 +217,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
           {/* Members List */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Current Members</h3>
-            <div className="border border-[var(--border-strong)] rounded-xl overflow-hidden bg-[var(--bg-hover)]/20">
+            <div className="border border-[var(--border-strong)] rounded overflow-hidden bg-[var(--bg-hover)]/20">
               {loading ? (
                 <div className="p-8 flex items-center justify-center gap-2 text-sm text-[var(--text-secondary)]">
                   <Loader2 className="w-5 h-5 animate-spin text-[var(--primary)]" />
@@ -232,7 +232,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
                   {members.map((member) => (
                     <div key={member.userId} className="p-3.5 flex items-center justify-between hover:bg-[var(--bg-hover)]/50 transition-colors group">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-9 h-9 rounded-full bg-[var(--primary)]/20 border border-[var(--primary)]/40 flex items-center justify-center text-[var(--primary)] font-bold shadow-xs shrink-0 overflow-hidden text-sm">
+                        <div className="w-9 h-9 rounded-full bg-[var(--primary)]/20 border border-[var(--primary)]/40 flex items-center justify-center text-[var(--primary)] font-bold  shrink-0 overflow-hidden text-sm">
                            {member.user?.photoURL ? (
                              <img src={member.user.photoURL} alt="" className="w-full h-full object-cover" />
                            ) : (
@@ -263,10 +263,10 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
                           onClick={() => handleToggleStatus(member)}
                           disabled={member.role === 'OWNER'}
                           className={cn(
-                            "flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded-lg transition-all cursor-pointer",
+                            "flex items-center gap-1.5 text-xs font-semibold px-2 py-1 rounded transition-colors cursor-pointer",
                             member.status === 'ACTIVE' 
-                              ? "text-emerald-500 hover:bg-emerald-500/10" 
-                              : "text-rose-500 hover:bg-rose-500/10",
+                              ? "text-[var(--success)] hover:bg-[var(--success)]/10" 
+                              : "text-[var(--danger)] hover:bg-[var(--danger)]/10",
                             member.role === 'OWNER' && "opacity-50 cursor-not-allowed"
                           )}
                           title={member.status === 'ACTIVE' ? "Access Allowed (Click to Disallow)" : "Access Disallowed (Click to Allow)"}
@@ -279,7 +279,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
                           onClick={() => handleRemoveMember(member)}
                           disabled={member.role === 'OWNER'}
                           className={cn(
-                            "p-1.5 text-[var(--text-secondary)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer",
+                            "p-1.5 text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded transition-colors cursor-pointer",
                             member.role === 'OWNER' && "opacity-0 cursor-default group-hover:opacity-0"
                           )}
                           title="Remove Member"
@@ -298,7 +298,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
           {(pendingInvitations.length > 0 || invitationsLoading) && (
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">Pending Invitations</h3>
-              <div className="border border-[var(--border-strong)] rounded-xl overflow-hidden bg-[var(--bg-hover)]/20">
+              <div className="border border-[var(--border-strong)] rounded overflow-hidden bg-[var(--bg-hover)]/20">
                 {invitationsLoading ? (
                   <div className="p-8 flex items-center justify-center gap-2 text-sm text-[var(--text-secondary)]">
                     <Loader2 className="w-5 h-5 animate-spin text-[var(--primary)]" />
@@ -328,7 +328,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
                           <button
                             onClick={() => handleResendInvitation(invitation)}
                             disabled={resendingId === invitation.id}
-                            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded-lg transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--primary)] hover:bg-[var(--primary)]/10 rounded transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center"
                             title="Resend & Copy Link"
                           >
                             {resendingId === invitation.id ? (
@@ -340,7 +340,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
 
                           <button
                             onClick={() => handleCancelInvitation(invitation)}
-                            className="p-1.5 text-[var(--text-secondary)] hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer"
+                            className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded transition-colors cursor-pointer"
                             title="Cancel Invitation"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -358,7 +358,7 @@ export function WorkspaceMembersModal({ isOpen, onClose, workspaceId }: Workspac
         <div className="p-4 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-semibold text-[var(--text-primary)] bg-[var(--bg-hover)] hover:bg-[var(--bg-hover)]/80 border border-[var(--border-subtle)] rounded-lg transition-colors cursor-pointer"
+            className="px-4 py-2 text-sm font-semibold text-[var(--text-primary)] bg-[var(--bg-hover)] hover:bg-[var(--bg-hover)]/80 border border-[var(--border-subtle)] rounded transition-colors cursor-pointer"
           >
             Close
           </button>

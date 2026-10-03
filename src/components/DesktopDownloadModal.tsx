@@ -10,7 +10,6 @@ import {
   ExternalLink, 
   Cpu, 
   ShieldCheck, 
-  Sparkles,
   ChevronRight
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
@@ -101,19 +100,19 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
   const currentPlatform = platforms.find(p => p.id === selectedOS) || platforms[0];
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200 ${
-      theme === 'light' ? 'theme-light' : theme === 'dark' ? 'theme-dark' : 'theme-default'
+    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80  animate-in fade-in duration-200 ${
+      theme === 'dark' ? 'theme-dark' : 'theme-light'
     }`}>
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="w-full max-w-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl overflow-hidden flex flex-col text-[var(--text-primary)]"
+        className="w-full max-w-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded shadow-[var(--shadow-subtle)] overflow-hidden flex flex-col text-[var(--text-primary)]"
       >
         {/* Header */}
         <div className="p-6 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-surface)]">
           <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-[var(--primary)] flex items-center justify-center text-white shadow-lg shadow-[var(--primary)]/25">
+            <div className="w-10 h-10 rounded bg-[var(--primary)] flex items-center justify-center text-white shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/25">
               <Download className="w-5 h-5" />
             </div>
             <div>
@@ -128,7 +127,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
           </div>
           <button 
             onClick={onClose}
-            className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] transition-colors cursor-pointer"
+            className="p-2 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -145,7 +144,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
                 <button
                   key={p.id}
                   onClick={() => setSelectedOS(p.id)}
-                  className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col gap-1.5 cursor-pointer ${
+                  className={`p-3.5 rounded border text-left transition-colors relative flex flex-col gap-1.5 cursor-pointer ${
                     isSelected 
                       ? 'bg-[var(--bg-surface)] border-[var(--primary)] ring-1 ring-[var(--primary)]/50' 
                       : 'bg-[var(--bg-panel)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -156,7 +155,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
                       {p.icon}
                     </span>
                     {isDetected && (
-                      <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                      <span className="text-[9px] uppercase tracking-wider font-bold text-[var(--success)] bg-[var(--success)]/10 px-1.5 py-0.5 rounded border border-[var(--success)]/20">
                         Detected
                       </span>
                     )}
@@ -169,7 +168,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
           </div>
 
           {/* Active Platform Download Card */}
-          <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
+          <div className="p-5 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <div className="text-base font-bold text-[var(--text-primary)] flex items-center gap-2">
@@ -184,7 +183,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
               <button
                 type="button"
                 onClick={() => handleDownload(currentPlatform.filename, currentPlatform.name)}
-                className="h-11 px-5 bg-[var(--primary)] hover:opacity-90 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-[var(--primary)]/25 active:scale-95 shrink-0 cursor-pointer"
+                className="h-11 px-5 bg-[var(--primary)] hover:opacity-90 text-white rounded font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/25 shrink-0 cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 <span>Download for {currentPlatform.name}</span>
@@ -192,7 +191,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
             </div>
 
             {/* Quick Install Guide */}
-            <div className="p-3 rounded-lg bg-[var(--bg-input)] border border-[var(--border-subtle)] flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
+            <div className="p-3 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
               <span className="truncate mr-2">
                 <span className="text-[var(--primary)] select-none">$ </span>
                 {currentPlatform.installGuide}
@@ -202,14 +201,14 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
                 className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded transition-colors shrink-0 cursor-pointer"
                 title="Copy installation instruction"
               >
-                {copiedCmd === 'guide' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                {copiedCmd === 'guide' ? <Check className="w-4 h-4 text-[var(--success)]" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
           {/* Build from Source & Desktop Agent Option */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
+            <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
               <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)]">
                 <Terminal className="w-4 h-4 text-[var(--primary)]" />
                 <span>Build Desktop Binary Locally</span>
@@ -223,14 +222,14 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
                   onClick={() => handleCopy('npm run build:electron', 'build')}
                   className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 cursor-pointer"
                 >
-                  {copiedCmd === 'build' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedCmd === 'build' ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
+            <div className="p-4 rounded bg-[var(--bg-surface)] border border-[var(--border-subtle)] space-y-2">
               <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-primary)]">
-                <Cpu className="w-4 h-4 text-emerald-500" />
+                <Cpu className="w-4 h-4 text-[var(--success)]" />
                 <span>Local Desktop Agent (Port 8765)</span>
               </div>
               <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
@@ -242,7 +241,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
                   onClick={() => handleCopy('npm run bridge', 'agent')}
                   className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-0.5 cursor-pointer"
                 >
-                  {copiedCmd === 'agent' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedCmd === 'agent' ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
@@ -252,7 +251,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
         {/* Footer */}
         <div className="p-4 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <ShieldCheck className="w-4 h-4 text-[var(--success)]" />
             <span>100% Free &amp; Open Source · No Cloud Lock-In</span>
           </div>
           <button

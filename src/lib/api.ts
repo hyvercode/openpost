@@ -80,19 +80,19 @@ export const apiService = {
     return res.data;
   },
 
-  async changePassword(password: string) {
-    const res = await api.post('/auth/change-password', { password });
+  async changePassword(currentPassword: string, password: string) {
+    const res = await api.post('/auth/change-password', { currentPassword, password });
     return res.data;
   },
 
-  // Workspaces
-  async getWorkspaces(userId: string): Promise<Workspace[]> {
-    const res = await api.get('/workspaces', { params: { userId } });
+  // Workspaces — identity always comes from the auth token server-side.
+  async getWorkspaces(): Promise<Workspace[]> {
+    const res = await api.get('/workspaces');
     return res.data;
   },
 
-  async createWorkspace(name: string, ownerId: string, id?: string): Promise<Workspace> {
-    const res = await api.post('/workspaces', { id, name, ownerId });
+  async createWorkspace(name: string, id?: string): Promise<Workspace> {
+    const res = await api.post('/workspaces', { id, name });
     return res.data;
   },
 
@@ -291,6 +291,9 @@ export const apiService = {
     const { agentMode } = useStore.getState();
     const isDesktopAgent = agentMode === 'desktop';
     const proxyBaseUrl = isDesktopAgent ? 'http://127.0.0.1:8765/api/proxy' : '/proxy';
+    // Pairing token for the local Desktop Agent Bridge (printed by
+    // desktop-agent.js at startup; stored locally after first pairing).
+    const agentToken = isDesktopAgent ? (localStorage.getItem('openpost_agent_token') || '') : '';
 
     const url = req.url || '';
     const isLocal = !isDesktopAgent && (forceDirect || /localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/i.test(url));
@@ -402,7 +405,8 @@ export const apiService = {
         proxyConfig,
       }, {
         headers: {
-          'x-target-url': req.url
+          'x-target-url': req.url,
+          ...(isDesktopAgent && agentToken ? { 'x-agent-token': agentToken } : {}),
         },
         signal,
       });

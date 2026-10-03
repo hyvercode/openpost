@@ -52,8 +52,8 @@ export const CookieManager: React.FC = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
-                <Cookie className="w-5 h-5 text-orange-500" />
+              <div className="w-10 h-10 rounded bg-[var(--primary)]/10 flex items-center justify-center border border-[var(--primary)]/20">
+                <Cookie className="w-5 h-5 text-[var(--primary)]" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-[var(--text-primary)]">Cookies Manager</h1>
@@ -64,13 +64,13 @@ export const CookieManager: React.FC = () => {
               <button
                 onClick={handleClearAll}
                 disabled={workspaceCookies.length === 0}
-                className="px-4 py-2 text-sm font-bold text-red-500 bg-red-500/10 hover:bg-red-500/20 rounded transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-bold text-[var(--danger)] bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 rounded transition-colors disabled:opacity-50"
               >
                 Clear All
               </button>
               <button
                 onClick={handleAddNew}
-                className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] hover:bg-[#e65a2d] text-white rounded font-bold text-sm transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded font-bold text-sm transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Add Cookie
@@ -78,7 +78,7 @@ export const CookieManager: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border-strong)] overflow-hidden shadow-sm">
+          <div className="bg-[var(--bg-panel)] rounded border border-[var(--border-strong)] overflow-hidden ">
             {workspaceCookies.length === 0 ? (
               <div className="p-12 text-center text-[var(--text-secondary)]">
                 <Cookie className="w-12 h-12 mx-auto mb-4 opacity-20" />
@@ -121,7 +121,7 @@ export const CookieManager: React.FC = () => {
                             </td>
                             <td className="p-2">
                               <div className="flex items-center justify-end gap-1">
-                                <button onClick={() => handleSave(cookie.id)} className="p-1.5 rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20" title="Save"><Save className="w-4 h-4" /></button>
+                                <button onClick={() => handleSave(cookie.id)} className="p-1.5 rounded bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20" title="Save"><Save className="w-4 h-4" /></button>
                                 <button onClick={() => setEditingId(null)} className="p-1.5 rounded bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]" title="Cancel"><X className="w-4 h-4" /></button>
                               </div>
                             </td>
@@ -134,8 +134,8 @@ export const CookieManager: React.FC = () => {
                             <td className="px-4 py-3 text-[var(--text-secondary)]">{cookie.path}</td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
-                                {cookie.secure ? <span title="Secure"><Shield className="w-3.5 h-3.5 text-emerald-500" /></span> : <span title="Not Secure"><ShieldOff className="w-3.5 h-3.5 text-red-500 opacity-50" /></span>}
-                                {cookie.httpOnly && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">HTTP</span>}
+                                {cookie.secure ? <span title="Secure"><Shield className="w-3.5 h-3.5 text-[var(--success)]" /></span> : <span title="Not Secure"><ShieldOff className="w-3.5 h-3.5 text-[var(--danger)] opacity-50" /></span>}
+                                {cookie.httpOnly && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/20">HTTP</span>}
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -152,7 +152,7 @@ export const CookieManager: React.FC = () => {
                                 </button>
                                 <button
                                   onClick={() => handleDelete(cookie.id)}
-                                  className="p-1.5 rounded text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                  className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--danger)] hover:bg-[var(--danger)]/10 transition-colors"
                                   title="Delete"
                                 >
                                   <Trash2 className="w-4 h-4" />

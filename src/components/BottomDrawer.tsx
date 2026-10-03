@@ -12,9 +12,9 @@ import {
   Info, 
   CornerDownLeft, 
   Search, 
-  Sparkles, 
   RefreshCw, 
-  ShieldAlert, 
+  ShieldAlert,
+  Terminal, 
   Play, 
   Database, 
   Activity,
@@ -299,10 +299,10 @@ export function BottomDrawer() {
             }}
             className="flex items-center gap-1 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
           >
-            <AlertTriangle className={cn("w-3.5 h-3.5", issues.length > 0 ? "text-yellow-500 animate-pulse" : "text-[var(--text-secondary)]")} />
+            <AlertTriangle className={cn("w-3.5 h-3.5", issues.length > 0 ? "text-[var(--warning)] animate-pulse" : "text-[var(--text-secondary)]")} />
             <span>Issues</span>
             {issues.length > 0 && (
-              <span className="bg-yellow-500/20 text-yellow-500 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+              <span className="bg-[var(--warning)]/20 text-[var(--warning)] text-[10px] px-1.5 py-0.2 rounded-full font-bold">
                 {issues.length}
               </span>
             )}
@@ -311,7 +311,7 @@ export function BottomDrawer() {
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setIsBottomDrawerOpen(true)}
-            className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] px-1.5 py-0.5 rounded transition-all font-semibold"
+            className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] px-1.5 py-0.5 rounded transition-colors font-semibold"
           >
             Show
           </button>
@@ -323,7 +323,7 @@ export function BottomDrawer() {
   return (
     <div 
       className={cn(
-        "border-t border-[var(--border-strong)] bg-[var(--bg-surface)] flex flex-col transition-all duration-150 z-30 relative shrink-0",
+        "border-t border-[var(--border-strong)] bg-[var(--bg-surface)] flex flex-col transition-colors duration-150 z-30 relative shrink-0",
         isMaximized ? "h-[80vh]" : "h-72"
       )}
     >
@@ -334,16 +334,16 @@ export function BottomDrawer() {
           <button
             onClick={() => setBottomDrawerActiveTab('console')}
             className={cn(
-              "text-xs font-semibold px-2 h-full flex items-center gap-1.5 border-b-2 transition-all",
+              "text-xs font-semibold px-2 h-full flex items-center gap-1.5 border-b-2 transition-colors",
               bottomDrawerActiveTab === 'console' 
                 ? "border-[var(--primary)] text-[var(--text-primary)] bg-[var(--bg-hover)]" 
                 : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             )}
           >
-            <Activity className="w-3.5 h-3.5 text-blue-400" />
+            <Activity className="w-3.5 h-3.5 text-[var(--info)]" />
             <span>Console</span>
             {consoleLogs.length > 0 && (
-              <span className="bg-blue-400/15 text-blue-400 text-[10px] px-1.5 py-0.1 rounded-full font-semibold">
+              <span className="bg-[var(--info)]/15 text-[var(--info)] text-[10px] px-1.5 py-0.1 rounded-full font-semibold">
                 {consoleLogs.length}
               </span>
             )}
@@ -353,13 +353,13 @@ export function BottomDrawer() {
           <button
             onClick={() => setBottomDrawerActiveTab('terminal')}
             className={cn(
-              "text-xs font-semibold px-2 h-full flex items-center gap-1.5 border-b-2 transition-all",
+              "text-xs font-semibold px-2 h-full flex items-center gap-1.5 border-b-2 transition-colors",
               bottomDrawerActiveTab === 'terminal' 
                 ? "border-[var(--primary)] text-[var(--text-primary)] bg-[var(--bg-hover)]" 
                 : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             )}
           >
-            <TerminalIcon className="w-3.5 h-3.5 text-purple-400" />
+            <TerminalIcon className="w-3.5 h-3.5 text-[var(--primary)]" />
             <span>Interactive Terminal</span>
           </button>
 
@@ -367,16 +367,16 @@ export function BottomDrawer() {
           <button
             onClick={() => setBottomDrawerActiveTab('issues')}
             className={cn(
-              "text-xs font-semibold px-2 h-full flex items-center gap-1.5 border-b-2 transition-all",
+              "text-xs font-semibold px-2 h-full flex items-center gap-1.5 border-b-2 transition-colors",
               bottomDrawerActiveTab === 'issues' 
                 ? "border-[var(--primary)] text-[var(--text-primary)] bg-[var(--bg-hover)]" 
                 : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             )}
           >
-            <AlertTriangle className={cn("w-3.5 h-3.5", issues.length > 0 ? "text-yellow-500" : "text-gray-400")} />
+            <AlertTriangle className={cn("w-3.5 h-3.5", issues.length > 0 ? "text-[var(--warning)]" : "text-[var(--text-tertiary)]")} />
             <span>Issues & Audits</span>
             {issues.length > 0 && (
-              <span className="bg-yellow-500/20 text-yellow-500 text-[10px] px-1.5 py-0.1 rounded-full font-bold">
+              <span className="bg-[var(--warning)]/20 text-[var(--warning)] text-[10px] px-1.5 py-0.1 rounded-full font-bold">
                 {issues.length}
               </span>
             )}
@@ -388,7 +388,7 @@ export function BottomDrawer() {
           {bottomDrawerActiveTab === 'console' && (
             <button
               onClick={clearConsoleLogs}
-              className="p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-secondary)] hover:text-red-400 transition-colors mr-2 flex items-center gap-1 text-[10px] font-semibold"
+              className="p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors mr-2 flex items-center gap-1 text-[10px] font-semibold"
               title="Clear Console Logs"
             >
               <Trash2 className="w-3 h-3" />
@@ -398,7 +398,7 @@ export function BottomDrawer() {
           {bottomDrawerActiveTab === 'issues' && (
             <button
               onClick={clearIssues}
-              className="p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-secondary)] hover:text-red-400 transition-colors mr-2 flex items-center gap-1 text-[10px] font-semibold"
+              className="p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors mr-2 flex items-center gap-1 text-[10px] font-semibold"
               title="Clear Diagnostic Issues"
             >
               <Trash2 className="w-3 h-3" />
@@ -410,14 +410,14 @@ export function BottomDrawer() {
 
           <button
             onClick={() => setIsMaximized(!isMaximized)}
-            className="p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+            className="p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             title={isMaximized ? "Restore" : "Maximize"}
           >
             {isMaximized ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => setIsBottomDrawerOpen(false)}
-            className="p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-secondary)] hover:text-red-400 transition-all"
+            className="p-1 hover:bg-[var(--bg-hover)] rounded text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors"
             title="Close Drawer"
           >
             <X className="w-3.5 h-3.5" />
@@ -438,7 +438,7 @@ export function BottomDrawer() {
                     key={f}
                     onClick={() => setConsoleFilter(f)}
                     className={cn(
-                      "text-[10px] font-semibold px-2 py-0.5 rounded transition-all capitalize",
+                      "text-[10px] font-semibold px-2 py-0.5 rounded transition-colors capitalize",
                       consoleFilter === f 
                         ? "bg-[var(--primary)] text-white" 
                         : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
@@ -473,42 +473,42 @@ export function BottomDrawer() {
                   return (
                     <div 
                       key={log.id} 
-                      className="border border-[var(--border-subtle)] rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)]/30 overflow-hidden transition-all"
+                      className="border border-[var(--border-subtle)] rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)]/30 overflow-hidden transition-colors"
                     >
                       <div 
                         onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
                         className="p-2 flex items-center justify-between cursor-pointer select-none"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-[10px] text-gray-500 font-normal">{log.timestamp}</span>
+                          <span className="text-[10px] text-[var(--text-tertiary)] font-normal">{log.timestamp}</span>
                           <span className={cn(
                             "text-[9px] px-1.5 py-0.5 rounded font-bold uppercase shrink-0",
-                            log.type === 'success' ? "bg-green-500/10 text-green-400 border border-green-500/20" :
-                            log.type === 'error' ? "bg-red-500/10 text-red-400 border border-red-500/20" :
-                            log.type === 'warn' ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20" :
-                            "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                            log.type === 'success' ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" :
+                            log.type === 'error' ? "bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20" :
+                            log.type === 'warn' ? "bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/20" :
+                            "bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/20"
                           )}>
                             {log.type}
                           </span>
                           {log.method && (
                             <span className={cn(
                               "text-[9px] px-1.5 py-0.5 rounded font-extrabold uppercase font-sans tracking-wide shrink-0",
-                              log.method === 'GET' ? "bg-emerald-500/10 text-emerald-400" :
-                              log.method === 'POST' ? "bg-amber-500/10 text-amber-400" :
-                              log.method === 'PUT' ? "bg-blue-500/10 text-blue-400" :
-                              log.method === 'DELETE' ? "bg-rose-500/10 text-rose-400" : "bg-purple-500/10 text-purple-400"
+                              log.method === 'GET' ? "bg-[var(--success)]/10 text-[var(--success)]" :
+                              log.method === 'POST' ? "bg-[var(--warning)]/10 text-[var(--warning)]" :
+                              log.method === 'PUT' ? "bg-[var(--info)]/10 text-[var(--info)]" :
+                              log.method === 'DELETE' ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--primary)]/10 text-[var(--primary)]"
                             )}>
                               {log.method}
                             </span>
                           )}
                           <span className="font-semibold text-[var(--text-primary)] truncate">{log.message}</span>
-                          {log.url && <span className="text-[10px] text-gray-500 truncate max-w-xs md:max-w-md">{log.url}</span>}
+                          {log.url && <span className="text-[10px] text-[var(--text-tertiary)] truncate max-w-xs md:max-w-md">{log.url}</span>}
                         </div>
                         <div className="flex items-center gap-3 text-[10px] text-[var(--text-secondary)] shrink-0 font-medium">
                           {log.status !== undefined && (
                             <span className={cn(
                               "font-bold",
-                              log.status >= 200 && log.status < 300 ? "text-green-500" : "text-red-500"
+                              log.status >= 200 && log.status < 300 ? "text-[var(--success)]" : "text-[var(--danger)]"
                             )}>
                               status={log.status}
                             </span>
@@ -526,10 +526,10 @@ export function BottomDrawer() {
                             <div>
                               <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">Request Payloads</div>
                               <div className="bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded p-2 text-xs space-y-1">
-                                <div><span className="text-gray-500">URL:</span> <span className="text-[var(--text-primary)] font-bold">{log.details.request.url}</span></div>
-                                <div><span className="text-gray-500">Headers:</span> <pre className="text-[var(--text-code)] mt-1 ml-2 text-[10px]">{JSON.stringify(log.details.request.headers, null, 2)}</pre></div>
+                                <div><span className="text-[var(--text-tertiary)]">URL:</span> <span className="text-[var(--text-primary)] font-bold">{log.details.request.url}</span></div>
+                                <div><span className="text-[var(--text-tertiary)]">Headers:</span> <pre className="text-[var(--text-code)] mt-1 ml-2 text-[10px]">{JSON.stringify(log.details.request.headers, null, 2)}</pre></div>
                                 {log.details.request.body && (
-                                  <div className="mt-1"><span className="text-gray-500">Body:</span> <pre className="text-[var(--text-code)] mt-1 ml-2 text-[10px]">{JSON.stringify(log.details.request.body, null, 2)}</pre></div>
+                                  <div className="mt-1"><span className="text-[var(--text-tertiary)]">Body:</span> <pre className="text-[var(--text-code)] mt-1 ml-2 text-[10px]">{JSON.stringify(log.details.request.body, null, 2)}</pre></div>
                                 )}
                               </div>
                             </div>
@@ -539,16 +539,16 @@ export function BottomDrawer() {
                               <div className="text-[10px] font-bold text-[var(--text-secondary)] uppercase mb-1">Response Payloads</div>
                               <div className="bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded p-2 text-xs space-y-1">
                                 <div>
-                                  <span className="text-gray-500">Status:</span> 
-                                  <span className={cn("font-bold ml-1", log.details.response.status >= 200 && log.details.response.status < 300 ? "text-green-500" : "text-red-500")}>
+                                  <span className="text-[var(--text-tertiary)]">Status:</span> 
+                                  <span className={cn("font-bold ml-1", log.details.response.status >= 200 && log.details.response.status < 300 ? "text-[var(--success)]" : "text-[var(--danger)]")}>
                                     {log.details.response.status} {log.details.response.statusText}
                                   </span>
                                 </div>
                                 {log.details.response.headers && (
-                                  <div><span className="text-gray-500">Response Headers:</span> <pre className="text-[var(--text-code)] mt-1 ml-2 text-[10px]">{JSON.stringify(log.details.response.headers, null, 2)}</pre></div>
+                                  <div><span className="text-[var(--text-tertiary)]">Response Headers:</span> <pre className="text-[var(--text-code)] mt-1 ml-2 text-[10px]">{JSON.stringify(log.details.response.headers, null, 2)}</pre></div>
                                 )}
                                 <div>
-                                  <span className="text-gray-500">Data payload:</span>
+                                  <span className="text-[var(--text-tertiary)]">Data payload:</span>
                                   <pre className="text-[var(--text-code)] mt-1 ml-2 max-h-40 overflow-y-auto text-[10px]">
                                     {typeof log.details.response.data === 'object' 
                                       ? JSON.stringify(log.details.response.data, null, 2) 
@@ -572,34 +572,34 @@ export function BottomDrawer() {
         {bottomDrawerActiveTab === 'terminal' && (
           <div 
             onClick={focusTerminalInput}
-            className="flex-1 overflow-y-auto p-4 font-mono text-xs text-green-400 bg-gray-950 flex flex-col cursor-text select-text"
+            className="flex-1 overflow-y-auto p-4 font-mono text-xs text-[var(--success)] bg-gray-950 flex flex-col cursor-text select-text"
           >
             <div className="space-y-1 flex-1">
               {terminalHistory.map((line, idx) => {
                 if (line.startsWith('visitor@api-tester:~$')) {
                   return (
                     <div key={idx} className="text-white font-medium flex items-center gap-1">
-                      <span className="text-indigo-400">visitor@api-tester</span>
-                      <span className="text-gray-400">:~$</span>
+                      <span className="text-[var(--icon-color)]">visitor@api-tester</span>
+                      <span className="text-[var(--text-tertiary)]">:~$</span>
                       <span>{line.replace('visitor@api-tester:~$', '')}</span>
                     </div>
                   );
                 }
                 if (line.startsWith('Error:')) {
-                  return <div key={idx} className="text-red-400 font-semibold">{line}</div>;
+                  return <div key={idx} className="text-[var(--danger)] font-semibold">{line}</div>;
                 }
                 if (line.startsWith('[OK]')) {
-                  return <div key={idx} className="text-emerald-400 font-semibold">{line}</div>;
+                  return <div key={idx} className="text-[var(--success)] font-semibold">{line}</div>;
                 }
-                return <div key={idx} className="text-green-300 leading-relaxed whitespace-pre-wrap">{line}</div>;
+                return <div key={idx} className="text-[var(--success)] leading-relaxed whitespace-pre-wrap">{line}</div>;
               })}
               <div ref={terminalEndRef} />
             </div>
 
             {/* Input line */}
             <form onSubmit={handleTerminalSubmit} className="flex items-center gap-1.5 mt-2 shrink-0">
-              <span className="text-indigo-400 font-bold">visitor@api-tester</span>
-              <span className="text-gray-400 font-bold">:~$</span>
+              <span className="text-[var(--icon-color)] font-bold">visitor@api-tester</span>
+              <span className="text-[var(--text-tertiary)] font-bold">:~$</span>
               <input
                 ref={terminalInputRef}
                 type="text"
@@ -620,7 +620,7 @@ export function BottomDrawer() {
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {issues.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-[var(--text-secondary)] text-[11px] gap-2 py-8 text-center">
-                <CheckCircle2 className="w-10 h-10 text-green-500/80 mb-2" />
+                <CheckCircle2 className="w-10 h-10 text-[var(--success)]/80 mb-2" />
                 <h4 className="font-bold text-[var(--text-primary)]">All Clear! No configuration issues detected.</h4>
                 <p className="max-w-md">The debugger has audited your requests, headers, paths, payloads, and protocols. Run "scan" in the Terminal to execute a complete diagnostic audit.</p>
                 <button 
@@ -633,9 +633,9 @@ export function BottomDrawer() {
                       handleTerminalSubmit(mockEvent);
                     }, 50);
                   }}
-                  className="mt-3 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white text-[10px] font-bold px-3 py-1.5 rounded transition-all flex items-center gap-1.5 shadow-sm"
+                  className="mt-3 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white text-[10px] font-bold px-3 py-1.5 rounded transition-colors flex items-center gap-1.5 "
                 >
-                  <Sparkles className="w-3 h-3" />
+                  <Terminal className="w-3 h-3" />
                   <span>Run Audit Scan</span>
                 </button>
               </div>
@@ -643,29 +643,29 @@ export function BottomDrawer() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] border-b border-[var(--border-subtle)] pb-2 mb-2 font-semibold">
                   <span>Diagnostic report lists {issues.length} concerns found:</span>
-                  <span className="text-[10px] bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-2 py-0.5 rounded">AUTO AUDIT ON</span>
+                  <span className="text-[10px] bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/20 px-2 py-0.5 rounded">AUTO AUDIT ON</span>
                 </div>
                 
                 {issues.map(issue => (
                   <div 
                     key={issue.id} 
                     className={cn(
-                      "border rounded-lg p-3.5 flex flex-col md:flex-row gap-4 justify-between bg-[var(--bg-surface)] hover:border-[var(--border-strong)] transition-all",
-                      issue.type === 'error' ? "border-red-500/25 bg-red-500/[0.01]" : "border-yellow-500/25 bg-yellow-500/[0.01]"
+                      "border rounded p-3.5 flex flex-col md:flex-row gap-4 justify-between bg-[var(--bg-surface)] hover:border-[var(--border-strong)] transition-colors",
+                      issue.type === 'error' ? "border-[var(--danger)]/25 bg-[var(--danger)]/[0.01]" : "border-[var(--warning)]/25 bg-[var(--warning)]/[0.01]"
                     )}
                   >
                     <div className="flex gap-3 items-start">
                       {issue.type === 'error' ? (
-                        <ShieldAlert className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                        <ShieldAlert className="w-5 h-5 text-[var(--danger)] mt-0.5 shrink-0" />
                       ) : (
-                        <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5 shrink-0" />
+                        <AlertTriangle className="w-5 h-5 text-[var(--warning)] mt-0.5 shrink-0" />
                       )}
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="text-xs font-bold text-[var(--text-primary)]">{issue.title}</h4>
                           <span className={cn(
                             "text-[8px] px-1.5 py-0.2 rounded-full font-bold uppercase",
-                            issue.type === 'error' ? "bg-red-500/10 text-red-400" : "bg-yellow-500/10 text-yellow-500"
+                            issue.type === 'error' ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--warning)]/10 text-[var(--warning)]"
                           )}>
                             {issue.type}
                           </span>
@@ -673,7 +673,7 @@ export function BottomDrawer() {
                         <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-relaxed">{issue.description}</p>
                         
                         {(issue.url || issue.method) && (
-                          <div className="flex items-center gap-2 mt-2 font-mono text-[9px] text-gray-500">
+                          <div className="flex items-center gap-2 mt-2 font-mono text-[9px] text-[var(--text-tertiary)]">
                             {issue.method && <span className="font-bold">{issue.method}</span>}
                             {issue.url && <span className="truncate max-w-sm">{issue.url}</span>}
                           </div>
@@ -683,7 +683,7 @@ export function BottomDrawer() {
 
                     {issue.suggestion && (
                       <div className="md:w-64 border-t md:border-t-0 md:border-l border-[var(--border-subtle)] pt-3 md:pt-0 md:pl-4 flex flex-col justify-center shrink-0">
-                        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1 flex items-center gap-1">
+                        <div className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wide mb-1 flex items-center gap-1">
                           <Info className="w-3 h-3 text-[var(--primary)]" />
                           <span>Recommendation</span>
                         </div>

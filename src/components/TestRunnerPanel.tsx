@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { TestSuite, TestCase, TestAssertion, RequestItem, ApiCollection, KeyValue, ExecutedTestStep, CollectionRunReport } from '../types';
 import { apiService } from '../lib/api';
-import { runScriptSandbox } from '../utils/sandbox';
+import { runScriptSandboxAsync } from '../utils/sandboxWorker';
 import { cn } from '../utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -262,7 +262,7 @@ export function TestRunnerPanel() {
         // 2. Pre-request Script execution
         if (prepReq.preRequestScript && prepReq.preRequestScript.trim()) {
           try {
-            const preResult = runScriptSandbox(prepReq.preRequestScript, {
+            const preResult = await runScriptSandboxAsync(prepReq.preRequestScript, {
               envVars: runtimeVars,
               requestInfo: {
                 url: prepReq.url,
@@ -309,7 +309,7 @@ export function TestRunnerPanel() {
 
         if (prepReq.postResponseScript && prepReq.postResponseScript.trim()) {
           try {
-            const postResult = runScriptSandbox(prepReq.postResponseScript, {
+            const postResult = await runScriptSandboxAsync(prepReq.postResponseScript, {
               envVars: runtimeVars,
               response: {
                 data: responseData,
@@ -470,17 +470,17 @@ export function TestRunnerPanel() {
       <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-panel)] shrink-0">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-emerald-500" />
+            <Zap className="w-5 h-5 text-[var(--success)]" />
             <h2 className="text-sm font-bold text-[var(--text-primary)]">Automated API Testing & Runner</h2>
           </div>
 
-          <div className="flex bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-lg p-0.5">
+          <div className="flex bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-0.5">
             <button
               onClick={() => setMainMode('collection_runner')}
               className={cn(
-                "px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                "px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5",
                 mainMode === 'collection_runner' 
-                  ? "bg-[var(--primary)] text-white shadow-sm font-bold" 
+                  ? "bg-[var(--primary)] text-white  font-bold" 
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               )}
             >
@@ -490,9 +490,9 @@ export function TestRunnerPanel() {
             <button
               onClick={() => setMainMode('custom_suites')}
               className={cn(
-                "px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5",
+                "px-3 py-1 text-xs font-semibold rounded-md transition-colors flex items-center gap-1.5",
                 mainMode === 'custom_suites' 
-                  ? "bg-[var(--primary)] text-white shadow-sm font-bold" 
+                  ? "bg-[var(--primary)] text-white  font-bold" 
                   : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               )}
             >
@@ -509,7 +509,7 @@ export function TestRunnerPanel() {
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded text-xs font-semibold text-[var(--text-primary)] transition-colors"
               title="Export Run Report as JSON"
             >
-              <Download className="w-3.5 h-3.5 text-indigo-400" />
+              <Download className="w-3.5 h-3.5 text-[var(--icon-color)]" />
               Export JSON
             </button>
             <button
@@ -517,7 +517,7 @@ export function TestRunnerPanel() {
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded text-xs font-semibold text-[var(--text-primary)] transition-colors"
               title="Print Summary Report"
             >
-              <Printer className="w-3.5 h-3.5 text-emerald-400" />
+              <Printer className="w-3.5 h-3.5 text-[var(--success)]" />
               Print PDF
             </button>
           </div>
@@ -564,7 +564,7 @@ export function TestRunnerPanel() {
                 {availableFolders.map(f => {
                   const count = (selectedCollection?.requests || []).filter(r => r.folderId === f.id).length;
                   return (
-                    <option key={f.id} value={f.id}>📁 {f.name} ({count} reqs)</option>
+                    <option key={f.id} value={f.id}>{f.name} ({count} reqs)</option>
                   );
                 })}
               </select>
@@ -581,7 +581,7 @@ export function TestRunnerPanel() {
               >
                 <option value="">No Environment</option>
                 {environments.map(env => (
-                  <option key={env.id} value={env.id}>🌍 {env.name}</option>
+                  <option key={env.id} value={env.id}>{env.name}</option>
                 ))}
               </select>
             </div>
@@ -659,10 +659,10 @@ export function TestRunnerPanel() {
               <div className="space-y-1 overflow-y-auto max-h-60 pr-1">
                 {targetRequests.map((req, idx) => {
                   const isChecked = !disabledRequestIds.has(req.id);
-                  const methodColor = req.method === 'GET' ? 'text-blue-400' :
-                                      req.method === 'POST' ? 'text-emerald-400' :
-                                      req.method === 'PUT' ? 'text-amber-400' :
-                                      req.method === 'DELETE' ? 'text-red-400' : 'text-purple-400';
+                  const methodColor = req.method === 'GET' ? 'text-[var(--info)]' :
+                                      req.method === 'POST' ? 'text-[var(--success)]' :
+                                      req.method === 'PUT' ? 'text-[var(--warning)]' :
+                                      req.method === 'DELETE' ? 'text-[var(--danger)]' : 'text-[var(--primary)]';
                   return (
                     <div
                       key={req.id}
@@ -672,7 +672,7 @@ export function TestRunnerPanel() {
                         isChecked ? "bg-[var(--bg-input)] text-[var(--text-primary)]" : "opacity-50 hover:opacity-80"
                       )}
                     >
-                      {isChecked ? <CheckSquare className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <Square className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />}
+                      {isChecked ? <CheckSquare className="w-3.5 h-3.5 text-[var(--success)] shrink-0" /> : <Square className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />}
                       <span className={cn("text-[10px] font-mono font-bold shrink-0", methodColor)}>{req.method}</span>
                       <span className="truncate flex-1 font-medium">{req.name}</span>
                     </div>
@@ -686,7 +686,7 @@ export function TestRunnerPanel() {
               {isRunning ? (
                 <button
                   onClick={handleStopRun}
-                  className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded shadow transition-all"
+                  className="w-full flex items-center justify-center gap-2 bg-[var(--danger)] hover:bg-[var(--danger)] text-white font-bold py-2.5 rounded shadow transition-colors"
                 >
                   <StopCircle className="w-4 h-4 animate-pulse" />
                   Stop Execution
@@ -695,7 +695,7 @@ export function TestRunnerPanel() {
                 <button
                   onClick={handleRunCollection}
                   disabled={selectedRequestsToRun.length === 0}
-                  className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold py-2.5 rounded shadow transition-all"
+                  className="w-full flex items-center justify-center gap-2 bg-[var(--success)] hover:bg-[var(--success)] disabled:opacity-50 text-white font-bold py-2.5 rounded shadow transition-colors"
                 >
                   <Play className="w-4 h-4 fill-current" />
                   Run Collection ({selectedRequestsToRun.length * iterations} calls)
@@ -708,21 +708,21 @@ export function TestRunnerPanel() {
           <div className="flex-1 overflow-y-auto p-6 bg-[var(--bg-panel)] flex flex-col gap-6">
             {/* Live Execution Status Banner */}
             {isRunning && currentProgress && (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-4 flex flex-col gap-2 animate-pulse">
+              <div className="bg-[var(--success)]/10 border border-[var(--success)]/30 rounded p-4 flex flex-col gap-2 animate-pulse">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 text-emerald-500 animate-spin" />
-                    <span className="text-xs font-bold text-emerald-400">
+                    <RefreshCw className="w-4 h-4 text-[var(--success)] animate-spin" />
+                    <span className="text-xs font-bold text-[var(--success)]">
                       Executing Collection Run (Iteration {currentProgress.iteration}/{iterations})
                     </span>
                   </div>
-                  <span className="text-xs font-mono font-bold text-emerald-400">
+                  <span className="text-xs font-mono font-bold text-[var(--success)]">
                     {currentProgress.current} / {currentProgress.total} Requests
                   </span>
                 </div>
                 <div className="w-full bg-[var(--bg-input)] h-2 rounded-full overflow-hidden">
                   <div 
-                    className="bg-emerald-500 h-full transition-all duration-300" 
+                    className="bg-[var(--success)] h-full transition-colors " 
                     style={{ width: `${(currentProgress.current / currentProgress.total) * 100}%` }}
                   />
                 </div>
@@ -733,29 +733,29 @@ export function TestRunnerPanel() {
             {runReport ? (
               <>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <div className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-lg p-3 flex flex-col">
+                  <div className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-3 flex flex-col">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1">Total Executed</span>
                     <span className="text-xl font-bold text-[var(--text-primary)]">{runReport.totalExecutions}</span>
                   </div>
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3 flex flex-col">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 mb-1">Passed Tests</span>
-                    <span className="text-xl font-bold text-emerald-500">{runReport.passedCount}</span>
+                  <div className="bg-[var(--success)]/10 border border-[var(--success)]/20 rounded p-3 flex flex-col">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--success)] mb-1">Passed Tests</span>
+                    <span className="text-xl font-bold text-[var(--success)]">{runReport.passedCount}</span>
                   </div>
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex flex-col">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 mb-1">Failed Tests</span>
-                    <span className="text-xl font-bold text-red-500">{runReport.failedCount}</span>
+                  <div className="bg-[var(--danger)]/10 border border-[var(--danger)]/20 rounded p-3 flex flex-col">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--danger)] mb-1">Failed Tests</span>
+                    <span className="text-xl font-bold text-[var(--danger)]">{runReport.failedCount}</span>
                   </div>
-                  <div className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-lg p-3 flex flex-col">
+                  <div className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-3 flex flex-col">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1">Total Duration</span>
                     <span className="text-xl font-bold text-[var(--text-primary)]">{runReport.totalDurationMs} ms</span>
                   </div>
-                  <div className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-lg p-3 flex flex-col">
+                  <div className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-3 flex flex-col">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1">Avg Latency</span>
                     <span className="text-xl font-bold text-[var(--text-primary)]">{runReport.avgLatencyMs} ms</span>
                   </div>
-                  <div className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-lg p-3 flex flex-col">
+                  <div className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-3 flex flex-col">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1">Success Rate</span>
-                    <span className={cn("text-xl font-bold", runReport.passRate === 100 ? "text-emerald-500" : runReport.passRate >= 70 ? "text-amber-500" : "text-red-500")}>
+                    <span className={cn("text-xl font-bold", runReport.passRate === 100 ? "text-[var(--success)]" : runReport.passRate >= 70 ? "text-[var(--warning)]" : "text-[var(--danger)]")}>
                       {runReport.passRate}%
                     </span>
                   </div>
@@ -767,7 +767,7 @@ export function TestRunnerPanel() {
                     <span className="text-xs font-bold text-[var(--text-primary)]">Execution Results</span>
                     <span className="text-xs text-[var(--text-secondary)]">
                       Collection: <span className="font-semibold text-[var(--primary)]">{runReport.collectionName}</span>
-                      {runReport.folderName && <span> / 📁 {runReport.folderName}</span>}
+                      {runReport.folderName && <span> / {runReport.folderName}</span>}
                     </span>
                   </div>
 
@@ -780,13 +780,13 @@ export function TestRunnerPanel() {
                     </button>
                     <button
                       onClick={() => setFilterStatus('passed')}
-                      className={cn("px-2.5 py-1 text-[10px] font-bold rounded", filterStatus === 'passed' ? "bg-emerald-500 text-white" : "text-[var(--text-secondary)] hover:text-emerald-400")}
+                      className={cn("px-2.5 py-1 text-[10px] font-bold rounded", filterStatus === 'passed' ? "bg-[var(--success)] text-white" : "text-[var(--text-secondary)] hover:text-[var(--success)]")}
                     >
                       Passed ({runReport.passedCount})
                     </button>
                     <button
                       onClick={() => setFilterStatus('failed')}
-                      className={cn("px-2.5 py-1 text-[10px] font-bold rounded", filterStatus === 'failed' ? "bg-red-500 text-white" : "text-[var(--text-secondary)] hover:text-red-400")}
+                      className={cn("px-2.5 py-1 text-[10px] font-bold rounded", filterStatus === 'failed' ? "bg-[var(--danger)] text-white" : "text-[var(--text-secondary)] hover:text-[var(--danger)]")}
                     >
                       Failed ({runReport.failedCount})
                     </button>
@@ -797,17 +797,17 @@ export function TestRunnerPanel() {
                 <div className="space-y-3">
                   {filteredSteps.map((step) => {
                     const isExpanded = expandedStepId === step.id;
-                    const methodColor = step.method === 'GET' ? 'text-blue-400 bg-blue-500/10' :
-                                        step.method === 'POST' ? 'text-emerald-400 bg-emerald-500/10' :
-                                        step.method === 'PUT' ? 'text-amber-400 bg-amber-500/10' :
-                                        step.method === 'DELETE' ? 'text-red-400 bg-red-500/10' : 'text-purple-400 bg-purple-500/10';
+                    const methodColor = step.method === 'GET' ? 'text-[var(--info)] bg-[var(--info)]/10' :
+                                        step.method === 'POST' ? 'text-[var(--success)] bg-[var(--success)]/10' :
+                                        step.method === 'PUT' ? 'text-[var(--warning)] bg-[var(--warning)]/10' :
+                                        step.method === 'DELETE' ? 'text-[var(--danger)] bg-[var(--danger)]/10' : 'text-[var(--primary)] bg-[var(--primary)]/10';
 
                     return (
                       <div 
                         key={step.id} 
                         className={cn(
-                          "border rounded-lg overflow-hidden transition-all bg-[var(--bg-input)]",
-                          step.passed ? "border-emerald-500/20" : "border-red-500/30"
+                          "border rounded overflow-hidden transition-colors bg-[var(--bg-input)]",
+                          step.passed ? "border-[var(--success)]/20" : "border-[var(--danger)]/30"
                         )}
                       >
                         {/* Step Header */}
@@ -817,9 +817,9 @@ export function TestRunnerPanel() {
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             {step.passed ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <CheckCircle2 className="w-4 h-4 text-[var(--success)] shrink-0" />
                             ) : (
-                              <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                              <XCircle className="w-4 h-4 text-[var(--danger)] shrink-0" />
                             )}
                             <span className="text-[10px] font-mono font-bold bg-[var(--bg-surface)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)] text-[var(--text-secondary)] shrink-0">
                               #{step.iteration}
@@ -838,7 +838,7 @@ export function TestRunnerPanel() {
                           <div className="flex items-center gap-3 shrink-0">
                             <span className={cn(
                               "text-[10px] font-mono font-bold px-2 py-0.5 rounded",
-                              step.statusCode >= 200 && step.statusCode < 300 ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+                              step.statusCode >= 200 && step.statusCode < 300 ? "bg-[var(--success)]/10 text-[var(--success)]" : "bg-[var(--danger)]/10 text-[var(--danger)]"
                             )}>
                               {step.statusCode} {step.statusText}
                             </span>
@@ -856,10 +856,10 @@ export function TestRunnerPanel() {
                               key={idx}
                               className={cn(
                                 "flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded border",
-                                test.passed ? "bg-emerald-500/5 text-emerald-400 border-emerald-500/20" : "bg-red-500/5 text-red-400 border-red-500/20"
+                                test.passed ? "bg-[var(--success)]/5 text-[var(--success)] border-[var(--success)]/20" : "bg-[var(--danger)]/5 text-[var(--danger)] border-[var(--danger)]/20"
                               )}
                             >
-                              {test.passed ? <Check className="w-3 h-3 text-emerald-500 shrink-0" /> : <XCircle className="w-3 h-3 text-red-500 shrink-0" />}
+                              {test.passed ? <Check className="w-3 h-3 text-[var(--success)] shrink-0" /> : <XCircle className="w-3 h-3 text-[var(--danger)] shrink-0" />}
                               <span>{test.name}</span>
                               {test.error && <span className="opacity-75">({test.error})</span>}
                             </div>
@@ -888,10 +888,10 @@ export function TestRunnerPanel() {
                               <div className="space-y-2">
                                 {step.tests.map((t, idx) => (
                                   <div key={idx} className="flex items-start gap-2 p-2 bg-[var(--bg-panel)] rounded border border-[var(--border-subtle)]">
-                                    {t.passed ? <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />}
+                                    {t.passed ? <CheckCircle2 className="w-4 h-4 text-[var(--success)] shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 text-[var(--danger)] shrink-0 mt-0.5" />}
                                     <div className="flex flex-col gap-0.5">
                                       <span className="font-semibold text-[var(--text-primary)]">{t.name}</span>
-                                      {t.error && <span className="text-red-400 font-mono text-[10px]">{t.error}</span>}
+                                      {t.error && <span className="text-[var(--danger)] font-mono text-[10px]">{t.error}</span>}
                                     </div>
                                   </div>
                                 ))}
@@ -941,7 +941,7 @@ export function TestRunnerPanel() {
                             {inspectorTab === 'logs' && (
                               <div className="space-y-1 font-mono text-[10px]">
                                 {step.logs.map((log, idx) => (
-                                  <div key={idx} className={cn("p-1.5 rounded", log.type === 'error' ? "bg-red-500/10 text-red-400" : "bg-[var(--bg-panel)] text-[var(--text-secondary)]")}>
+                                  <div key={idx} className={cn("p-1.5 rounded", log.type === 'error' ? "bg-[var(--danger)]/10 text-[var(--danger)]" : "bg-[var(--bg-panel)] text-[var(--text-secondary)]")}>
                                     [{log.type.toUpperCase()}] {log.message}
                                   </div>
                                 ))}
@@ -956,18 +956,18 @@ export function TestRunnerPanel() {
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-[var(--text-secondary)] border border-dashed border-[var(--border-strong)] rounded-xl bg-[var(--bg-surface)]/50">
-                <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
-                  <Play className="w-8 h-8 text-emerald-500 fill-emerald-500/20" />
+              <div className="flex-1 flex flex-col items-center justify-center p-12 text-center text-[var(--text-secondary)] border border-dashed border-[var(--border-strong)] rounded bg-[var(--bg-surface)]/50">
+                <div className="w-16 h-16 bg-[var(--success)]/10 rounded-full flex items-center justify-center mb-4">
+                  <Play className="w-8 h-8 text-[var(--success)] fill-[var(--success)]/20" />
                 </div>
                 <h3 className="text-base font-bold text-[var(--text-primary)] mb-1">Ready to Run Collection</h3>
                 <p className="text-xs max-w-md text-[var(--text-secondary)] mb-6">
-                  Select a collection or folder on the left panel and click <strong className="text-emerald-500">Run Collection</strong> to execute all API requests sequentially with script assertion reports.
+                  Select a collection or folder on the left panel and click <strong className="text-[var(--success)]">Run Collection</strong> to execute all API requests sequentially with script assertion reports.
                 </p>
                 <button
                   onClick={handleRunCollection}
                   disabled={selectedRequestsToRun.length === 0}
-                  className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold px-6 py-2.5 rounded shadow transition-all text-xs"
+                  className="flex items-center gap-2 bg-[var(--success)] hover:bg-[var(--success)] disabled:opacity-50 text-white font-bold px-6 py-2.5 rounded shadow transition-colors text-xs"
                 >
                   <Play className="w-4 h-4 fill-current" />
                   Run {selectedCollection?.name || 'Collection'}
@@ -1033,7 +1033,7 @@ export function TestRunnerPanel() {
                       updateTestSuite(customSuite.id, { testCases: updatedTestCases });
                       setCustomSuiteResults(newResults);
                     }}
-                    className="flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-1.5 rounded text-xs font-semibold hover:opacity-90 transition-all"
+                    className="flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-1.5 rounded text-xs font-semibold hover:opacity-90 transition-colors"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     Run Custom Suite
@@ -1053,7 +1053,7 @@ export function TestRunnerPanel() {
 
               <div className="space-y-4">
                 {customSuite.testCases.map((tc, idx) => (
-                  <div key={tc.id} className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-lg p-4 flex flex-col gap-3">
+                  <div key={tc.id} className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded p-4 flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-[var(--text-primary)]">#{idx + 1} {tc.name}</span>
                       <button
@@ -1061,14 +1061,14 @@ export function TestRunnerPanel() {
                           const updated = customSuite.testCases.filter(c => c.id !== tc.id);
                           updateTestSuite(customSuite.id, { testCases: updated });
                         }}
-                        className="text-[var(--text-secondary)] hover:text-red-500"
+                        className="text-[var(--text-secondary)] hover:text-[var(--danger)]"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
                     {customSuiteResults[tc.id] && (
-                      <div className={cn("p-2 rounded text-xs font-mono", customSuiteResults[tc.id].success ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400")}>
+                      <div className={cn("p-2 rounded text-xs font-mono", customSuiteResults[tc.id].success ? "bg-[var(--success)]/10 text-[var(--success)]" : "bg-[var(--danger)]/10 text-[var(--danger)]")}>
                         {customSuiteResults[tc.id].log.map((l, i) => <div key={i}>{l}</div>)}
                       </div>
                     )}

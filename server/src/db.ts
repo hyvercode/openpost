@@ -60,7 +60,10 @@ function ensureDesktopSqliteSchema(url: string): void {
 
     // Locate the bundled schema SQL: dev path, dist-adjacent path, or
     // electron-builder extraResources path.
-    const here = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+    // NOTE: `typeof __dirname` alone still throws in ESM scope — resolve
+    // the module dir via process.argv[1] instead (works in tsx + esbuild).
+    const scriptDir = process.argv[1] ? path.dirname(path.resolve(process.argv[1])) : process.cwd();
+    const here = scriptDir;
     const candidates = [
       path.join(process.cwd(), 'prisma', 'sqlite-schema.sql'),
       path.join(here, '..', '..', 'prisma', 'sqlite-schema.sql'),

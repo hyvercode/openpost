@@ -127,13 +127,13 @@ export function DeploymentPanel() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-6 mb-6">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20">
-            <Rocket className="w-6 h-6 text-emerald-500" />
+          <div className="w-12 h-12 rounded bg-[var(--success)]/10 flex items-center justify-center shrink-0 border border-[var(--success)]/20">
+            <Rocket className="w-6 h-6 text-[var(--success)]" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-bold leading-tight">{deployment.collectionName}</h2>
-              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2 py-0.5 rounded-full font-semibold font-mono">
+              <span className="bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20 text-xs px-2 py-0.5 rounded-full font-semibold font-mono">
                 {deployment.version}
               </span>
             </div>
@@ -142,7 +142,7 @@ export function DeploymentPanel() {
                 <Calendar className="w-3.5 h-3.5" />
                 Deployed on {new Date(deployment.createdAt).toLocaleString()}
               </span>
-              <span className="flex items-center gap-1 text-emerald-500">
+              <span className="flex items-center gap-1 text-[var(--success)]">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 Public Server Active
               </span>
@@ -152,7 +152,7 @@ export function DeploymentPanel() {
 
         <button
           onClick={handleDelete}
-          className="flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 px-4 py-2 rounded text-xs font-semibold transition-all self-start md:self-auto"
+          className="flex items-center justify-center gap-2 bg-[var(--danger)]/10 hover:bg-[var(--danger)] text-[var(--danger)] hover:text-white border border-[var(--danger)]/20 px-4 py-2 rounded text-xs font-semibold transition-colors self-start md:self-auto"
         >
           <Trash2 className="w-4 h-4" />
           Undeploy Server
@@ -161,13 +161,13 @@ export function DeploymentPanel() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Connection Card */}
-        <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-5 flex flex-col">
+        <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-5 flex flex-col">
           <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Public Mock Base URL</h3>
           <p className="text-xs text-[var(--text-secondary)] mb-3 flex-1">
             This is the production endpoint for this mock server. Any external system, webhook, or frontend client can call this live URL in real-time.
           </p>
-          <div className="flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg p-3 font-mono text-sm text-indigo-400 select-all overflow-x-auto">
-            <Globe className="w-4 h-4 text-indigo-400 shrink-0" />
+          <div className="flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded p-3 font-mono text-sm text-[var(--icon-color)] select-all overflow-x-auto">
+            <Globe className="w-4 h-4 text-[var(--icon-color)] shrink-0" />
             <span className="flex-1 truncate">{publicUrl}</span>
             <div className="flex items-center gap-1.5 shrink-0">
               <button
@@ -175,7 +175,7 @@ export function DeploymentPanel() {
                 className="p-1.5 hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded transition-colors"
                 title="Copy Base URL"
               >
-                {copiedPath === 'base' ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                {copiedPath === 'base' ? <Check className="w-4 h-4 text-[var(--success)]" /> : <Copy className="w-4 h-4" />}
               </button>
               <a
                 href={publicUrl}
@@ -191,16 +191,16 @@ export function DeploymentPanel() {
         </div>
 
         {/* Security & Limits Card */}
-        <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-5 flex flex-col">
+        <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-5 flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5 text-orange-500" />
+              <Shield className="w-3.5 h-3.5 text-[var(--primary)]" />
               Security & Rate Limits
             </h3>
             <button
               onClick={handleSaveSettings}
               disabled={isSaving}
-              className="flex items-center gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary)]/90 disabled:opacity-50 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all shadow-lg"
+              className="flex items-center gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary)]/90 disabled:opacity-50 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-colors shadow-[var(--shadow-subtle)]"
             >
               {isSaving ? (
                 <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -213,10 +213,10 @@ export function DeploymentPanel() {
 
           <div className="space-y-4">
             {/* Rate Limiting */}
-            <div className="flex items-center justify-between gap-4 p-3 bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded-lg">
+            <div className="flex items-center justify-between gap-4 p-3 bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <Activity className="w-4 h-4 text-blue-400" />
+                <div className="p-2 bg-[var(--info)]/10 rounded">
+                  <Activity className="w-4 h-4 text-[var(--info)]" />
                 </div>
                 <div>
                   <div className="text-xs font-bold text-[var(--text-primary)]">Rate Limiting</div>
@@ -230,7 +230,7 @@ export function DeploymentPanel() {
                       type="number"
                       value={localSettings.requestsPerMinute}
                       onChange={(e) => setLocalSettings(prev => ({ ...prev, requestsPerMinute: Number(e.target.value) }))}
-                      className="w-12 bg-transparent text-xs font-bold text-blue-400 focus:outline-none text-center"
+                      className="w-12 bg-transparent text-xs font-bold text-[var(--info)] focus:outline-none text-center"
                     />
                     <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter">RPM</span>
                   </div>
@@ -239,7 +239,7 @@ export function DeploymentPanel() {
                   onClick={() => setLocalSettings(prev => ({ ...prev, rateLimitEnabled: !prev.rateLimitEnabled }))}
                   className={cn(
                     "w-8 h-4 rounded-full relative transition-colors duration-200",
-                    localSettings.rateLimitEnabled ? "bg-blue-500" : "bg-[var(--border-strong)]"
+                    localSettings.rateLimitEnabled ? "bg-[var(--info)]" : "bg-[var(--border-strong)]"
                   )}
                 >
                   <div className={cn(
@@ -251,11 +251,11 @@ export function DeploymentPanel() {
             </div>
 
             {/* API Key Authentication */}
-            <div className="p-3 bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded-lg">
+            <div className="p-3 bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-orange-500/10 rounded-lg">
-                    <Lock className="w-4 h-4 text-orange-400" />
+                  <div className="p-2 bg-[var(--primary)]/10 rounded">
+                    <Lock className="w-4 h-4 text-[var(--primary)]" />
                   </div>
                   <div>
                     <div className="text-xs font-bold text-[var(--text-primary)]">API Key Auth</div>
@@ -266,7 +266,7 @@ export function DeploymentPanel() {
                   onClick={() => setLocalSettings(prev => ({ ...prev, apiKeyEnabled: !prev.apiKeyEnabled }))}
                   className={cn(
                     "w-8 h-4 rounded-full relative transition-colors duration-200",
-                    localSettings.apiKeyEnabled ? "bg-orange-500" : "bg-[var(--border-strong)]"
+                    localSettings.apiKeyEnabled ? "bg-[var(--primary)]" : "bg-[var(--border-strong)]"
                   )}
                 >
                   <div className={cn(
@@ -278,25 +278,25 @@ export function DeploymentPanel() {
 
               {localSettings.apiKeyEnabled && (
                 <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg px-3 py-2">
-                    <Key className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                  <div className="flex-1 flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded px-3 py-2">
+                    <Key className="w-3.5 h-3.5 text-[var(--primary)] shrink-0" />
                     <input
                       type="text"
                       value={localSettings.apiKeyValue}
                       onChange={(e) => setLocalSettings(prev => ({ ...prev, apiKeyValue: e.target.value }))}
                       placeholder="Enter or generate API key"
-                      className="flex-1 bg-transparent text-xs font-mono text-orange-400 focus:outline-none"
+                      className="flex-1 bg-transparent text-xs font-mono text-[var(--primary)] focus:outline-none"
                     />
                     <button
                       onClick={() => handleCopy(localSettings.apiKeyValue, 'key')}
-                      className="text-[var(--text-secondary)] hover:text-orange-400 transition-colors"
+                      className="text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
                     >
-                      {copiedPath === 'key' ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedPath === 'key' ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                   <button
                     onClick={generateApiKey}
-                    className="p-2 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] rounded-lg text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                    className="p-2 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] rounded text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                     title="Generate New Key"
                   >
                     Generate
@@ -326,7 +326,7 @@ export function DeploymentPanel() {
               return (
                 <div 
                   key={req.id} 
-                  className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded-xl p-5 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+                  className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded p-5 transition-colors flex flex-col lg:flex-row lg:items-center justify-between gap-4"
                 >
                   <div className="flex-1 min-w-0">
                     {/* Top Row: Method + Path */}
@@ -359,7 +359,7 @@ export function DeploymentPanel() {
                         className="p-1 hover:bg-[var(--bg-hover)] rounded transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         title="Copy Route URL"
                       >
-                        {copiedPath === req.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedPath === req.id ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                     </div>
 
@@ -369,9 +369,9 @@ export function DeploymentPanel() {
                         <span className="text-[var(--text-secondary)] font-medium">Returns:</span>
                         <span className={cn(
                           "px-1.5 py-0.5 rounded font-mono font-bold text-[10px]",
-                          mockRes.status >= 200 && mockRes.status < 300 ? "bg-green-500/10 text-green-400 border border-green-500/20" :
-                          mockRes.status >= 300 && mockRes.status < 400 ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                          "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                          mockRes.status >= 200 && mockRes.status < 300 ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" :
+                          mockRes.status >= 300 && mockRes.status < 400 ? "bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/20" :
+                          "bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/20"
                         )}>
                           {mockRes.status}
                         </span>
@@ -405,7 +405,7 @@ export function DeploymentPanel() {
               );
             })
           ) : (
-            <div className="text-center p-8 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl text-xs text-[var(--text-secondary)]">
+            <div className="text-center p-8 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-xs text-[var(--text-secondary)]">
               This collection has no requests. Add requests in the sidebar to define mock routes.
             </div>
           )}

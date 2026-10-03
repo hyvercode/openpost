@@ -26,7 +26,7 @@ export function PromptModal({ isOpen, title, placeholder, initialValue, submitTe
   
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg p-5 w-80 shadow-2xl">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-5 w-80 shadow-[var(--shadow-subtle)]">
         <h3 className="text-[var(--text-primary)] text-sm font-semibold mb-4">{title}</h3>
         <input 
           ref={inputRef} 
@@ -51,7 +51,7 @@ export function PromptModal({ isOpen, title, placeholder, initialValue, submitTe
           <button 
             onClick={() => { if (value.trim() && !isSubmitting) onSubmit(value.trim()); }} 
             disabled={!value.trim() || isSubmitting}
-            className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[#e65a2d] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors flex items-center gap-2"
+            className="px-4 py-1.5 text-xs bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded font-medium transition-colors flex items-center gap-2"
           >
             {isSubmitting && <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
             {submitText}

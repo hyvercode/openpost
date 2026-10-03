@@ -44,14 +44,14 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/60  flex items-center justify-center z-50 p-4">
       <div 
-        className="bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
+        className="bg-[var(--bg-base)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] w-full max-w-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-hover)]">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[var(--primary)]/10 rounded-lg">
+            <div className="p-2 bg-[var(--primary)]/10 rounded">
               <MonitorSmartphone className="w-5 h-5 text-[var(--primary)]" />
             </div>
             <div>
@@ -61,14 +61,14 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
           </div>
           <button 
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-[var(--bg-hover-strong)] text-[var(--text-secondary)] transition-colors"
+            className="p-2 rounded hover:bg-[var(--bg-hover-strong)] text-[var(--text-secondary)] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-          <div className="p-4 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-subtle)] space-y-2">
+          <div className="p-4 rounded bg-[var(--bg-hover)] border border-[var(--border-subtle)] space-y-2">
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">Why use the Desktop Agent?</h3>
             <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
               For security reasons (SSRF Protection), the Cloud Agent cannot make requests to <code>localhost</code>, <code>127.0.0.1</code>, or private IP addresses. By running the lightweight Desktop Agent Bridge on your machine, you can safely proxy API requests from this web interface directly to your local development servers.
@@ -80,7 +80,7 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <button
                 onClick={() => handleDownload('win.exe')}
-                className="flex flex-col items-center justify-center p-3.5 gap-2.5 rounded-xl border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all group cursor-pointer"
+                className="flex flex-col items-center justify-center p-3.5 gap-2.5 rounded border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-colors group cursor-pointer"
               >
                 <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--bg-hover-strong)] group-hover:bg-[var(--primary)]/20 transition-colors">
                   <Monitor className="w-5 h-5 text-[var(--text-primary)] group-hover:text-[var(--primary)]" />
@@ -96,7 +96,7 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
 
               <button
                 onClick={() => handleDownload('macos')}
-                className="flex flex-col items-center justify-center p-3.5 gap-2.5 rounded-xl border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all group cursor-pointer"
+                className="flex flex-col items-center justify-center p-3.5 gap-2.5 rounded border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-colors group cursor-pointer"
               >
                 <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--bg-hover-strong)] group-hover:bg-[var(--primary)]/20 transition-colors">
                   <Apple className="w-5 h-5 text-[var(--text-primary)] group-hover:text-[var(--primary)]" />
@@ -112,7 +112,7 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
 
               <button
                 onClick={() => handleDownload('linux')}
-                className="flex flex-col items-center justify-center p-3.5 gap-2.5 rounded-xl border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all group cursor-pointer"
+                className="flex flex-col items-center justify-center p-3.5 gap-2.5 rounded border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-colors group cursor-pointer"
               >
                 <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--bg-hover-strong)] group-hover:bg-[var(--primary)]/20 transition-colors">
                   <Terminal className="w-5 h-5 text-[var(--text-primary)] group-hover:text-[var(--primary)]" />
@@ -128,10 +128,10 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
 
               <button
                 onClick={() => handleDownload('js')}
-                className="flex flex-col items-center justify-center p-3.5 gap-2.5 rounded-xl border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-all group cursor-pointer"
+                className="flex flex-col items-center justify-center p-3.5 gap-2.5 rounded border border-[var(--border-subtle)] hover:border-[var(--primary)] hover:bg-[var(--primary)]/5 transition-colors group cursor-pointer"
               >
                 <div className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--bg-hover-strong)] group-hover:bg-[var(--primary)]/20 transition-colors">
-                  <FileCode className="w-5 h-5 text-amber-500 group-hover:text-[var(--primary)]" />
+                  <FileCode className="w-5 h-5 text-[var(--warning)] group-hover:text-[var(--primary)]" />
                 </div>
                 <div className="text-center">
                   <span className="block text-sm font-semibold text-[var(--text-primary)]">Node.js</span>
@@ -146,14 +146,45 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
 
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-[var(--text-primary)]">Quick Run with Node.js</h3>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)]">
+            <div className="flex items-center justify-between p-3 rounded bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)]">
               <code className="text-xs font-mono text-[var(--primary)]">node desktop-agent.js</code>
               <button
                 onClick={copyScriptCommand}
                 className="px-3 py-1 bg-[var(--bg-hover)] hover:bg-[var(--border-subtle)] rounded text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                 {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">Pairing Token</h3>
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              The agent prints a pairing token at startup. Paste it here once — it is stored locally and sent with every bridge request.
+            </p>
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                defaultValue={typeof localStorage !== 'undefined' ? (localStorage.getItem('openpost_agent_token') || '') : ''}
+                id="openpost-agent-token-input"
+                placeholder="Paste pairing token from agent console"
+                className="flex-1 p-2.5 rounded bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] focus:outline-none"
+              />
+              <button
+                onClick={() => {
+                  const el = document.getElementById('openpost-agent-token-input') as HTMLInputElement | null;
+                  const val = (el?.value || '').trim();
+                  if (!val) {
+                    addToast('Paste the pairing token first', 'error', 2500);
+                    return;
+                  }
+                  localStorage.setItem('openpost_agent_token', val);
+                  addToast('Agent pairing token saved', 'success', 2500);
+                }}
+                className="px-4 py-2 rounded text-xs font-bold text-white bg-[var(--primary)] hover:bg-[var(--primary)]/90 transition-colors cursor-pointer"
+              >
+                Save
               </button>
             </div>
           </div>
@@ -184,7 +215,7 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
         <div className="flex items-center justify-between p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-hover)]/50">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover-strong)] transition-colors"
+            className="px-4 py-2 rounded text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover-strong)] transition-colors"
           >
             Cancel
           </button>
@@ -195,7 +226,7 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
               addToast('Switched to Desktop Agent', 'success', 2000);
               onClose();
             }}
-            className="px-6 py-2 rounded-lg text-sm font-bold text-white bg-[var(--primary)] hover:bg-[var(--primary)]/90 shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+            className="px-6 py-2 rounded text-sm font-bold text-white bg-[var(--primary)] hover:bg-[var(--primary)]/90  transition-colors flex items-center gap-2 cursor-pointer"
           >
             <MonitorSmartphone className="w-4 h-4" />
             Switch to Desktop Agent

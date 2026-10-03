@@ -75,12 +75,12 @@ export function ConflictResolutionModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50  p-4">
+      <div className="bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded shadow-[var(--shadow-subtle)] w-full max-w-6xl flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--border-subtle)] shrink-0">
-          <div className="flex items-center gap-2 text-amber-500">
+          <div className="flex items-center gap-2 text-[var(--warning)]">
             <AlertTriangle className="w-5 h-5" />
             <h2 className="font-semibold text-lg text-[var(--text-primary)]">Sync Conflict Detected</h2>
           </div>
@@ -98,30 +98,30 @@ export function ConflictResolutionModal() {
             A conflict occurred while syncing this request. The data on the cloud has changed since you last synced, but you also made local offline changes. Please choose which version to keep.
           </p>
           
-          <div className="flex flex-col flex-1 min-h-0 border border-[var(--border-subtle)] rounded-lg overflow-hidden">
+          <div className="flex flex-col flex-1 min-h-0 border border-[var(--border-subtle)] rounded overflow-hidden">
             {/* Diff Header */}
             <div className="grid grid-cols-2 divide-x divide-[var(--border-subtle)] bg-[var(--bg-secondary)] border-b border-[var(--border-subtle)] shrink-0">
               <div className="p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-blue-500 font-medium">
+                <div className="flex items-center gap-2 text-[var(--info)] font-medium">
                   <Cloud className="w-4 h-4" />
                   <h3>Cloud Version (Server)</h3>
                 </div>
                 <button 
                   onClick={() => handleResolve('cloud')}
-                  className="flex items-center gap-1.5 py-1.5 px-3 rounded text-sm bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-colors font-medium border border-blue-500/20"
+                  className="flex items-center gap-1.5 py-1.5 px-3 rounded text-sm bg-[var(--info)]/10 text-[var(--info)] hover:bg-[var(--info)]/20 transition-colors font-medium border border-[var(--info)]/20"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   Keep Cloud
                 </button>
               </div>
               <div className="p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-emerald-500 font-medium">
+                <div className="flex items-center gap-2 text-[var(--success)] font-medium">
                   <HardDrive className="w-4 h-4" />
                   <h3>Local Version (Offline)</h3>
                 </div>
                 <button 
                   onClick={() => handleResolve('local')}
-                  className="flex items-center gap-1.5 py-1.5 px-3 rounded text-sm bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-colors font-medium border border-emerald-500/20"
+                  className="flex items-center gap-1.5 py-1.5 px-3 rounded text-sm bg-[var(--success)]/10 text-[var(--success)] hover:bg-[var(--success)]/20 transition-colors font-medium border border-[var(--success)]/20"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   Keep Local
@@ -139,7 +139,7 @@ export function ConflictResolutionModal() {
                       {/* Left Side (Cloud) */}
                       <div className={cn(
                         "w-1/2 flex px-2 py-0.5",
-                        leftLine.type === 'removed' ? "bg-red-500/10 text-red-500" :
+                        leftLine.type === 'removed' ? "bg-[var(--danger)]/10 text-[var(--danger)]" :
                         leftLine.type === 'empty' ? "bg-[var(--bg-secondary)] opacity-50" :
                         "text-[var(--text-primary)]"
                       )}>
@@ -154,7 +154,7 @@ export function ConflictResolutionModal() {
                       {/* Right Side (Local) */}
                       <div className={cn(
                         "w-1/2 flex px-2 py-0.5",
-                        rightLine.type === 'added' ? "bg-emerald-500/10 text-emerald-500" :
+                        rightLine.type === 'added' ? "bg-[var(--success)]/10 text-[var(--success)]" :
                         rightLine.type === 'empty' ? "bg-[var(--bg-secondary)] opacity-50" :
                         "text-[var(--text-primary)]"
                       )}>

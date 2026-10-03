@@ -65,7 +65,7 @@ export function TestRunnerSidebar({ searchQuery }: { searchQuery: string }) {
                   e.stopPropagation();
                   deleteTestSuite(suite.id);
                 }}
-                className="opacity-0 group-hover/suite:opacity-100 p-0.5 rounded text-[var(--text-secondary)] hover:text-red-500 transition-all"
+                className="opacity-0 group-hover/suite:opacity-100 p-0.5 rounded text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors"
                 title="Delete Test Suite"
               >
                 <Trash2 className="w-3.5 h-3.5" />

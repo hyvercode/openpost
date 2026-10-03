@@ -26,7 +26,7 @@ export function BulkRunResponsePanel() {
               </div>
               <button
                 onClick={() => setBulkRunStopRequested(true)}
-                className="px-2 py-0.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded text-[11px] font-bold flex items-center gap-1 transition-colors"
+                className="px-2 py-0.5 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] rounded text-[11px] font-bold flex items-center gap-1 transition-colors"
                 title="Stop Execution"
               >
                 <StopCircle className="w-3.5 h-3.5" /> Stop
@@ -49,17 +49,17 @@ export function BulkRunResponsePanel() {
         {bulkRunReport ? (
           <div className="p-4 space-y-4 max-w-4xl mx-auto w-full">
             {/* Visual Batch Progress & Summary Bar */}
-            <div className="bg-[var(--bg-panel)] rounded-xl border border-[var(--border-subtle)] shadow-sm p-4 space-y-3">
+            <div className="bg-[var(--bg-panel)] rounded border border-[var(--border-subtle)]  p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-[var(--text-primary)]">Test Batch Execution</span>
                   <span className={cn(
                     "text-[10px] font-bold px-2 py-0.5 rounded-full border",
                     bulkRunReport.passRate === 100 
-                      ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30" 
+                      ? "bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/30" 
                       : bulkRunReport.passRate >= 70 
-                        ? "bg-amber-500/10 text-amber-500 border-amber-500/30" 
-                        : "bg-red-500/10 text-red-500 border-red-500/30"
+                        ? "bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/30" 
+                        : "bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/30"
                   )}>
                     {bulkRunReport.passRate}% Pass Rate
                   </span>
@@ -72,12 +72,12 @@ export function BulkRunResponsePanel() {
               {/* Progress & Success/Failure Visual Bar */}
               <div className="w-full bg-[var(--bg-hover-strong)] h-2.5 rounded-full overflow-hidden flex">
                 <div 
-                  className="bg-emerald-500 h-full transition-all duration-300"
+                  className="bg-[var(--success)] h-full transition-colors "
                   style={{ width: `${bulkRunReport.totalExecutions ? (bulkRunReport.passedCount / bulkRunReport.totalExecutions) * 100 : 0}%` }}
                   title={`Passed: ${bulkRunReport.passedCount}`}
                 />
                 <div 
-                  className="bg-red-500 h-full transition-all duration-300"
+                  className="bg-[var(--danger)] h-full transition-colors "
                   style={{ width: `${bulkRunReport.totalExecutions ? (bulkRunReport.failedCount / bulkRunReport.totalExecutions) * 100 : 0}%` }}
                   title={`Failed: ${bulkRunReport.failedCount}`}
                 />
@@ -91,11 +91,11 @@ export function BulkRunResponsePanel() {
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] uppercase font-bold text-[var(--text-secondary)] tracking-wider">Passed</span>
-                  <span className="text-lg font-bold text-emerald-500">{bulkRunReport.passedCount}</span>
+                  <span className="text-lg font-bold text-[var(--success)]">{bulkRunReport.passedCount}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] uppercase font-bold text-[var(--text-secondary)] tracking-wider">Failed</span>
-                  <span className="text-lg font-bold text-red-500">{bulkRunReport.failedCount}</span>
+                  <span className="text-lg font-bold text-[var(--danger)]">{bulkRunReport.failedCount}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
                   <span className="text-[10px] uppercase font-bold text-[var(--text-secondary)] tracking-wider">Total Duration</span>
@@ -108,8 +108,8 @@ export function BulkRunResponsePanel() {
             <div className="space-y-2 pb-4">
               {bulkRunReport.steps.map((step, idx) => (
                 <div key={`${step.id}-${idx}`} className={cn(
-                  "border rounded-lg overflow-hidden bg-[var(--bg-panel)] transition-all",
-                  step.passed ? "border-emerald-500/20" : "border-red-500/30"
+                  "border rounded overflow-hidden bg-[var(--bg-panel)] transition-colors",
+                  step.passed ? "border-[var(--success)]/20" : "border-[var(--danger)]/30"
                 )}>
                   <div 
                     className="flex flex-wrap items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-hover)] select-none"
@@ -117,9 +117,9 @@ export function BulkRunResponsePanel() {
                   >
                     <div className="shrink-0">
                       {step.passed ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        <CheckCircle2 className="w-4 h-4 text-[var(--success)]" />
                       ) : (
-                        <XCircle className="w-4 h-4 text-red-500" />
+                        <XCircle className="w-4 h-4 text-[var(--danger)]" />
                       )}
                     </div>
                     
@@ -134,7 +134,7 @@ export function BulkRunResponsePanel() {
                     <div className="shrink-0 flex items-center gap-3 text-[10px] font-mono text-[var(--text-secondary)]">
                       <span className={cn(
                         "font-bold",
-                        step.statusCode < 300 ? "text-emerald-500" : step.statusCode < 400 ? "text-amber-500" : "text-red-500"
+                        step.statusCode < 300 ? "text-[var(--success)]" : step.statusCode < 400 ? "text-[var(--warning)]" : "text-[var(--danger)]"
                       )}>
                         {step.statusCode} {step.statusText}
                       </span>
@@ -155,15 +155,15 @@ export function BulkRunResponsePanel() {
                             {step.tests.map((t, i) => (
                               <div key={i} className="flex items-start gap-2 text-[11px] font-mono">
                                 {t.passed ? (
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--success)] mt-0.5 shrink-0" />
                                 ) : (
-                                  <XCircle className="w-3.5 h-3.5 text-red-500 mt-0.5 shrink-0" />
+                                  <XCircle className="w-3.5 h-3.5 text-[var(--danger)] mt-0.5 shrink-0" />
                                 )}
                                 <div className="flex-1">
-                                  <div className={t.passed ? "text-[var(--text-primary)]" : "text-red-500 font-semibold"}>
+                                  <div className={t.passed ? "text-[var(--text-primary)]" : "text-[var(--danger)] font-semibold"}>
                                     {t.name}
                                   </div>
-                                  {t.error && <div className="text-red-400 mt-0.5 text-[10px]">{t.error}</div>}
+                                  {t.error && <div className="text-[var(--danger)] mt-0.5 text-[10px]">{t.error}</div>}
                                 </div>
                               </div>
                             ))}

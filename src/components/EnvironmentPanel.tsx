@@ -225,7 +225,7 @@ export function EnvironmentPanel() {
         <div className="flex items-center gap-4">
           <div className="flex items-center justify-center min-w-[80px] text-xs font-medium text-[var(--text-secondary)]">
             {saveStatus === 'Saving...' && <span className="animate-pulse">Saving...</span>}
-            {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
+            {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-[var(--success)]"><Check className="w-3.5 h-3.5" /> Saved</span>}
             {saveStatus === 'Changed' && <span>Unsaved...</span>}
           </div>
           {hasSecretVars && (
@@ -236,7 +236,7 @@ export function EnvironmentPanel() {
             >
               {allSecretsRevealed ? (
                 <>
-                  <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                  <EyeOff className="w-3.5 h-3.5 text-[var(--warning)]" />
                   <span>Mask All Secrets</span>
                 </>
               ) : (
@@ -257,7 +257,7 @@ export function EnvironmentPanel() {
           <button 
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-[var(--primary)] hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 shadow-sm"
+            className="bg-[var(--primary)] hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2 "
           >
             <Save className="w-4 h-4" />
             {isSaving ? 'Saving...' : 'Save'}
@@ -285,7 +285,7 @@ export function EnvironmentPanel() {
                     type="checkbox" 
                     checked={item.enabled}
                     onChange={(e) => handleChange(item.id, 'enabled', e.target.checked)}
-                    className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
+                    className="w-3.5 h-3.5 rounded border-[var(--border-strong)] bg-[var(--bg-panel)] accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
                   />
                 </div>
                 <div className="flex-1 px-1">
@@ -318,7 +318,7 @@ export function EnvironmentPanel() {
                       className="absolute right-3 text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 rounded transition-colors"
                     >
                       {isRevealed ? (
-                        <EyeOff className="w-3.5 h-3.5 text-amber-400" />
+                        <EyeOff className="w-3.5 h-3.5 text-[var(--warning)]" />
                       ) : (
                         <Eye className="w-3.5 h-3.5" />
                       )}
@@ -331,14 +331,14 @@ export function EnvironmentPanel() {
                     onClick={() => handleToggleSecret(item.id)}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
                       isSecret
-                        ? "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
+                        ? "bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/30 hover:bg-[var(--warning)]/20"
                         : "bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
                     }`}
                     title={isSecret ? "Variable is masked as Secret. Click to convert to Default text." : "Variable is Default text. Click to mask as Secret."}
                   >
                     {isSecret ? (
                       <>
-                        <Lock className="w-3 h-3 text-amber-400 shrink-0" />
+                        <Lock className="w-3 h-3 text-[var(--warning)] shrink-0" />
                         <span>Secret</span>
                       </>
                     ) : (

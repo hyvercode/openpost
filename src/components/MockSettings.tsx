@@ -81,7 +81,7 @@ function MockRouteItem({ req, collection, onSave }: { req: RequestItem; collecti
   };
 
   return (
-    <div className="bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-lg flex flex-col overflow-hidden">
+    <div className="bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded flex flex-col overflow-hidden">
       <div 
         className="p-3 flex flex-col gap-2 cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
         onClick={() => setExpanded(!expanded)}
@@ -109,7 +109,7 @@ function MockRouteItem({ req, collection, onSave }: { req: RequestItem; collecti
                   onChange={(e) => handleToggle(e.target.checked)}
                   className="sr-only peer" 
                 />
-                <div className="w-7 h-4 bg-[var(--bg-hover)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-green-500"></div>
+                <div className="w-7 h-4 bg-[var(--bg-hover)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-strong)] after:border after:rounded-full after:h-3 after:w-3 after:transition-colors peer-checked:bg-[var(--success)]"></div>
               </label>
             )}
             {expanded ? <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />}
@@ -122,7 +122,7 @@ function MockRouteItem({ req, collection, onSave }: { req: RequestItem; collecti
           <div className="flex items-center gap-1.5 shrink-0">
             <span className={cn(
               "w-2 h-2 rounded-full",
-              req.mockResponse ? (enabled ? "bg-green-500" : "bg-red-500") : "bg-yellow-500"
+              req.mockResponse ? (enabled ? "bg-[var(--success)]" : "bg-[var(--danger)]") : "bg-[var(--warning)]"
             )} />
             <span className="text-[9px] font-bold uppercase text-[var(--text-secondary)] tracking-tight">
               {req.mockResponse ? (enabled ? "Mock Active" : "Mock Disabled") : "Default"}
@@ -162,7 +162,7 @@ function MockRouteItem({ req, collection, onSave }: { req: RequestItem; collecti
                 <button 
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="px-3 py-1.5 rounded text-xs font-medium bg-green-600 hover:bg-green-500 text-white flex items-center gap-1"
+                  className="px-3 py-1.5 rounded text-xs font-medium bg-[var(--success)] hover:bg-[var(--success)] text-white flex items-center gap-1"
                 >
                   {isSaving ? "Saving..." : "Save Mock"}
                 </button>
@@ -172,7 +172,7 @@ function MockRouteItem({ req, collection, onSave }: { req: RequestItem; collecti
             <>
               <div className="flex items-center justify-between">
                 <div className="text-xs font-mono text-[var(--text-secondary)] bg-[var(--bg-base)] px-2 py-1 rounded border border-[var(--border-subtle)]">
-                  Status: <span className="text-green-500 font-bold">{req.mockResponse?.status || 200}</span>
+                  Status: <span className="text-[var(--success)] font-bold">{req.mockResponse?.status || 200}</span>
                 </div>
                 <div className="flex gap-2">
                   <button 
@@ -185,7 +185,7 @@ function MockRouteItem({ req, collection, onSave }: { req: RequestItem; collecti
                     <button 
                       onClick={handleDelete}
                       disabled={isSaving}
-                      className="flex items-center gap-1 text-[10px] font-bold uppercase bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20 px-2 py-1 rounded"
+                      className="flex items-center gap-1 text-[10px] font-bold uppercase bg-[var(--danger)]/10 text-[var(--danger)] hover:bg-[var(--danger)]/20 border border-[var(--danger)]/20 px-2 py-1 rounded"
                     >
                       <Trash2 className="w-3 h-3" /> Delete
                     </button>
@@ -283,8 +283,8 @@ export function MockSettings({ collection }: MockSettingsProps) {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-3 border-b border-[var(--border-subtle)] pb-4">
-        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-          <Server className="w-5 h-5 text-indigo-400" />
+        <div className="w-10 h-10 rounded bg-[var(--primary)]/10 flex items-center justify-center border border-[var(--primary)]/20">
+          <Server className="w-5 h-5 text-[var(--icon-color)]" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-[var(--text-primary)]">Mock Server</h2>
@@ -295,11 +295,11 @@ export function MockSettings({ collection }: MockSettingsProps) {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Mock Server Settings */}
         <div className="space-y-6">
-          <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-5 space-y-6 shadow-sm">
+          <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-5 space-y-6 ">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-indigo-400" />
+                  <Globe className="w-4 h-4 text-[var(--icon-color)]" />
                   Enable Mock Server
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)]">
@@ -313,14 +313,14 @@ export function MockSettings({ collection }: MockSettingsProps) {
                   onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
                   className="sr-only peer" 
                 />
-                <div className="w-11 h-6 bg-[var(--bg-hover)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                <div className="w-11 h-6 bg-[var(--bg-hover)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-strong)] after:border after:rounded-full after:h-5 after:w-5 after:transition-colors peer-checked:bg-[var(--primary)]"></div>
               </label>
             </div>
 
             <div className={cn("space-y-4 transition-opacity", !config.enabled && "opacity-50 pointer-events-none")}>
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Base URL</label>
-                <div className="flex bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg overflow-hidden shadow-inner">
+                <div className="flex bg-[var(--bg-input)] border border-[var(--border-strong)] rounded overflow-hidden shadow-inner">
                   <div className="px-3 py-2 text-xs font-mono text-[var(--text-primary)] flex-1 truncate select-all">
                     {window.location.origin}/mock/collection/{collection.id}
                   </div>
@@ -328,7 +328,7 @@ export function MockSettings({ collection }: MockSettingsProps) {
                     onClick={handleCopyUrl}
                     className="px-3 border-l border-[var(--border-strong)] bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] transition-colors flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
-                    {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                    {copied ? <Check className="w-4 h-4 text-[var(--success)]" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
@@ -346,7 +346,7 @@ export function MockSettings({ collection }: MockSettingsProps) {
                       step="100"
                       value={config.latencyMs || 0}
                       onChange={(e) => setConfig({ ...config, latencyMs: Number(e.target.value) })}
-                      className="flex-1 accent-indigo-500"
+                      className="flex-1 accent-[var(--primary)]"
                     />
                     <span className="text-xs font-mono font-bold bg-[var(--bg-input)] border border-[var(--border-strong)] px-2 py-1 rounded min-w-[60px] text-center">
                       {config.latencyMs || 0}ms
@@ -360,11 +360,11 @@ export function MockSettings({ collection }: MockSettingsProps) {
             </div>
           </div>
 
-          <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-5 space-y-6 shadow-sm">
+          <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-5 space-y-6 ">
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-amber-500" />
+                  <Shield className="w-4 h-4 text-[var(--warning)]" />
                   Security & Limits
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)]">
@@ -385,14 +385,14 @@ export function MockSettings({ collection }: MockSettingsProps) {
                   })}
                   className="sr-only peer" 
                 />
-                <div className="w-9 h-5 bg-[var(--bg-hover)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
+                <div className="w-9 h-5 bg-[var(--bg-hover)] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[var(--border-strong)] after:border after:rounded-full after:h-4 after:w-4 after:transition-colors peer-checked:bg-[var(--primary)]"></div>
               </label>
             </div>
 
             <div className={cn("space-y-4 transition-opacity", !config.apiKey?.enabled && "opacity-50 pointer-events-none")}>
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Mock Server API Key</label>
-                <div className="flex bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg overflow-hidden p-1 shadow-inner">
+                <div className="flex bg-[var(--bg-input)] border border-[var(--border-strong)] rounded overflow-hidden p-1 shadow-inner">
                   <div className="w-9 flex items-center justify-center text-[var(--text-secondary)]">
                     <Key className="w-3.5 h-3.5" />
                   </div>
@@ -404,7 +404,7 @@ export function MockSettings({ collection }: MockSettingsProps) {
                       apiKey: { ...config.apiKey!, key: e.target.value }
                     })}
                     placeholder="sk_local_..."
-                    className="flex-1 bg-transparent px-2 py-2 text-xs font-mono text-indigo-400 focus:outline-none"
+                    className="flex-1 bg-transparent px-2 py-2 text-xs font-mono text-[var(--icon-color)] focus:outline-none"
                   />
                   <div className="flex gap-1 pr-1">
                     <button
@@ -417,13 +417,13 @@ export function MockSettings({ collection }: MockSettingsProps) {
                       onClick={handleCopyKey}
                       className="px-2 py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded"
                     >
-                      {keyCopied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      {keyCopied ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
                 <p className="text-[10px] text-[var(--text-secondary)] mt-1 flex items-center gap-1.5">
-                  <AlertCircle className="w-3 h-3 text-indigo-400" />
-                  When enabled, all requests must include the <code className="text-indigo-400">X-API-Key</code> header.
+                  <AlertCircle className="w-3 h-3 text-[var(--icon-color)]" />
+                  When enabled, all requests must include the <code className="text-[var(--icon-color)]">X-API-Key</code> header.
                 </p>
               </div>
             </div>
@@ -432,7 +432,7 @@ export function MockSettings({ collection }: MockSettingsProps) {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="w-full bg-[var(--primary)] hover:opacity-90 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full bg-[var(--primary)] hover:opacity-90 text-white font-bold py-3 px-4 rounded shadow-[var(--shadow-subtle)] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {isSaving ? (
               <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -444,7 +444,7 @@ export function MockSettings({ collection }: MockSettingsProps) {
         </div>
 
         {/* Mock Routes Preview */}
-        <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl overflow-hidden flex flex-col shadow-sm max-h-[800px]">
+        <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded overflow-hidden flex flex-col  max-h-[800px]">
           <div className="p-4 bg-[var(--bg-hover)] border-b border-[var(--border-subtle)] flex items-center justify-between shrink-0">
             <h4 className="text-xs font-bold uppercase tracking-wider">Configured Routes</h4>
             <span className="text-[10px] bg-[var(--bg-base)] border border-[var(--border-strong)] px-2 py-0.5 rounded font-bold text-[var(--text-secondary)]">
@@ -458,7 +458,7 @@ export function MockSettings({ collection }: MockSettingsProps) {
                 <MockRouteItem key={req.id} req={req} collection={collection} onSave={handleSaveRequestMock} />
               ))
             ) : (
-              <div className="h-40 flex flex-col items-center justify-center text-center p-6 border border-dashed border-[var(--border-subtle)] rounded-lg">
+              <div className="h-40 flex flex-col items-center justify-center text-center p-6 border border-dashed border-[var(--border-subtle)] rounded">
                 <Info className="w-8 h-8 text-[var(--border-strong)] mb-2" />
                 <p className="text-xs text-[var(--text-secondary)]">No requests in this collection yet.</p>
               </div>

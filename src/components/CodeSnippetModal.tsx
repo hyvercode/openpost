@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Copy, Check, Code2, Sparkles, Terminal, Settings2 } from 'lucide-react';
+import { X, Copy, Check, Code2, Terminal, Settings2 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { KeyValue, RequestAuth } from '../types';
 import { fontOptions, generateCodeSnippet, LanguageId } from '../utils/codeSnippetGenerator';
@@ -55,12 +55,12 @@ export const CodeSnippetModal: React.FC<CodeSnippetModalProps> = ({ isOpen, onCl
   const categories = Array.from(new Set(fontOptions.map(o => o.category)));
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60  p-4 animate-in fade-in duration-150">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[var(--primary)]/10 flex items-center justify-center border border-[var(--primary)]/20 text-[var(--primary)]">
+            <div className="w-9 h-9 rounded bg-[var(--primary)]/10 flex items-center justify-center border border-[var(--primary)]/20 text-[var(--primary)]">
               <Code2 className="w-5 h-5" />
             </div>
             <div>
@@ -71,7 +71,7 @@ export const CodeSnippetModal: React.FC<CodeSnippetModalProps> = ({ isOpen, onCl
           
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+            className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -123,10 +123,10 @@ export const CodeSnippetModal: React.FC<CodeSnippetModalProps> = ({ isOpen, onCl
               <button
                 onClick={handleCopy}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition-all shrink-0",
+                  "flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition-colors shrink-0",
                   copied
-                    ? "bg-emerald-500 text-white"
-                    : "bg-[var(--primary)] hover:bg-[#e65a2d] text-white"
+                    ? "bg-[var(--success)] text-white"
+                    : "bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white"
                 )}
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}

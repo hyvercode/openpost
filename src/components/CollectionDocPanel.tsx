@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
-import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2, Sparkles, Printer, Trash2, FileText, AlignLeft, History, GitCommit, GitBranch } from 'lucide-react';
+import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2, Printer, Trash2, FileText, AlignLeft, History, GitCommit, GitBranch } from 'lucide-react';
 import { cn } from '../utils';
 import { apiService } from '../lib/api';
 import { MockSettings } from './MockSettings';
@@ -105,7 +105,7 @@ function renderMarkdown(text: string) {
       const lang = firstLine.slice(3).trim();
       const code = lines.slice(1, lines.length - (lines[lines.length - 1] === '```' ? 1 : 0)).join('\n');
       return (
-        <pre key={bIdx} className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-lg p-3.5 font-mono text-xs text-[var(--text-code)] overflow-x-auto my-3 shadow-inner max-w-full">
+        <pre key={bIdx} className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded p-3.5 font-mono text-xs text-[var(--text-code)] overflow-x-auto my-3 shadow-inner max-w-full">
           {lang && (
             <div className="text-[10px] text-[var(--text-secondary)] uppercase font-semibold mb-2 border-b border-[var(--border-subtle)] pb-1">
               {lang}
@@ -174,7 +174,7 @@ export function CollectionDocPanel() {
   const [exportFormat, setExportFormat] = useState<'markdown' | 'pdf' | 'word' | 'confluence'>('markdown');
   const [pdfTitle, setPdfTitle] = useState('');
   const [pdfIncludeIntro, setPdfIncludeIntro] = useState(true);
-  const [pdfAccentColor, setPdfAccentColor] = useState('#4F46E5');
+  const [pdfAccentColor, setPdfAccentColor] = useState('var(--primary)');
   const [pdfShowPageNumbers, setPdfShowPageNumbers] = useState(true);
   const [pdfIncludeMock, setPdfIncludeMock] = useState(true);
   const [docVersion, setDocVersion] = useState('1.0.0');
@@ -226,7 +226,7 @@ export function CollectionDocPanel() {
     if (targetEntity) {
       setDocContent(targetEntity.description || '');
       setPdfTitle(targetEntity.name || '');
-      setPdfAccentColor(collectionItem?.color || '#4F46E5');
+      setPdfAccentColor(collectionItem?.color || 'var(--primary)');
     }
   }, [targetEntity, collectionItem]);
 
@@ -438,7 +438,7 @@ export function CollectionDocPanel() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border-subtle)] pb-6 mb-6">
         <div className="flex items-start gap-4">
           <div 
-            className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border"
+            className="w-12 h-12 rounded flex items-center justify-center shrink-0 border"
             style={{ 
               backgroundColor: `${collectionItem.color || 'var(--primary)'}12`,
               borderColor: `${collectionItem.color || 'var(--primary)'}33`
@@ -449,7 +449,7 @@ export function CollectionDocPanel() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-bold leading-tight">{targetEntity.name} Documentation</h2>
-              <span className="bg-orange-500/10 text-[var(--primary)] border border-orange-500/20 text-xs px-2.5 py-0.5 rounded-full font-semibold">
+              <span className="bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 text-xs px-2.5 py-0.5 rounded-full font-semibold">
                 {targetType === 'collection' ? 'API Reference' : targetType === 'folder' ? 'Folder Docs' : 'Request Docs'}
               </span>
               {targetType === 'collection' && (
@@ -487,7 +487,7 @@ export function CollectionDocPanel() {
           <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
             <button
               onClick={() => setIsEditing(true)}
-              className="flex items-center justify-center gap-1.5 bg-[var(--primary)] hover:opacity-90 text-white border border-transparent px-3 py-1.5 rounded-lg text-xs font-semibold shadow transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1.5 bg-[var(--primary)] hover:opacity-90 text-white border border-transparent px-3 py-1.5 rounded text-xs font-semibold shadow transition-colors cursor-pointer"
             >
               <Edit3 className="w-3.5 h-3.5" />
               Edit
@@ -495,7 +495,7 @@ export function CollectionDocPanel() {
             <button
               onClick={triggerRegenerateConfirm}
               disabled={isGeneratingAiDoc}
-              className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 disabled:opacity-50 text-white border border-transparent px-3 py-1.5 rounded-lg text-xs font-semibold shadow transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white border border-transparent px-3 py-1.5 rounded text-xs font-semibold cursor-pointer"
             >
               {isGeneratingAiDoc ? (
                 <>
@@ -504,22 +504,22 @@ export function CollectionDocPanel() {
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <FileText className="w-3.5 h-3.5" />
                   AI Generate Guide
                 </>
               )}
             </button>
             <button
               onClick={handlePrintDocs}
-              className="flex items-center justify-center gap-1.5 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1.5 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-subtle)] px-3 py-1.5 rounded text-xs font-semibold  transition-colors cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5 text-indigo-500" />
+              <Printer className="w-3.5 h-3.5 text-[var(--primary)]" />
               Print Guide
             </button>
             {docContent.trim() && (
               <button
                 onClick={triggerDeleteConfirm}
-                className="flex items-center justify-center gap-1.5 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-500 border border-red-500/20 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                className="flex items-center justify-center gap-1.5 bg-[var(--danger)]/10 hover:bg-[var(--danger)] hover:text-white text-[var(--danger)] border border-[var(--danger)]/20 px-3 py-1.5 rounded text-xs font-semibold transition-colors cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete
@@ -534,7 +534,7 @@ export function CollectionDocPanel() {
         <button
           onClick={() => { setActiveSubTab('docs'); setIsEditing(false); }}
           className={cn(
-            "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide",
+            "px-4 py-2 text-xs font-bold transition-colors border-b-2 uppercase tracking-wide",
             activeSubTab === 'docs' 
               ? "text-[var(--primary)] border-b-[var(--primary)]" 
               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
@@ -545,7 +545,7 @@ export function CollectionDocPanel() {
         <button
           onClick={() => { setActiveSubTab('api'); setIsEditing(false); }}
           className={cn(
-            "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide",
+            "px-4 py-2 text-xs font-bold transition-colors border-b-2 uppercase tracking-wide",
             activeSubTab === 'api' 
               ? "text-[var(--primary)] border-b-[var(--primary)]" 
               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
@@ -557,7 +557,7 @@ export function CollectionDocPanel() {
           <button
             onClick={() => { setActiveSubTab('mock'); setIsEditing(false); }}
             className={cn(
-              "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
+              "px-4 py-2 text-xs font-bold transition-colors border-b-2 uppercase tracking-wide flex items-center gap-2",
               activeSubTab === 'mock' 
                 ? "text-[var(--primary)] border-b-[var(--primary)]" 
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
@@ -571,7 +571,7 @@ export function CollectionDocPanel() {
           <button
             onClick={() => { setActiveSubTab('export'); setIsEditing(false); }}
             className={cn(
-              "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
+              "px-4 py-2 text-xs font-bold transition-colors border-b-2 uppercase tracking-wide flex items-center gap-2",
               activeSubTab === 'export' 
                 ? "text-[var(--primary)] border-b-[var(--primary)]" 
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
@@ -585,7 +585,7 @@ export function CollectionDocPanel() {
           <button
             onClick={() => { setActiveSubTab('versions'); setIsEditing(false); }}
             className={cn(
-              "px-4 py-2 text-xs font-bold transition-all border-b-2 uppercase tracking-wide flex items-center gap-2",
+              "px-4 py-2 text-xs font-bold transition-colors border-b-2 uppercase tracking-wide flex items-center gap-2",
               activeSubTab === 'versions' 
                 ? "text-[var(--primary)] border-b-[var(--primary)]" 
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-b-transparent"
@@ -605,7 +605,7 @@ export function CollectionDocPanel() {
             {/* Left/Middle Column - Content */}
             <div className="lg:col-span-3 space-y-4">
               {isEditing ? (
-                <div className="flex flex-col gap-3 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl p-5 shadow-lg">
+                <div className="flex flex-col gap-3 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded p-5 shadow-[var(--shadow-subtle)]">
                   <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2.5">
                     <span className="text-xs font-bold uppercase text-[var(--text-secondary)] flex items-center gap-1.5">
                       <Edit3 className="w-4 h-4 text-[var(--primary)]" />
@@ -630,7 +630,7 @@ You can write step-by-step startup instructions.
 
 ## Authentication
 > All routes require the Authorization bearer token header."
-                    className="w-full h-96 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg p-4 font-mono text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] leading-relaxed resize-y"
+                    className="w-full h-96 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded p-4 font-mono text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] leading-relaxed resize-y"
                   />
 
                   {/* Editor Actions */}
@@ -638,7 +638,7 @@ You can write step-by-step startup instructions.
                     <button
                       onClick={triggerRegenerateConfirm}
                       disabled={isGeneratingAiDoc}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-50 transition-all cursor-pointer shadow-sm"
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white disabled:opacity-50 transition-colors cursor-pointer "
                     >
                       {isGeneratingAiDoc ? (
                         <>
@@ -647,7 +647,7 @@ You can write step-by-step startup instructions.
                         </>
                       ) : (
                         <>
-                          <Sparkles className="w-3.5 h-3.5" />
+                          <FileText className="w-3.5 h-3.5" />
                           Generate with AI
                         </>
                       )}
@@ -664,7 +664,7 @@ You can write step-by-step startup instructions.
                       <button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded bg-[var(--primary)] text-white hover:opacity-90 shadow transition-all disabled:opacity-50 cursor-pointer"
+                        className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded bg-[var(--primary)] text-white hover:opacity-90 shadow transition-colors disabled:opacity-50 cursor-pointer"
                       >
                         {isSaving ? (
                           <>
@@ -682,7 +682,7 @@ You can write step-by-step startup instructions.
                   </div>
                 </div>
               ) : (
-                <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-6 min-h-[300px]">
+                <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-6 min-h-[300px]">
                   {docContent.trim() ? (
                     <div className="markdown-body select-text">
                       {renderMarkdown(docContent)}
@@ -696,7 +696,7 @@ You can write step-by-step startup instructions.
                       </p>
                       <button
                         onClick={() => setIsEditing(true)}
-                        className="bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white border border-[var(--primary)]/20 px-3.5 py-1.5 rounded text-xs font-semibold transition-all"
+                        className="bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white border border-[var(--primary)]/20 px-3.5 py-1.5 rounded text-xs font-semibold transition-colors"
                       >
                         Create Guide
                       </button>
@@ -708,7 +708,7 @@ You can write step-by-step startup instructions.
 
             {/* Right Column - Quick Help Sheet */}
             <div className="space-y-4">
-              <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-4.5">
+              <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-4.5">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-3 flex items-center gap-1.5">
                   <Terminal className="w-4 h-4 text-[var(--primary)]" />
                   Markdown Reference
@@ -728,7 +728,7 @@ You can write step-by-step startup instructions.
                   </div>
                   <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-1.5">
                     <span className="font-mono bg-[var(--bg-hover)] px-1 py-0.2 rounded">`code`</span>
-                    <span className="font-mono text-indigo-400">code</span>
+                    <span className="font-mono text-[var(--icon-color)]">code</span>
                   </div>
                   <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-1.5">
                     <span className="font-mono bg-[var(--bg-hover)] px-1 py-0.2 rounded">- List item</span>
@@ -746,7 +746,7 @@ You can write step-by-step startup instructions.
               </div>
 
               {/* API Overview Card */}
-              <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-4.5">
+              <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-4.5">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-3">
                   Quick API Index
                 </h4>
@@ -787,7 +787,7 @@ You can write step-by-step startup instructions.
           /* API Endpoint Documentation List */
           <div className="space-y-6">
             {requests.length === 0 ? (
-              <div className="text-center p-12 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl text-xs text-[var(--text-secondary)] max-w-lg mx-auto">
+              <div className="text-center p-12 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded text-xs text-[var(--text-secondary)] max-w-lg mx-auto">
                 <HelpCircle className="w-12 h-12 text-[var(--border-strong)] mb-3 mx-auto stroke-1" />
                 <h4 className="text-sm font-semibold text-[var(--text-primary)]">No Endpoints Registered</h4>
                 <p className="text-xs text-[var(--text-secondary)] mt-1">
@@ -836,7 +836,7 @@ You can write step-by-step startup instructions.
         ) : activeSubTab === 'export' ? (
           <div className="flex flex-col h-full animate-fade-in gap-5 select-none">
             {/* Format Selection Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--bg-hover)] p-3.5 rounded-xl border border-[var(--border-subtle)] shrink-0 shadow-inner">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[var(--bg-hover)] p-3.5 rounded border border-[var(--border-subtle)] shrink-0 shadow-inner">
               <div className="flex items-center gap-2">
                 <Share2 className="w-4 h-4 text-[var(--primary)]" />
                 <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Export Format:</span>
@@ -845,9 +845,9 @@ You can write step-by-step startup instructions.
                 <button
                   onClick={() => setExportFormat('markdown')}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                    "flex items-center gap-2 px-4 py-1.5 rounded text-xs font-bold transition-colors border cursor-pointer",
                     exportFormat === 'markdown'
-                      ? "bg-[var(--primary)] text-white border-transparent shadow-sm"
+                      ? "bg-[var(--primary)] text-white border-transparent "
                       : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
                   )}
                 >
@@ -857,9 +857,9 @@ You can write step-by-step startup instructions.
                 <button
                   onClick={() => setExportFormat('pdf')}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                    "flex items-center gap-2 px-4 py-1.5 rounded text-xs font-bold transition-colors border cursor-pointer",
                     exportFormat === 'pdf'
-                      ? "bg-[var(--primary)] text-white border-transparent shadow-sm"
+                      ? "bg-[var(--primary)] text-white border-transparent "
                       : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
                   )}
                 >
@@ -869,10 +869,10 @@ You can write step-by-step startup instructions.
                 <button
                   onClick={() => setExportFormat('word')}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                    "flex items-center gap-2 px-4 py-1.5 rounded text-xs font-bold transition-colors border cursor-pointer",
                     exportFormat === 'word'
-                      ? "bg-blue-600 text-white border-transparent shadow-sm"
-                      : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-blue-500 hover:border-blue-500/30"
+                      ? "bg-[var(--info)] text-white border-transparent "
+                      : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--info)] hover:border-[var(--info)]/30"
                   )}
                 >
                   <FileText className="w-3.5 h-3.5" />
@@ -881,10 +881,10 @@ You can write step-by-step startup instructions.
                 <button
                   onClick={() => setExportFormat('confluence')}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer",
+                    "flex items-center gap-2 px-4 py-1.5 rounded text-xs font-bold transition-colors border cursor-pointer",
                     exportFormat === 'confluence'
-                      ? "bg-[#0052CC] text-white border-transparent shadow-sm"
-                      : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[#0052CC] hover:border-[#0052CC]/30"
+                      ? "bg-[var(--info)] text-white border-transparent "
+                      : "bg-[var(--bg-panel)] text-[var(--text-secondary)] border-[var(--border-subtle)] hover:text-[var(--info)] hover:border-[var(--info)]/30"
                   )}
                 >
                   <AlignLeft className="w-3.5 h-3.5" />
@@ -915,7 +915,7 @@ You can write step-by-step startup instructions.
                     </button>
                   </div>
                   
-                  <div className="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg custom-scrollbar">
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 p-2 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded custom-scrollbar">
                     {requests.map(req => (
                       <label key={req.id} className="flex items-start gap-2 cursor-pointer group p-1 hover:bg-[var(--bg-hover)] rounded">
                         <input 
@@ -937,7 +937,7 @@ You can write step-by-step startup instructions.
                               req.method === 'POST' ? 'bg-[var(--text-post)]/10 text-[var(--text-post)] border-[var(--text-post)]/20' :
                               req.method === 'PUT' ? 'bg-[var(--text-put)]/10 text-[var(--text-put)] border-[var(--text-put)]/20' :
                               req.method === 'DELETE' ? 'bg-[var(--text-delete)]/10 text-[var(--text-delete)] border-[var(--text-delete)]/20' :
-                              'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                              'bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/20'
                             )}>{req.method}</span>
                             <span className="text-xs text-[var(--text-primary)] truncate font-semibold group-hover:text-[var(--primary)] transition-colors">{req.name}</span>
                           </div>
@@ -989,18 +989,18 @@ You can write step-by-step startup instructions.
                       <label className="text-[11px] font-semibold text-[var(--text-secondary)] block">Brand Theme Accent</label>
                       <div className="flex items-center gap-2 flex-wrap">
                         {[
-                          { name: 'Indigo', hex: '#4F46E5' },
+                          { name: 'Indigo', hex: 'var(--primary)' },
                           { name: 'Emerald', hex: '#10B981' },
                           { name: 'Ocean', hex: '#3B82F6' },
-                          { name: 'Amber', hex: '#F59E0B' },
-                          { name: 'Crimson', hex: '#EF4444' },
+                          { name: 'Amber', hex: 'var(--warning)' },
+                          { name: 'Crimson', hex: 'var(--danger)' },
                           { name: 'Slate', hex: '#4B5563' },
                         ].map(c => (
                           <button
                             key={c.hex}
                             onClick={() => setPdfAccentColor(c.hex)}
                             className={cn(
-                              "w-6 h-6 rounded-full border-2 transition-all relative shrink-0 cursor-pointer hover:scale-105",
+                              "w-6 h-6 rounded-full border-2 transition-colors relative shrink-0 cursor-pointer hover:scale-105",
                               pdfAccentColor === c.hex ? "border-[var(--text-primary)] scale-110 shadow" : "border-transparent"
                             )}
                             style={{ backgroundColor: c.hex }}
@@ -1072,14 +1072,14 @@ You can write step-by-step startup instructions.
                       <div className="flex items-center gap-2">
                         <button
                           onClick={copyToClipboard}
-                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded transition-all cursor-pointer"
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded transition-colors cursor-pointer"
                         >
                           <Copy className="w-3.5 h-3.5" />
                           Copy
                         </button>
                         <button
                           onClick={downloadMarkdown}
-                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 rounded shadow-md transition-all cursor-pointer"
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-[var(--primary)] text-white hover:opacity-90 rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
                         >
                           <Download className="w-3.5 h-3.5" />
                           Download .md
@@ -1087,7 +1087,7 @@ You can write step-by-step startup instructions.
                       </div>
                     </div>
 
-                    <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl overflow-hidden flex flex-col shadow-inner">
+                    <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded overflow-hidden flex flex-col shadow-inner">
                       <div className="flex-1 overflow-y-auto p-8 prose prose-invert prose-slate max-w-none markdown-body select-text custom-scrollbar">
                         <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
                       </div>
@@ -1099,7 +1099,7 @@ You can write step-by-step startup instructions.
                     <div className="flex items-center justify-between mb-4 shrink-0">
                       <div className="flex items-center gap-3">
                         <h3 className="text-sm font-bold text-[var(--text-primary)]">PDF Document Structure</h3>
-                        <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Print Ready</span>
+                        <span className="text-[10px] bg-[var(--primary)]/10 text-[var(--icon-color)] border border-[var(--primary)]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Print Ready</span>
                       </div>
                       <button
                         onClick={async () => {
@@ -1127,7 +1127,7 @@ You can write step-by-step startup instructions.
                           }
                         }}
                         disabled={isGeneratingPdf}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-75 disabled:cursor-wait text-white rounded-lg shadow-md transition-all cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--primary)] hover:bg-indigo-700 disabled:opacity-75 disabled:cursor-wait text-white rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
                       >
                         {isGeneratingPdf ? (
                           <>
@@ -1143,9 +1143,9 @@ You can write step-by-step startup instructions.
                       </button>
                     </div>
 
-                    <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl overflow-y-auto p-6 space-y-5 custom-scrollbar shadow-inner select-none">
+                    <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded overflow-y-auto p-6 space-y-5 custom-scrollbar shadow-inner select-none">
                       {/* Interactive visual mockup of PDF cover */}
-                      <div className="border border-dashed border-[var(--border-strong)] rounded-lg p-5 relative overflow-hidden bg-[var(--bg-base)]">
+                      <div className="border border-dashed border-[var(--border-strong)] rounded p-5 relative overflow-hidden bg-[var(--bg-base)]">
                         {/* Accent bar */}
                         <div className="absolute top-0 left-0 right-0 h-1" style={{ backgroundColor: pdfAccentColor }}></div>
                         <span className="text-[9px] font-bold text-[var(--text-secondary)] absolute top-2 right-3 uppercase font-mono">Page 1 Outline Preview</span>
@@ -1155,7 +1155,7 @@ You can write step-by-step startup instructions.
                           <div className="flex items-center gap-2">
                             <span className="text-[9px] text-white px-1.5 py-0.2 rounded font-bold uppercase" style={{ backgroundColor: pdfAccentColor }}>API Reference</span>
                             {docVersion && (
-                              <span className="text-[9px] bg-slate-500/10 text-slate-400 px-1.5 py-0.2 rounded font-bold uppercase font-mono border border-slate-500/20">Version {docVersion}</span>
+                              <span className="text-[9px] bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)] px-1.5 py-0.2 rounded font-bold uppercase font-mono border border-[var(--text-tertiary)]/20">Version {docVersion}</span>
                             )}
                             <span className="text-[10px] text-[var(--text-secondary)]">Generated Today</span>
                           </div>
@@ -1178,10 +1178,10 @@ You can write step-by-step startup instructions.
                                   <span className="w-3 text-right text-[8px]">{i+1}.</span>
                                   <span className={cn(
                                     "font-bold text-[8px] px-1 rounded",
-                                    req.method === 'GET' ? 'bg-blue-500/10 text-blue-400' :
-                                    req.method === 'POST' ? 'bg-emerald-500/10 text-emerald-400' :
-                                    req.method === 'PUT' ? 'bg-amber-500/10 text-amber-400' :
-                                    req.method === 'DELETE' ? 'bg-red-500/10 text-red-400' : 'bg-purple-500/10 text-purple-400'
+                                    req.method === 'GET' ? 'bg-[var(--info)]/10 text-[var(--info)]' :
+                                    req.method === 'POST' ? 'bg-[var(--success)]/10 text-[var(--success)]' :
+                                    req.method === 'PUT' ? 'bg-[var(--warning)]/10 text-[var(--warning)]' :
+                                    req.method === 'DELETE' ? 'bg-[var(--danger)]/10 text-[var(--danger)]' : 'bg-[var(--primary)]/10 text-[var(--primary)]'
                                   )}>{req.method}</span>
                                   <span className="font-semibold text-[var(--text-primary)] truncate">{req.name}</span>
                                 </div>
@@ -1195,7 +1195,7 @@ You can write step-by-step startup instructions.
                       <div className="space-y-3 pt-2">
                         <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider text-[8px] block">Endpoint Details Preview (Sample)</span>
                         {requests.filter(r => selectedEndpoints.has(r.id)).slice(0, 3).map((req) => (
-                          <div key={req.id} className="border border-[var(--border-subtle)] rounded-lg p-4 bg-[var(--bg-base)]/50 space-y-3 select-text">
+                          <div key={req.id} className="border border-[var(--border-subtle)] rounded p-4 bg-[var(--bg-base)]/50 space-y-3 select-text">
                             <div className="flex items-center justify-between border-b border-[var(--border-subtle)]/50 pb-1.5">
                               <div className="flex items-center gap-2">
                                 <span className={cn(
@@ -1203,7 +1203,7 @@ You can write step-by-step startup instructions.
                                   req.method === 'GET' ? 'bg-[var(--text-get)]/10 text-[var(--text-get)] border-[var(--text-get)]/20' :
                                   req.method === 'POST' ? 'bg-[var(--text-post)]/10 text-[var(--text-post)] border-[var(--text-post)]/20' :
                                   req.method === 'PUT' ? 'bg-[var(--text-put)]/10 text-[var(--text-put)] border-[var(--text-put)]/20' :
-                                  req.method === 'DELETE' ? 'bg-[var(--text-delete)]/10 text-[var(--text-delete)] border-[var(--text-delete)]/20' : 'bg-purple-500/10 text-purple-400'
+                                  req.method === 'DELETE' ? 'bg-[var(--text-delete)]/10 text-[var(--text-delete)] border-[var(--text-delete)]/20' : 'bg-[var(--primary)]/10 text-[var(--primary)]'
                                 )}>{req.method}</span>
                                 <span className="text-xs font-bold text-[var(--text-primary)]">{req.name}</span>
                               </div>
@@ -1223,7 +1223,7 @@ You can write step-by-step startup instructions.
                                 <div className="space-y-1">
                                   <span className="font-bold text-[var(--text-secondary)] uppercase text-[8px] tracking-wider">Mock Response</span>
                                   <div className="text-[9px] text-[var(--text-secondary)]">
-                                    Status: <span className="text-green-400 font-mono font-bold">{req.mockResponse.status || 200}</span>
+                                    Status: <span className="text-[var(--success)] font-mono font-bold">{req.mockResponse.status || 200}</span>
                                   </div>
                                 </div>
                               )}
@@ -1236,7 +1236,7 @@ You can write step-by-step startup instructions.
                           </div>
                         )}
                         {requests.filter(r => selectedEndpoints.has(r.id)).length === 0 && (
-                          <div className="text-center text-xs text-[var(--text-secondary)] py-5 bg-[var(--bg-hover)] rounded border border-red-500/30 border-dashed">
+                          <div className="text-center text-xs text-[var(--text-secondary)] py-5 bg-[var(--bg-hover)] rounded border border-[var(--danger)]/30 border-dashed">
                             No endpoints selected. Please check at least one endpoint in the left checklist.
                           </div>
                         )}
@@ -1249,7 +1249,7 @@ You can write step-by-step startup instructions.
                     <div className="flex items-center justify-between mb-4 shrink-0">
                       <div className="flex items-center gap-3">
                         <h3 className="text-sm font-bold text-[var(--text-primary)]">Word Document (.doc)</h3>
-                        <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Office Ready</span>
+                        <span className="text-[10px] bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Office Ready</span>
                       </div>
                       <button
                         onClick={() => {
@@ -1260,15 +1260,15 @@ You can write step-by-step startup instructions.
                           downloadWordDocument(collectionItem, selectedEndpoints, docVersion);
                           addToast("Word documentation compiled and downloaded!", "success", 2500);
                         }}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-md transition-all cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--info)] hover:bg-blue-700 text-white rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
                       >
                         <Download className="w-4 h-4" />
                         Export Word Document
                       </button>
                     </div>
-                    <div className="flex-1 min-h-0 bg-white border border-[var(--border-subtle)] rounded-xl overflow-hidden flex flex-col shadow-inner text-gray-900">
+                    <div className="flex-1 min-h-0 bg-white border border-[var(--border-subtle)] rounded overflow-hidden flex flex-col shadow-inner text-gray-900">
                       <div className="flex-1 overflow-y-auto p-8 prose prose-slate max-w-none select-text custom-scrollbar">
-                         <div className="flex flex-col items-center justify-center h-full text-gray-400 space-y-4">
+                         <div className="flex flex-col items-center justify-center h-full text-[var(--text-tertiary)] space-y-4">
                            <FileText className="w-16 h-16 opacity-20" />
                            <p className="text-sm">Click "Export Word Document" to generate a complete .doc file.</p>
                          </div>
@@ -1280,20 +1280,20 @@ You can write step-by-step startup instructions.
                     <div className="flex items-center justify-between mb-4 shrink-0">
                       <div className="flex items-center gap-3">
                         <h3 className="text-sm font-bold text-[var(--text-primary)]">Confluence / Jira Markup</h3>
-                        <span className="text-[10px] bg-[#0052CC]/10 text-[#0052CC] border border-[#0052CC]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Atlassian Ready</span>
+                        <span className="text-[10px] bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Atlassian Ready</span>
                       </div>
                       <button
                         onClick={() => {
                            navigator.clipboard.writeText(generatedConfluence);
                            addToast("Confluence markup copied!", "success", 2000);
                         }}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[#0052CC] hover:bg-[#0047B3] text-white rounded-lg shadow-md transition-all cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--info)] hover:bg-[#0047B3] text-white rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
                       >
                         <Copy className="w-4 h-4" />
                         Copy Markup
                       </button>
                     </div>
-                    <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl overflow-hidden flex flex-col shadow-inner">
+                    <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded overflow-hidden flex flex-col shadow-inner">
                       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                         <pre className="text-xs font-mono text-[var(--text-secondary)] whitespace-pre-wrap select-all">
                           {generatedConfluence}
@@ -1311,7 +1311,7 @@ You can write step-by-step startup instructions.
           </div>
         ) : activeSubTab === 'versions' ? (
           <div className="flex flex-col gap-6 animate-fade-in select-none">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] ">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-base font-bold text-[var(--text-primary)]">Version & Release Strategy</span>
@@ -1330,9 +1330,9 @@ You can write step-by-step startup instructions.
                     setVersionModalTab('diff');
                     setIsVersionModalOpen(true);
                   }}
-                  className="px-3.5 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3.5 py-1.5 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-primary)] text-xs font-semibold border border-[var(--border-subtle)] flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <GitBranch className="w-3.5 h-3.5 text-indigo-400" />
+                  <GitBranch className="w-3.5 h-3.5 text-[var(--icon-color)]" />
                   <span>Inspect Diffs</span>
                 </button>
                 <button
@@ -1340,7 +1340,7 @@ You can write step-by-step startup instructions.
                     setVersionModalTab('release');
                     setIsVersionModalOpen(true);
                   }}
-                  className="px-3.5 py-1.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  className="px-3.5 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors  cursor-pointer"
                 >
                   <GitCommit className="w-3.5 h-3.5" />
                   <span>Release New Version</span>
@@ -1350,7 +1350,7 @@ You can write step-by-step startup instructions.
 
             {/* Versions timeline list in docs */}
             {collectionVersions.length === 0 ? (
-              <div className="p-10 border border-dashed border-[var(--border-subtle)] rounded-xl text-center space-y-3 bg-[var(--bg-surface)]/30">
+              <div className="p-10 border border-dashed border-[var(--border-subtle)] rounded text-center space-y-3 bg-[var(--bg-surface)]/30">
                 <History className="w-8 h-8 mx-auto text-[var(--primary)]" />
                 <h4 className="text-sm font-bold text-[var(--text-primary)]">No Public Releases Yet</h4>
                 <p className="text-xs text-[var(--text-secondary)] max-w-md mx-auto">
@@ -1361,7 +1361,7 @@ You can write step-by-step startup instructions.
                     setVersionModalTab('release');
                     setIsVersionModalOpen(true);
                   }}
-                  className="px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+                  className="px-4 py-2 rounded bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
                 >
                   <GitCommit className="w-3.5 h-3.5" />
                   <span>Create v1.0.0 Snapshot</span>
@@ -1370,7 +1370,7 @@ You can write step-by-step startup instructions.
             ) : (
               <div className="space-y-4">
                 {collectionVersions.map(ver => (
-                  <div key={ver.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] space-y-3 shadow-xs">
+                  <div key={ver.id} className="p-4 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] space-y-3 ">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <span className="font-mono font-bold text-sm text-[var(--primary)] bg-[var(--primary)]/10 px-2.5 py-0.5 rounded border border-[var(--primary)]/20">
@@ -1380,21 +1380,21 @@ You can write step-by-step startup instructions.
                           {ver.name || `Release ${ver.version}`}
                         </span>
                         {ver.tags?.map(t => (
-                          <span key={t} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
+                          <span key={t} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/30 uppercase tracking-wider">
                             {t}
                           </span>
                         ))}
                       </div>
 
                       <div className="text-xs text-[var(--text-secondary)] flex items-center gap-3">
-                        <span>🕒 {new Date(ver.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
-                        <span>👤 {ver.author || 'User'}</span>
-                        <span>📦 {ver.requests?.length || 0} endpoints</span>
+                        <span>{new Date(ver.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                        <span>{ver.author || 'User'}</span>
+                        <span>{ver.requests?.length || 0} endpoints</span>
                       </div>
                     </div>
 
                     {ver.description && (
-                      <div className="bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-mono whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto select-text">
+                      <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-mono whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto select-text">
                         {ver.description}
                       </div>
                     )}
@@ -1432,9 +1432,9 @@ You can write step-by-step startup instructions.
           }
         `}} />
         <div className="print-section">
-          <div style={{ borderBottom: '2px solid #4f46e5', paddingBottom: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ borderBottom: '2px solid var(--primary)', paddingBottom: '16px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#4f46e5', letterSpacing: '0.05em', textTransform: 'uppercase' }}>API Guide & Reference Manual</span>
+              <span style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--primary)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>API Guide & Reference Manual</span>
               <h1 style={{ fontSize: '28px', fontWeight: 'bold', marginTop: '4px', color: '#111827' }}>{collectionItem?.name}</h1>
             </div>
             <span style={{ fontSize: '11px', color: '#6b7280' }}>Printed on {new Date().toLocaleDateString()}</span>
@@ -1481,7 +1481,7 @@ function EndpointDocCard({ request }: { request: any; key?: React.Key }) {
   };
 
   return (
-    <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded-xl overflow-hidden transition-all shadow-sm">
+    <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded overflow-hidden transition-colors ">
       
       {/* Banner / Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-[var(--bg-hover)] border-b border-[var(--border-subtle)]">
@@ -1522,7 +1522,7 @@ function EndpointDocCard({ request }: { request: any; key?: React.Key }) {
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-2">
               Request URL
             </span>
-            <div className="font-mono text-xs bg-[var(--bg-input)] border border-[var(--border-subtle)] px-3 py-2 rounded-lg text-amber-500 truncate select-all">
+            <div className="font-mono text-xs bg-[var(--bg-input)] border border-[var(--border-subtle)] px-3 py-2 rounded text-[var(--warning)] truncate select-all">
               {request.url || '{{base_url}}/'}
             </div>
           </div>
@@ -1533,7 +1533,7 @@ function EndpointDocCard({ request }: { request: any; key?: React.Key }) {
               Headers ({enabledHeaders.length})
             </span>
             {enabledHeaders.length > 0 ? (
-              <div className="border border-[var(--border-subtle)] rounded-lg overflow-hidden">
+              <div className="border border-[var(--border-subtle)] rounded overflow-hidden">
                 <table className="w-full text-left text-[11px] font-sans border-collapse">
                   <thead>
                     <tr className="bg-[var(--bg-hover)] text-[var(--text-secondary)] border-b border-[var(--border-subtle)]">
@@ -1562,7 +1562,7 @@ function EndpointDocCard({ request }: { request: any; key?: React.Key }) {
               Query Parameters ({enabledParams.length})
             </span>
             {enabledParams.length > 0 ? (
-              <div className="border border-[var(--border-subtle)] rounded-lg overflow-hidden">
+              <div className="border border-[var(--border-subtle)] rounded overflow-hidden">
                 <table className="w-full text-left text-[11px] font-sans border-collapse">
                   <thead>
                     <tr className="bg-[var(--bg-hover)] text-[var(--text-secondary)] border-b border-[var(--border-subtle)]">
@@ -1592,7 +1592,7 @@ function EndpointDocCard({ request }: { request: any; key?: React.Key }) {
                 Request Body Type: <span className="text-[var(--text-primary)] font-mono">{request.body.type}</span>
               </span>
               {request.body.content ? (
-                <pre className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-lg p-3.5 font-mono text-[11px] text-[var(--text-code)] overflow-x-auto leading-tight shadow-inner max-h-40">
+                <pre className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded p-3.5 font-mono text-[11px] text-[var(--text-code)] overflow-x-auto leading-tight shadow-inner max-h-40">
                   <code>{request.body.content}</code>
                 </pre>
               ) : (
@@ -1611,9 +1611,9 @@ function EndpointDocCard({ request }: { request: any; key?: React.Key }) {
             <div className="flex items-center gap-2">
               <span className={cn(
                 "px-2.5 py-0.5 rounded-full font-mono text-xs font-bold border",
-                mockRes.status >= 200 && mockRes.status < 300 ? "bg-green-500/10 text-green-400 border-green-500/20" :
-                mockRes.status >= 300 && mockRes.status < 400 ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
-                "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                mockRes.status >= 200 && mockRes.status < 300 ? "bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/20" :
+                mockRes.status >= 300 && mockRes.status < 400 ? "bg-[var(--info)]/10 text-[var(--info)] border-[var(--info)]/20" :
+                "bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/20"
               )}>
                 {mockRes.status}
               </span>
@@ -1632,7 +1632,7 @@ function EndpointDocCard({ request }: { request: any; key?: React.Key }) {
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1.5">
               Response Body (Mock)
             </span>
-            <pre className="bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg p-3.5 font-mono text-[11px] text-indigo-400 overflow-x-auto leading-tight shadow-inner max-h-56">
+            <pre className="bg-[var(--bg-input)] border border-[var(--border-strong)] rounded p-3.5 font-mono text-[11px] text-[var(--icon-color)] overflow-x-auto leading-tight shadow-inner max-h-56">
               <code>{mockRes.body || '{}'}</code>
             </pre>
           </div>
@@ -1643,7 +1643,7 @@ function EndpointDocCard({ request }: { request: any; key?: React.Key }) {
               <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] block mb-1.5">
                 Response Headers
               </span>
-              <div className="space-y-1 bg-[var(--bg-hover)] p-2.5 rounded-lg border border-[var(--border-subtle)] font-mono text-[10px] text-[var(--text-secondary)]">
+              <div className="space-y-1 bg-[var(--bg-hover)] p-2.5 rounded border border-[var(--border-subtle)] font-mono text-[10px] text-[var(--text-secondary)]">
                 {mockRes.headers.filter((h: any) => h.enabled && h.key).map((h: any) => (
                   <div key={h.id} className="flex justify-between">
                     <span className="text-[var(--text-code)]">{h.key}:</span>

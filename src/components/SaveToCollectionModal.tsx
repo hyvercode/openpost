@@ -169,13 +169,13 @@ export function SaveToCollectionModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-lg flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60  p-4">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] w-full max-w-lg flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)]">
+            <div className="w-9 h-9 rounded bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)]">
               <FolderPlus className="w-5 h-5" />
             </div>
             <div>
@@ -192,7 +192,7 @@ export function SaveToCollectionModal() {
               setIsSaveToCollectionModalOpen(false);
               setRequestToSaveModal(null);
             }}
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1.5 rounded hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -210,7 +210,7 @@ export function SaveToCollectionModal() {
               value={requestName}
               onChange={(e) => setRequestName(e.target.value)}
               placeholder="e.g. Get User Profile"
-              className="w-full px-3 py-2 text-xs bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
+              className="w-full px-3 py-2 text-xs bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-[var(--text-primary)] outline-none focus:border-[var(--primary)]"
             />
           </div>
 
@@ -224,7 +224,7 @@ export function SaveToCollectionModal() {
               value={requestDescription}
               onChange={(e) => setRequestDescription(e.target.value)}
               placeholder="Add notes or API documentation details..."
-              className="w-full px-3 py-2 text-xs bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] outline-none focus:border-[var(--primary)] resize-none"
+              className="w-full px-3 py-2 text-xs bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-[var(--text-primary)] outline-none focus:border-[var(--primary)] resize-none"
             />
           </div>
 
@@ -247,7 +247,7 @@ export function SaveToCollectionModal() {
             </div>
 
             {isCreatingNewCollection ? (
-              <div className="flex items-center gap-2 p-2 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg">
+              <div className="flex items-center gap-2 p-2 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded">
                 <input
                   type="text"
                   value={newCollectionName}
@@ -273,7 +273,7 @@ export function SaveToCollectionModal() {
                 </button>
               </div>
             ) : collections.length === 0 ? (
-              <div className="p-3 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg text-xs text-[var(--text-secondary)] flex items-center justify-between">
+              <div className="p-3 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded text-xs text-[var(--text-secondary)] flex items-center justify-between">
                 <span>No collections available.</span>
                 <button
                   type="button"
@@ -290,11 +290,11 @@ export function SaveToCollectionModal() {
                   setSelectedCollectionId(e.target.value);
                   setSelectedFolderId('');
                 }}
-                className="w-full px-3 py-2 text-xs bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] outline-none focus:border-[var(--primary)] cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-[var(--text-primary)] outline-none focus:border-[var(--primary)] cursor-pointer"
               >
                 {collections.map(c => (
                   <option key={c.id} value={c.id}>
-                    📁 {c.name} ({c.requests?.length || 0} requests)
+                    {c.name} ({c.requests?.length || 0} requests)
                   </option>
                 ))}
               </select>
@@ -310,12 +310,12 @@ export function SaveToCollectionModal() {
               <select
                 value={selectedFolderId}
                 onChange={(e) => setSelectedFolderId(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] outline-none focus:border-[var(--primary)] cursor-pointer"
+                className="w-full px-3 py-2 text-xs bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-[var(--text-primary)] outline-none focus:border-[var(--primary)] cursor-pointer"
               >
                 <option value="">(Root level of collection)</option>
                 {availableFolders.map((f: ApiFolder) => (
                   <option key={f.id} value={f.id}>
-                    📂 {f.name}
+                    {f.name}
                   </option>
                 ))}
               </select>
@@ -339,7 +339,7 @@ export function SaveToCollectionModal() {
             type="button"
             onClick={handleSaveToCollection}
             disabled={isSaving || !selectedCollectionId}
-            className="px-4 py-1.5 bg-[var(--primary)] hover:opacity-90 text-white font-bold rounded-lg text-xs shadow-xs transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            className="px-4 py-1.5 bg-[var(--primary)] hover:opacity-90 text-white font-bold rounded text-xs  transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
           >
             <Save className="w-3.5 h-3.5" />
             <span>{isSaving ? 'Saving...' : 'Save to Collection'}</span>

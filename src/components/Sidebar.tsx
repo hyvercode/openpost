@@ -4,7 +4,7 @@ import { Folder, Play, Plus, Settings2, Users, Upload, Download, MoreVertical, T
 import { cn } from '../utils';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService } from '../lib/api';
-import { runScriptSandbox } from '../utils/sandbox';
+import { runScriptSandboxAsync } from '../utils/sandboxWorker';
 import { ApiCollection, RequestItem, Environment } from '../types';
 import { PromptModal } from './PromptModal';
 import { ShareSettingsModal } from './ShareSettingsModal';
@@ -150,7 +150,7 @@ export function Sidebar() {
     <div className="space-y-3 p-2 animate-pulse select-none">
       <div className="space-y-3">
         {[1, 2].map((idx) => (
-          <div key={idx} className="p-3 border border-[var(--border-subtle)] rounded-lg bg-[var(--bg-hover)]/10 space-y-2">
+          <div key={idx} className="p-3 border border-[var(--border-subtle)] rounded bg-[var(--bg-hover)]/10 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-3.5 h-3.5 bg-[var(--border-strong)] rounded shrink-0 opacity-40" />
@@ -421,7 +421,7 @@ export function Sidebar() {
           addToast('Request renamed', 'success', 2000);
         }
       } else if (modal.type === 'workspace') {
-        const newWorkspace = await apiService.createWorkspace(name, user?.uid || '');
+        const newWorkspace = await apiService.createWorkspace(name);
         setWorkspaces([...workspaces, newWorkspace]);
         setCurrentWorkspace(newWorkspace);
         addToast(`Workspace "${name}" created`, 'success', 2000);
@@ -1047,7 +1047,7 @@ export function Sidebar() {
         
         if (prepReq.preRequestScript && prepReq.preRequestScript.trim()) {
           try {
-            const preResult = runScriptSandbox(prepReq.preRequestScript, {
+            const preResult = await runScriptSandboxAsync(prepReq.preRequestScript, {
               envVars: runtimeVars,
               requestInfo: {
                 url: prepReq.url,
@@ -1097,7 +1097,7 @@ export function Sidebar() {
         
         if (prepReq.postResponseScript && prepReq.postResponseScript.trim()) {
           try {
-            const postResult = runScriptSandbox(prepReq.postResponseScript, {
+            const postResult = await runScriptSandboxAsync(prepReq.postResponseScript, {
               envVars: runtimeVars,
               response: {
                 data: responseData,
@@ -1349,7 +1349,7 @@ export function Sidebar() {
                 onDrop={(e) => handleDrop(e, folder.id, 'folder', collectionId)}
                 onClick={(e) => toggleExpand(folder.id, e)}
                 className={cn(
-                  "flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group justify-between transition-all duration-150",
+                  "flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group justify-between transition-colors duration-150",
                   draggedOverId === folder.id && draggedOverType === 'folder' && "bg-[var(--bg-hover)] border-l-2 border-[var(--primary)] pl-1.5"
                 )}
               >
@@ -1367,10 +1367,10 @@ export function Sidebar() {
                       setActiveView('test_suite');
                       openTab({ id: `runner_folder_${folder.id}`, type: 'test_suite', name: `Runner: ${folder.name}` });
                     }}
-                    className="text-emerald-500 hover:text-emerald-400 p-0.5 rounded transition-colors"
+                    className="text-[var(--success)] hover:text-[var(--success)] p-0.5 rounded transition-colors"
                     title="Run Folder (Collection Runner)"
                   >
-                    <Play className="w-3.5 h-3.5 fill-emerald-500/20" />
+                    <Play className="w-3.5 h-3.5 fill-[var(--success)]/20" />
                   </button>
                   <button 
                     onClick={(e) => { 
@@ -1378,7 +1378,7 @@ export function Sidebar() {
                       setActiveView('collection_doc');
                       openTab({ id: folder.id, type: 'collection_doc', name: `${folder.name} Docs` });
                     }}
-                    className="text-[var(--text-secondary)] hover:text-indigo-500 p-0.5 rounded transition-colors"
+                    className="text-[var(--text-secondary)] hover:text-[var(--primary)] p-0.5 rounded transition-colors"
                     title="View Documentation"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
@@ -1390,7 +1390,7 @@ export function Sidebar() {
                       navigator.clipboard.writeText(shareUrl);
                       addToast('Folder share link copied to clipboard!', 'success', 2500);
                     }}
-                    className="text-[var(--text-secondary)] hover:text-emerald-500 p-0.5 rounded transition-colors"
+                    className="text-[var(--text-secondary)] hover:text-[var(--success)] p-0.5 rounded transition-colors"
                     title="Share Folder Link"
                   >
                     <Share2 className="w-3.5 h-3.5" />
@@ -1540,16 +1540,16 @@ export function Sidebar() {
               }
             }}
             className={cn(
-              "flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer mt-1 group/req transition-all duration-150",
+              "flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer mt-1 group/req transition-colors duration-150",
               activeRequest?.id === req.id && !isBulkEditMode ? "bg-[var(--bg-hover)] text-[var(--text-primary)]" : "hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]",
-              selectedRequestIds.includes(req.id) && isBulkEditMode ? "bg-indigo-500/10 ring-1 ring-indigo-500/30" : "",
+              selectedRequestIds.includes(req.id) && isBulkEditMode ? "bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]/30" : "",
               draggedOverId === req.id && draggedOverType === 'request' && "bg-[var(--bg-hover)] border-l-2 border-[var(--primary)] pl-1.5"
             )}
           >
             {isBulkEditMode ? (
               <div className="shrink-0 flex items-center justify-center w-4 h-4">
                 {selectedRequestIds.includes(req.id) ? (
-                  <CheckSquare className="w-3.5 h-3.5 text-indigo-500" />
+                  <CheckSquare className="w-3.5 h-3.5 text-[var(--primary)]" />
                 ) : (
                   <Square className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                 )}
@@ -1570,7 +1570,7 @@ export function Sidebar() {
                   setActiveView('collection_doc');
                   openTab({ id: req.id, type: 'collection_doc', name: `${req.name} Docs`, method: req.method });
                 }}
-                className="p-0.5 rounded text-[var(--text-secondary)] hover:text-indigo-500 transition-colors"
+                className="p-0.5 rounded text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors"
                 title="View Documentation"
               >
                 <BookOpen className="w-3 h-3" />
@@ -1582,7 +1582,7 @@ export function Sidebar() {
                   navigator.clipboard.writeText(shareUrl);
                   addToast('Request share link copied to clipboard!', 'success', 2500);
                 }}
-                className="p-0.5 rounded text-[var(--text-secondary)] hover:text-emerald-500 transition-colors"
+                className="p-0.5 rounded text-[var(--text-secondary)] hover:text-[var(--success)] transition-colors"
                 title="Share Request Link"
               >
                 <Share2 className="w-3 h-3" />
@@ -1678,7 +1678,7 @@ export function Sidebar() {
               </button>
               
               {showExportMenu && (
-                <div className="absolute top-full mt-1 right-0 w-48 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg shadow-xl py-1 z-50">
+                <div className="absolute top-full mt-1 right-0 w-48 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] py-1 z-50">
                   <div className="px-3 py-1.5 border-b border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                     Export Format
                   </div>
@@ -1709,7 +1709,7 @@ export function Sidebar() {
               </button>
 
               {showImportMenu && (
-                <div className="absolute top-full mt-1 right-0 w-52 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg shadow-xl py-1 z-50">
+                <div className="absolute top-full mt-1 right-0 w-52 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] py-1 z-50">
                   <div className="px-3 py-1.5 border-b border-[var(--border-subtle)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                     Import Source
                   </div>
@@ -1720,7 +1720,7 @@ export function Sidebar() {
                     }}
                     className="w-full text-left px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2"
                   >
-                    <Upload className="w-3.5 h-3.5 text-emerald-500" />
+                    <Upload className="w-3.5 h-3.5 text-[var(--success)]" />
                     <span>Upload File (JSON / YAML / Postman)</span>
                   </button>
                   <button 
@@ -1750,17 +1750,17 @@ export function Sidebar() {
         <div className="relative mt-1">
           <button 
             onClick={() => setShowWorkspaceDropdown(!showWorkspaceDropdown)}
-            className="w-full flex items-center justify-between bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] transition-all outline-none"
+            className="w-full flex items-center justify-between bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded px-3 py-1.5 text-xs font-semibold text-[var(--text-primary)] transition-colors outline-none"
           >
             <div className="flex items-center gap-2 truncate">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse shrink-0"></div>
               <span className="truncate">{currentWorkspace?.name || 'Select Workspace'}</span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0 ml-1" />
           </button>
 
           {showWorkspaceDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-2xl z-50 py-1 max-h-64 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] z-50 py-1 max-h-64 overflow-y-auto">
               <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border-subtle)] mb-1">
                 Workspaces
               </div>
@@ -1825,7 +1825,7 @@ export function Sidebar() {
                             });
                             setShowWorkspaceDropdown(false);
                           }}
-                          className="p-1 hover:text-red-500 hover:bg-[var(--bg-base)] rounded transition-colors"
+                          className="p-1 hover:text-[var(--danger)] hover:bg-[var(--bg-base)] rounded transition-colors"
                           title="Delete Workspace"
                         >
                           <Trash2 className="w-3 h-3" />
@@ -1870,7 +1870,7 @@ export function Sidebar() {
         <div className="relative">
           <button
             onClick={() => setIsNavDropdownOpen(!isNavDropdownOpen)}
-            className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-primary)] bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded hover:border-[var(--border-strong)] transition-all outline-none"
+            className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--text-primary)] bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded hover:border-[var(--border-strong)] transition-colors outline-none"
           >
             <div className="flex items-center gap-2">
               <span className="w-1 h-3 bg-[var(--primary)] rounded-full"></span>
@@ -1887,7 +1887,7 @@ export function Sidebar() {
           {isNavDropdownOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsNavDropdownOpen(false)} />
-              <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-2xl z-50 py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] z-50 py-1 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 {[
                   { id: 'collections', label: 'Collections', icon: Folder },
                   { id: 'environments', label: 'Environments', icon: Globe },
@@ -1949,7 +1949,7 @@ export function Sidebar() {
                   onClick={() => setIsBulkEditMode(!isBulkEditMode)}
                   className={cn(
                     "p-1 rounded transition-colors",
-                    isBulkEditMode ? "text-indigo-500 bg-indigo-500/10" : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
+                    isBulkEditMode ? "text-[var(--primary)] bg-[var(--primary)]/10" : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                   )}
                   title="Bulk Edit Mode"
                 >
@@ -1968,14 +1968,14 @@ export function Sidebar() {
             {/* Standalone / Unsaved Draft Requests */}
             {draftRequests.length > 0 && (
               <div className="mb-3 px-1">
-                <div className="flex items-center justify-between px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-500 bg-amber-500/10 rounded-lg border border-amber-500/20 mb-1.5">
+                <div className="flex items-center justify-between px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--warning)] bg-[var(--warning)]/10 rounded border border-[var(--warning)]/20 mb-1.5">
                   <span className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse" />
                     Drafts ({draftRequests.length})
                   </span>
                   <button
                     onClick={() => createStandaloneRequest()}
-                    className="hover:text-amber-400 p-0.5 rounded cursor-pointer"
+                    className="hover:text-[var(--warning)] p-0.5 rounded cursor-pointer"
                     title="New Standalone Request"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -1992,7 +1992,7 @@ export function Sidebar() {
                         setActiveView('request');
                       }}
                       className={cn(
-                        "flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer group transition-all border",
+                        "flex items-center justify-between px-2.5 py-1.5 rounded text-xs cursor-pointer group transition-colors border",
                         activeRequest?.id === draft.id
                           ? "bg-[var(--bg-hover)] text-[var(--text-primary)] font-semibold border-[var(--border-strong)]"
                           : "bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] border-[var(--border-subtle)]"
@@ -2029,7 +2029,7 @@ export function Sidebar() {
                             removeDraftRequest(draft.id);
                             closeTab(draft.id);
                           }}
-                          className="p-1 hover:text-red-500 text-[var(--text-secondary)] rounded cursor-pointer"
+                          className="p-1 hover:text-[var(--danger)] text-[var(--text-secondary)] rounded cursor-pointer"
                           title="Discard Draft"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -2058,7 +2058,7 @@ export function Sidebar() {
                     onDrop={(e) => handleDrop(e, collection.id, 'collection', collection.id)}
                     onClick={(e) => toggleExpand(collection.id, e)}
                     className={cn(
-                      "flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group justify-between transition-all duration-150",
+                      "flex items-center gap-2 px-2 py-1.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group justify-between transition-colors duration-150",
                       draggedOverId === collection.id && draggedOverType === 'collection' && "bg-[var(--bg-hover)] border-l-2 border-[var(--primary)] pl-1.5"
                     )}
                   >
@@ -2070,7 +2070,7 @@ export function Sidebar() {
                         const CustomIcon = getCollectionIcon(collection.icon);
                         return (
                           <CustomIcon 
-                            className="w-4 h-4 shrink-0 transition-all animate-fade-in" 
+                            className="w-4 h-4 shrink-0 transition-colors animate-fade-in" 
                             style={{ color: collection.color || 'var(--primary)' }} 
                           />
                         );
@@ -2115,7 +2115,7 @@ export function Sidebar() {
                               setActiveDropdown(null);
                             }}
                           />
-                          <div className="absolute right-0 top-full mt-1 w-52 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg shadow-[var(--shadow-panel)] py-1.5 z-50 animate-fade-in font-sans">
+                          <div className="absolute right-0 top-full mt-1 w-52 bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-panel)] py-1.5 z-50 animate-fade-in font-sans">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2123,9 +2123,9 @@ export function Sidebar() {
                                 setActiveView('test_suite');
                                 openTab({ id: `runner_${collection.id}`, type: 'test_suite', name: `Runner: ${collection.name}` });
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-500 hover:bg-emerald-500/10 font-bold transition-colors text-left"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--success)] hover:bg-[var(--success)]/10 font-bold transition-colors text-left"
                             >
-                              <Play className="w-4 h-4 text-emerald-500 shrink-0 fill-emerald-500/20" />
+                              <Play className="w-4 h-4 text-[var(--success)] shrink-0 fill-[var(--success)]/20" />
                               <span>Run Collection</span>
                             </button>
                             <button
@@ -2150,11 +2150,11 @@ export function Sidebar() {
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
                             >
-                              <History className="w-4 h-4 text-indigo-400 shrink-0" />
+                              <History className="w-4 h-4 text-[var(--icon-color)] shrink-0" />
                               <div className="flex-1 flex items-center justify-between">
-                                <span className="font-semibold text-indigo-400">Version History & Diff</span>
+                                <span className="font-semibold text-[var(--icon-color)]">Version History & Diff</span>
                                 {collection.activeVersion && (
-                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-[var(--primary)]/15 text-[var(--icon-color)] border border-[var(--primary)]/30">
                                     {collection.activeVersion}
                                   </span>
                                 )}
@@ -2170,7 +2170,7 @@ export function Sidebar() {
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
                             >
-                              <GitCommit className="w-4 h-4 text-emerald-400 shrink-0" />
+                              <GitCommit className="w-4 h-4 text-[var(--success)] shrink-0" />
                               <span>Release New Version...</span>
                             </button>
                             <div className="h-px bg-[var(--border-subtle)] my-1" />
@@ -2199,8 +2199,8 @@ export function Sidebar() {
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
                             >
-                              <Share2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                              <span className="font-semibold text-emerald-500">Share / Visibility Settings</span>
+                              <Share2 className="w-4 h-4 text-[var(--success)] shrink-0" />
+                              <span className="font-semibold text-[var(--success)]">Share / Visibility Settings</span>
                             </button>
                             <button
                               onClick={(e) => {
@@ -2299,7 +2299,7 @@ export function Sidebar() {
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
                             >
-                              <FileDown className="w-4 h-4 text-purple-500 shrink-0" />
+                              <FileDown className="w-4 h-4 text-[var(--primary)] shrink-0" />
                               <span>Swagger / OpenAPI (JSON)</span>
                             </button>
                             <div className="h-px bg-[var(--border-subtle)] my-1" />
@@ -2312,7 +2312,7 @@ export function Sidebar() {
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
                             >
-                              <FileDown className="w-4 h-4 text-orange-500 shrink-0" />
+                              <FileDown className="w-4 h-4 text-[var(--primary)] shrink-0" />
                               <span>KrakenD Config</span>
                             </button>
                             <button
@@ -2323,7 +2323,7 @@ export function Sidebar() {
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
                             >
-                              <FileDown className="w-4 h-4 text-blue-500 shrink-0" />
+                              <FileDown className="w-4 h-4 text-[var(--info)] shrink-0" />
                               <span>Kong Declarative</span>
                             </button>
                             <button
@@ -2334,7 +2334,7 @@ export function Sidebar() {
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-left"
                             >
-                              <FileDown className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <FileDown className="w-4 h-4 text-[var(--success)] shrink-0" />
                               <span>Spring Cloud Gateway</span>
                             </button>
                             <div className="h-px bg-[var(--border-subtle)] my-1" />
@@ -2344,9 +2344,9 @@ export function Sidebar() {
                                 setActiveDropdown(null);
                                 setModal({ isOpen: true, title: 'Deploy Collection (Enter Version e.g. v1)', type: 'deploy', targetId: collection.id, initialValue: 'v1' });
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors text-left font-semibold"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--success)] hover:bg-[var(--success)]/10 hover:text-[var(--success)] transition-colors text-left font-semibold"
                             >
-                              <Rocket className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <Rocket className="w-4 h-4 text-[var(--success)] shrink-0" />
                               <span>Deploy Mock Server</span>
                             </button>
                             <div className="h-px bg-[var(--border-subtle)] my-1" />
@@ -2369,9 +2369,9 @@ export function Sidebar() {
                                   }
                                 });
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-red-500 hover:bg-red-500/10 hover:text-red-400 transition-colors text-left font-semibold"
+                              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[var(--danger)] hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] transition-colors text-left font-semibold"
                             >
-                              <Trash2 className="w-4 h-4 text-red-500 shrink-0" />
+                              <Trash2 className="w-4 h-4 text-[var(--danger)] shrink-0" />
                               <span>Delete Collection</span>
                             </button>
                           </div>
@@ -2412,7 +2412,7 @@ export function Sidebar() {
                       </button>
                       <button 
                         onClick={() => setIsOpenApiModalOpen(true)}
-                        className="flex items-center justify-center gap-2 px-3 py-2 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] rounded text-xs font-bold hover:bg-[var(--bg-surface)] transition-all"
+                        className="flex items-center justify-center gap-2 px-3 py-2 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] rounded text-xs font-bold hover:bg-[var(--bg-surface)] transition-colors"
                       >
                         <Upload className="w-3.5 h-3.5" />
                         Import OpenAPI
@@ -2519,7 +2519,7 @@ export function Sidebar() {
                         }
                       });
                     }}
-                    className="p-1 rounded text-[var(--text-secondary)] hover:text-red-500 transition-colors"
+                    className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors"
                     title="Delete Environment"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -2564,7 +2564,7 @@ export function Sidebar() {
             <p>Cookie manager is open in the main view.</p>
             <button 
               onClick={() => setActiveView('cookies')}
-              className="mt-3 px-3 py-1.5 bg-[var(--primary)] text-white rounded font-bold transition-colors hover:bg-[#e65a2d] w-full"
+              className="mt-3 px-3 py-1.5 bg-[var(--primary)] text-white rounded font-bold transition-colors hover:bg-[var(--primary-hover)] w-full"
             >
               Open Cookie Manager
             </button>
@@ -2587,11 +2587,11 @@ export function Sidebar() {
                     setActiveView('deployments');
                     openTab({ id: deploy.id, type: 'deployments' as any, name: `${deploy.collectionName} (${deploy.version})` });
                   }}
-                  className="flex flex-col gap-1 p-2.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group/dep border border-transparent hover:border-[var(--border-subtle)] mb-2 transition-all animate-fade-in"
+                  className="flex flex-col gap-1 p-2.5 hover:bg-[var(--bg-hover)] rounded cursor-pointer text-[var(--text-primary)] group/dep border border-transparent hover:border-[var(--border-subtle)] mb-2 transition-colors animate-fade-in"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 truncate">
-                      <Rocket className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <Rocket className="w-3.5 h-3.5 text-[var(--success)] shrink-0" />
                       <span className="text-xs font-semibold truncate text-[var(--text-primary)]">{deploy.collectionName}</span>
                     </div>
                     <button
@@ -2612,18 +2612,18 @@ export function Sidebar() {
                           }
                         });
                       }}
-                      className="opacity-0 group-hover/dep:opacity-100 p-0.5 rounded text-[var(--text-secondary)] hover:text-red-500 transition-all animate-fade-in"
+                      className="opacity-0 group-hover/dep:opacity-100 p-0.5 rounded text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors animate-fade-in"
                       title="Undeploy Mock Server"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-[var(--text-secondary)] mt-0.5">
-                    <span className="bg-[var(--border-strong)] px-1.5 py-0.2 rounded font-mono text-emerald-400">{deploy.version}</span>
+                    <span className="bg-[var(--border-strong)] px-1.5 py-0.2 rounded font-mono text-[var(--success)]">{deploy.version}</span>
                     <span>{new Date(deploy.createdAt).toLocaleDateString()}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 bg-[var(--bg-input)] hover:bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)] rounded px-2 py-1 mt-1 text-[10px] text-indigo-400 font-mono transition-all group-hover/dep:border-[var(--border-strong)]">
-                    <Globe className="w-3 h-3 text-indigo-400 shrink-0" />
+                  <div className="flex items-center gap-1.5 bg-[var(--bg-input)] hover:bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)] rounded px-2 py-1 mt-1 text-[10px] text-[var(--icon-color)] font-mono transition-colors group-hover/dep:border-[var(--border-strong)]">
+                    <Globe className="w-3 h-3 text-[var(--icon-color)] shrink-0" />
                     <span className="truncate flex-1">{mockUrl}</span>
                     <button
                       onClick={(e) => {
@@ -2683,7 +2683,7 @@ export function Sidebar() {
 
       {/* Bulk Edit Toolbar */}
       {isBulkEditMode && selectedRequestIds.length > 0 && (
-        <div className="absolute bottom-4 left-4 right-4 bg-indigo-600 text-white rounded-lg shadow-2xl p-3 z-[60] flex items-center justify-between animate-in slide-in-from-bottom-4 duration-300">
+        <div className="absolute bottom-4 left-4 right-4 bg-[var(--primary)] text-white rounded shadow-[var(--shadow-subtle)] p-3 z-[60] flex items-center justify-between animate-in slide-in-from-bottom-4 ">
           <div className="flex items-center gap-2">
             <div className="bg-white/20 px-2 py-0.5 rounded text-[10px] font-bold">
               {selectedRequestIds.length}
@@ -2693,7 +2693,7 @@ export function Sidebar() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleBulkDuplicate}
-              className="p-1.5 hover:bg-white/10 rounded transition-colors"
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded"
               title="Duplicate Selected"
             >
               <Copy className="w-4 h-4" />
@@ -2706,14 +2706,14 @@ export function Sidebar() {
                   type: 'bulk_move' 
                 });
               }}
-              className="p-1.5 hover:bg-white/10 rounded transition-colors"
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded"
               title="Move Selected"
             >
               <ExternalLink className="w-4 h-4" />
             </button>
             <button
               onClick={handleBulkDelete}
-              className="p-1.5 hover:bg-red-400 rounded transition-colors"
+              className="p-1.5 hover:bg-[var(--danger)] rounded transition-colors"
               title="Delete Selected"
             >
               <Trash2 className="w-4 h-4" />
@@ -2721,7 +2721,7 @@ export function Sidebar() {
             <div className="w-px h-4 bg-white/20 mx-1" />
             <button
               onClick={() => setIsBulkEditMode(false)}
-              className="p-1.5 hover:bg-white/10 rounded transition-colors"
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded"
               title="Exit Bulk Mode"
             >
               <X className="w-4 h-4" />
@@ -2769,8 +2769,8 @@ export function Sidebar() {
 
       {/* Bulk Move Modal */}
       {modal.isOpen && modal.type === 'bulk_move' && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60  animate-in fade-in duration-200">
+          <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
               <h3 className="text-sm font-bold text-[var(--text-primary)]">Select Destination</h3>
               <button onClick={() => setModal({ ...modal, isOpen: false })} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">

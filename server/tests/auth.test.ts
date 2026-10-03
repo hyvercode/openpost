@@ -26,19 +26,9 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 
 describe('Auth API - Google Auth', () => {
-  it('POST /api/auth/google should register a new Google user and create default workspace', async () => {
-    (prisma.user.findUnique as any).mockResolvedValue(null);
-    const mockUser = {
-      uid: 'google-user-1',
-      email: 'newuser@gmail.com',
-      displayName: 'New User',
-      photoURL: 'https://example.com/photo.jpg',
-      isEmailVerified: true,
-    };
-    (prisma.user.create as any).mockResolvedValue(mockUser);
-    (prisma.workspace.create as any).mockResolvedValue({ id: 'ws-1', name: "New User's Workspace" });
-    (prisma.workspaceMember.create as any).mockResolvedValue({});
-
+  it('POST /api/auth/google should reject request without credential', async () => {
+    // SECURITY: raw-email login is no longer accepted — a Google-signed
+    // ID token (credential) is required.
     const res = await request(app)
       .post('/api/auth/google')
       .send({
@@ -47,39 +37,17 @@ describe('Auth API - Google Auth', () => {
         photoURL: 'https://example.com/photo.jpg',
       });
 
-    expect(res.status).toBe(200);
-    expect(res.body.isNewUser).toBe(true);
-    expect(res.body.user.email).toBe('newuser@gmail.com');
-    expect(res.body.token).toBeDefined();
-    expect(prisma.workspace.create).toHaveBeenCalled();
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/credential/i);
   });
 
-  it('POST /api/auth/google should login an existing Google user', async () => {
-    const existingUser = {
-      uid: 'google-user-1',
-      email: 'existing@gmail.com',
-      displayName: 'Existing User',
-      photoURL: null,
-      isEmailVerified: true,
-    };
-    (prisma.user.findUnique as any).mockResolvedValue(existingUser);
-    (prisma.user.update as any).mockResolvedValue({
-      ...existingUser,
-      photoURL: 'https://example.com/avatar.jpg',
-    });
-    (prisma.workspaceMember.count as any).mockResolvedValue(1);
-
+  it('POST /api/auth/google should reject invalid credential', async () => {
     const res = await request(app)
       .post('/api/auth/google')
-      .send({
-        email: 'existing@gmail.com',
-        photoURL: 'https://example.com/avatar.jpg',
-      });
+      .send({ credential: 'invalid-token' });
 
-    expect(res.status).toBe(200);
-    expect(res.body.isNewUser).toBe(false);
-    expect(res.body.user.email).toBe('existing@gmail.com');
-    expect(res.body.token).toBeDefined();
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBeDefined();
   });
 
   it('POST /api/auth/google should reject empty email', async () => {

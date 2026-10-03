@@ -82,7 +82,7 @@ export function CommentsTab({ requestId }: { requestId: string }) {
                     {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <div className={`p-3 rounded-xl text-sm break-words relative group ${
+                <div className={`p-3 rounded text-sm break-words relative group ${
                   comment.userId === user?.uid 
                     ? 'bg-[var(--primary)] text-white rounded-tr-none' 
                     : 'bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-tl-none'
@@ -92,7 +92,7 @@ export function CommentsTab({ requestId }: { requestId: string }) {
                   {comment.userId === user?.uid && (
                     <button 
                       onClick={() => handleDelete(comment.id)}
-                      className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 text-red-500 hover:bg-red-500/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute -left-8 top-1/2 -translate-y-1/2 p-1.5 text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Delete comment"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -113,13 +113,13 @@ export function CommentsTab({ requestId }: { requestId: string }) {
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Write a comment..."
-            className="flex-1 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[var(--primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]"
+            className="flex-1 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]"
             disabled={!user}
           />
           <button
             type="submit"
             disabled={!newComment.trim() || !user}
-            className="p-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[#e65a2d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shrink-0"
+            className="p-2 bg-[var(--primary)] text-white rounded hover:bg-[var(--primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center shrink-0"
           >
             <Send className="w-4 h-4" />
           </button>

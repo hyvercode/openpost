@@ -37,11 +37,16 @@ function createWindow(port) {
     height: 800,
     icon: windowIcon,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      // SECURITY hardening: no Node in the renderer, isolated context, and
+      // real sandbox. Renderer gets only the minimal API exposed by
+      // electron/preload.cjs via contextBridge (window.openpost).
+      // (Previously nodeIntegration:true + contextIsolation:false +
+      // webSecurity:false meant any XSS = full Node RCE.)
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
       preload: path.join(__dirname, 'preload.cjs'),
-      webSecurity: false // bypass CORS for direct local requests
-    }
+    },
   });
 
   const appUrl = `http://localhost:${port}?isDesktop=true`;
@@ -63,6 +68,29 @@ function createWindow(port) {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Network allowlist for the app window: only the embedded backend
+  // (localhost) plus the Google Identity scripts the login flow needs.
+  // Everything else (trackers, arbitrary fetches from page content) is
+  // blocked. Replaces the old `webSecurity: false` bypass.
+  const { session } = require('electron');
+  const ses = session.fromPartition(mainWindow.webContents.session?.partition || '');
+  const ALLOWED_HOSTS = new Set(['localhost', '127.0.0.1', 'accounts.google.com', 'apis.google.com', 'www.googleapis.com', 'oauth2.googleapis.com']);
+  ses.webRequest.onBeforeRequest((details, callback) => {
+    try {
+      const u = new URL(details.url);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:' && u.protocol !== 'data:' && u.protocol !== 'blob:') {
+        return callback({ cancel: true });
+      }
+      if ((u.protocol === 'http:' || u.protocol === 'https:') && !ALLOWED_HOSTS.has(u.hostname)) {
+        console.warn(`[electron] blocked request to ${u.hostname}`);
+        return callback({ cancel: true });
+      }
+    } catch {
+      return callback({ cancel: true });
+    }
+    callback({});
   });
 }
 
@@ -130,11 +158,18 @@ app.whenReady().then(() => {
   };
 
   function spawnServer(binary) {
-    return spawn(binary, [serverPath], {
+    const child = spawn(binary, [serverPath], {
       env: { ...serverEnv },
-      stdio: 'inherit',
+      // Pipe stdio instead of inherit: GUI log stays readable and a local
+      // attacker cannot interact with the backend via our stdio.
+      stdio: ['ignore', 'pipe', 'pipe'],
       cwd: userDataDir
     });
+    if (child && child.stdout && child.stderr) {
+      child.stdout.on('data', (d) => process.stdout.write(`[backend] ${d}`));
+      child.stderr.on('data', (d) => process.stderr.write(`[backend] ${d}`));
+    }
+    return child;
   }
 
   try {

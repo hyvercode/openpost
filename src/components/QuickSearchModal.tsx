@@ -232,31 +232,31 @@ export function QuickSearchModal() {
     const m = (method || 'GET').toUpperCase();
     switch (m) {
       case 'GET':
-        return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30';
+        return 'bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/30';
       case 'POST':
-        return 'bg-amber-500/10 text-amber-500 border-amber-500/30';
+        return 'bg-[var(--warning)]/10 text-[var(--warning)] border-[var(--warning)]/30';
       case 'PUT':
-        return 'bg-blue-500/10 text-blue-500 border-blue-500/30';
+        return 'bg-[var(--info)]/10 text-[var(--info)] border-[var(--info)]/30';
       case 'DELETE':
-        return 'bg-rose-500/10 text-rose-500 border-rose-500/30';
+        return 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/30';
       case 'PATCH':
-        return 'bg-purple-500/10 text-purple-500 border-purple-500/30';
+        return 'bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/30';
       case 'WS':
         return 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30';
       case 'SSE':
-        return 'bg-orange-500/10 text-orange-500 border-orange-500/30';
+        return 'bg-[var(--primary)]/10 text-[var(--primary)] border-[var(--primary)]/30';
       default:
-        return 'bg-gray-500/10 text-gray-400 border-gray-500/30';
+        return 'bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)] border-[var(--text-tertiary)]/30';
     }
   };
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[100] flex items-start justify-center pt-12 sm:pt-20 px-3 sm:px-4 transition-all duration-200"
+      className="fixed inset-0 bg-black/60  z-[100] flex items-start justify-center pt-12 sm:pt-20 px-3 sm:px-4 transition-colors"
       onClick={() => setIsQuickSearchOpen(false)}
     >
       <div
-        className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-150"
+        className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Header Input */}
@@ -302,9 +302,9 @@ export function QuickSearchModal() {
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
               className={cn(
-                'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer whitespace-nowrap',
+                'px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap',
                 activeCategory === cat.id
-                  ? 'bg-[var(--primary)] text-white shadow-2xs'
+                  ? 'bg-[var(--primary)] text-white '
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               )}
             >
@@ -329,9 +329,9 @@ export function QuickSearchModal() {
                 onClick={() => handleSelectItem(item)}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={cn(
-                  'flex items-center justify-between gap-3 p-2.5 rounded-lg cursor-pointer transition-all border border-transparent',
+                  'flex items-center justify-between gap-3 p-2.5 rounded cursor-pointer transition-colors border border-transparent',
                   isSelected
-                    ? 'bg-[var(--bg-hover)] border-[var(--border-strong)] shadow-2xs'
+                    ? 'bg-[var(--bg-hover)] border-[var(--border-strong)] '
                     : 'hover:bg-[var(--bg-hover)]/60 text-[var(--text-secondary)]'
                 )}
               >
@@ -348,12 +348,12 @@ export function QuickSearchModal() {
                     </span>
                   )}
                   {item.type === 'collection' && (
-                    <div className="p-1.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
+                    <div className="p-1.5 rounded-md bg-[var(--primary)]/10 text-[var(--icon-color)] border border-[var(--primary)]/20 shrink-0">
                       <Folder className="w-4 h-4" />
                     </div>
                   )}
                   {item.type === 'environment' && (
-                    <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+                    <div className="p-1.5 rounded-md bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20 shrink-0">
                       <Layers className="w-4 h-4" />
                     </div>
                   )}
@@ -370,7 +370,7 @@ export function QuickSearchModal() {
                         {item.title}
                       </span>
                       {item.isActiveEnv && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.2 rounded-full">
+                        <span className="flex items-center gap-1 text-[10px] font-bold bg-[var(--success)]/15 text-[var(--success)] border border-[var(--success)]/30 px-1.5 py-0.2 rounded-full">
                           <Check className="w-2.5 h-2.5" /> Active
                         </span>
                       )}

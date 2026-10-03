@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TerminalSquare, Sparkles, X, Code2 } from 'lucide-react';
+import { TerminalSquare, X, Code2 } from 'lucide-react';
 
 export function parseCurlCommand(curl: string): {
   method: string;
@@ -122,13 +122,13 @@ export function CurlImportModal({ isOpen, onImport, onCancel }: CurlImportModalP
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-xs flex items-center justify-center z-[100] p-4">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 bg-black/70  flex items-center justify-center z-[100] p-4">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded w-full max-w-2xl shadow-[var(--shadow-subtle)] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center border border-[var(--primary)]/30">
+            <div className="w-8 h-8 rounded bg-[var(--primary)]/15 text-[var(--primary)] flex items-center justify-center border border-[var(--primary)]/30">
               <TerminalSquare className="w-4 h-4" />
             </div>
             <div>
@@ -173,11 +173,11 @@ export function CurlImportModal({ isOpen, onImport, onCancel }: CurlImportModalP
             value={curl}
             onChange={(e) => setCurl(e.target.value)}
             placeholder={`curl -X POST "https://api.example.com/v1/resource" \\\n  -H "Authorization: Bearer token123" \\\n  -H "Content-Type: application/json" \\\n  -d '{"name": "Sample"}'`}
-            className="w-full h-44 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded-lg p-3 text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/40 transition-all resize-none"
+            className="w-full h-44 bg-[var(--bg-base)] border border-[var(--border-strong)] rounded p-3 text-xs font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)]/40 transition-colors resize-none"
           />
 
-          <div className="bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] flex items-start gap-2">
-            <Sparkles className="w-4 h-4 text-[var(--primary)] shrink-0 mt-0.5" />
+          <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] flex items-start gap-2">
+            <TerminalSquare className="w-4 h-4 text-[var(--primary)] shrink-0 mt-0.5" />
             <p>
               Auto-detects method (<code className="text-[var(--text-primary)] font-bold">-X</code>), URL, headers (<code className="text-[var(--text-primary)] font-bold">-H</code>), and payload body (<code className="text-[var(--text-primary)] font-bold">-d</code>) from single or multiline cURL strings.
             </p>
@@ -188,14 +188,14 @@ export function CurlImportModal({ isOpen, onImport, onCancel }: CurlImportModalP
         <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded-lg hover:bg-[var(--bg-hover)] cursor-pointer"
+            className="px-4 py-2 text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors rounded hover:bg-[var(--bg-hover)] cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleImport}
             disabled={!curl.trim()}
-            className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold bg-[var(--primary)] hover:bg-[#e65a2d] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg shadow-sm transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed text-white rounded  transition-colors cursor-pointer"
           >
             <Code2 className="w-3.5 h-3.5" />
             <span>Import to Request</span>

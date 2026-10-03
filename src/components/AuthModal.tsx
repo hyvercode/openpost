@@ -277,12 +277,12 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded w-full max-w-lg shadow-[var(--shadow-subtle)] flex flex-col max-h-[90vh]">
         
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2">
-            <Shield className="w-4 h-4 text-green-500" />
+            <Shield className="w-4 h-4 text-[var(--success)]" />
             <h3 className="text-[var(--text-primary)] text-sm font-semibold">Configure Authentication</h3>
           </div>
           <button 
@@ -342,7 +342,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
                   />
                 </div>
                 <span className="text-[10px] text-[var(--text-secondary)] block">
-                  Automatically injected into the request header as <code className="font-mono text-green-500">Authorization: Bearer &lt;token&gt;</code>
+                  Automatically injected into the request header as <code className="font-mono text-[var(--success)]">Authorization: Bearer &lt;token&gt;</code>
                 </span>
               </div>
             </div>
@@ -384,7 +384,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
                   </button>
                 </div>
                 <span className="text-[10px] text-[var(--text-secondary)] block">
-                  Automatically Base64 encoded and injected as <code className="font-mono text-green-500">Authorization: Basic &lt;credentials&gt;</code>
+                  Automatically Base64 encoded and injected as <code className="font-mono text-[var(--success)]">Authorization: Basic &lt;credentials&gt;</code>
                 </span>
               </div>
             </div>
@@ -457,7 +457,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider flex items-center justify-between">
                     <span>Callback URL</span>
-                    <span className="text-[10px] text-green-500 font-normal">Ready & Secure</span>
+                    <span className="text-[10px] text-[var(--success)] font-normal">Ready & Secure</span>
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -472,7 +472,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
                       className="px-3 bg-[var(--bg-hover)] border border-[var(--border-strong)] hover:border-[var(--border-focus)] text-[var(--text-primary)] rounded transition-colors flex items-center justify-center p-2"
                       title="Copy Callback URL"
                     >
-                      {copiedCallback ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedCallback ? <Check className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
@@ -555,7 +555,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
                   <button
                     type="button"
                     onClick={handleStartOAuthFlow}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                    className="w-full py-2 bg-[var(--info)] hover:bg-blue-700 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors "
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     Launch Authorization Window
@@ -565,7 +565,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
                     type="button"
                     disabled={isTokenLoading}
                     onClick={handleGetClientCredentialsToken}
-                    className="w-full py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                    className="w-full py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors "
                   >
                     {isTokenLoading ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -588,7 +588,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
                   className="w-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)] font-mono transition-colors"
                 />
                 <span className="text-[10px] text-[var(--text-secondary)] block">
-                  Automatically injected as <code className="font-mono text-green-500">Authorization: Bearer &lt;token&gt;</code> in headers.
+                  Automatically injected as <code className="font-mono text-[var(--success)]">Authorization: Bearer &lt;token&gt;</code> in headers.
                 </span>
               </div>
 
@@ -607,7 +607,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2 text-xs bg-green-600 hover:bg-green-700 text-white font-semibold rounded shadow-sm transition-colors"
+            className="px-5 py-2 text-xs bg-[var(--success)] hover:bg-green-700 text-white font-semibold rounded  transition-colors"
           >
             Save Authentication
           </button>

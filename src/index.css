@@ -1,104 +1,133 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Ubuntu", "Ubuntu Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Ubuntu Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ============================================================
+   OpenPost ERP Theme — Ubuntu professional (flat, no gradients)
+   Two themes only: Ubuntu Light (white) and Ubuntu Dark.
+   Rules: solid colors, hairline borders, 4px radius, restrained
+   shadows, Ubuntu + Ubuntu Mono typefaces.
+   ============================================================ */
+
 :root {
-  /* Default Ubuntu Theme (Aubergine) */
-  --bg-base: #2C001E;
-  --bg-surface: #3D0C2A;
-  --bg-panel: #333333;
-  --bg-input: #1F0015;
-  --bg-hover: #5E2750;
-  --border-subtle: #4D183E;
-  --border-strong: #77216F;
-  --border-focus: #DD4814;
-  --text-primary: #FFFFFF;
-  --text-secondary: #AEA79F;
-  --text-code: #FACC15;
-  --text-get: #4ADE80;
-  --text-post: #FACC15;
-  --text-put: #60A5FA;
-  --text-delete: #F87171;
-  --primary: #DD4814;
-  --icon-color: #E95420;
-  --shadow-panel: 0 10px 30px -5px rgba(0, 0, 0, 0.45), 0 4px 12px -5px rgba(0, 0, 0, 0.35);
-  --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --font-sans: "Ubuntu", "Ubuntu Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Ubuntu Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --radius: 4px;
 }
 
-.theme-default {
-  /* Inherits from :root */
-}
-
+/* ---------- Ubuntu Light (white) ---------- */
 .theme-light {
-  --bg-base: #FDFDFD;
-  --bg-surface: #F5F4F3;
-  --bg-panel: #EAE8E6;
-  --bg-input: #FFFFFF;
-  --bg-hover: #AEA79F33;
-  --border-subtle: #D6D2CE;
-  --border-strong: #AEA79F;
-  --border-focus: #DD4814;
-  --text-primary: #333333;
-  --text-secondary: #5E2750;
-  --text-code: #DD4814;
-  --text-get: #15803D;
-  --text-post: #A16207;
-  --text-put: #1D4ED8;
-  --text-delete: #B91C1C;
-  --primary: #DD4814;
-  --icon-color: #77216F;
-  --shadow-panel: 0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 12px -5px rgba(0, 0, 0, 0.05);
-  --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --bg-base: #ffffff;
+  --bg-surface: #f7f7f7;
+  --bg-panel: #efefef;
+  --bg-input: #ffffff;
+  --bg-hover: #e8e8e8;
+  --border-subtle: #d9d9d9;
+  --border-strong: #b5b5b5;
+  --border-focus: #e95420;
+  --text-primary: #111111;
+  --text-secondary: #5d5d5d;
+  --text-tertiary: #8a8a8a;
+  --text-code: #77216f;
+  --text-get: #0e8420;
+  --text-post: #7d5a00;
+  --text-put: #0d4fc2;
+  --text-delete: #c7162b;
+  --primary: #e95420;
+  --primary-hover: #d34615;
+  --primary-contrast: #ffffff;
+  --icon-color: #5d5d5d;
+  --success: #0e8420;
+  --warning: #7d5a00;
+  --danger: #c7162b;
+  --info: #0d4fc2;
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
+/* ---------- Ubuntu Dark ---------- */
 .theme-dark {
-  /* Neutral Dark Theme (Slate) */
-  --bg-base: #0F172A;
-  --bg-surface: #1E293B;
-  --bg-panel: #020617;
-  --bg-input: #020617;
-  --bg-hover: #334155;
-  --border-subtle: #1E293B;
-  --border-strong: #334155;
-  --border-focus: #E95420;
-  --text-primary: #F1F5F9;
-  --text-secondary: #94A3B8;
-  --text-code: #38BDF8;
-  --text-get: #10B981;
-  --text-post: #F59E0B;
-  --text-put: #3B82F6;
-  --text-delete: #EF4444;
-  --primary: #E95420;
-  --icon-color: #E95420;
-  --shadow-panel: 0 10px 30px -5px rgba(0, 0, 0, 0.6), 0 4px 12px -5px rgba(0, 0, 0, 0.5);
-  --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --bg-base: #1a1a1a;
+  --bg-surface: #211e1c;
+  --bg-panel: #2c2826;
+  --bg-input: #121110;
+  --bg-hover: #37322f;
+  --border-subtle: #3a3633;
+  --border-strong: #54504c;
+  --border-focus: #e95420;
+  --text-primary: #f2f1f0;
+  --text-secondary: #a89f9a;
+  --text-tertiary: #6e6866;
+  --text-code: #e8b4e5;
+  --text-get: #38b44a;
+  --text-post: #e6b800;
+  --text-put: #6aa9ff;
+  --text-delete: #f46a6a;
+  --primary: #e95420;
+  --primary-hover: #f0662f;
+  --primary-contrast: #ffffff;
+  --icon-color: #a89f9a;
+  --success: #38b44a;
+  --warning: #e6b800;
+  --danger: #f46a6a;
+  --info: #6aa9ff;
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-/* Fluid Theme Switching Transitions */
-:root,
-body,
-.theme-default,
-.theme-light,
-.theme-dark {
-  transition: background-color 0.25s ease-in-out, color 0.25s ease-in-out, border-color 0.25s ease-in-out, box-shadow 0.25s ease-in-out;
+/* Legacy alias: old 'default' aubergine now maps to Ubuntu Dark. */
+.theme-default {
+  --bg-base: #1a1a1a;
+  --bg-surface: #211e1c;
+  --bg-panel: #2c2826;
+  --bg-input: #121110;
+  --bg-hover: #37322f;
+  --border-subtle: #3a3633;
+  --border-strong: #54504c;
+  --border-focus: #e95420;
+  --text-primary: #f2f1f0;
+  --text-secondary: #a89f9a;
+  --text-tertiary: #6e6866;
+  --text-code: #e8b4e5;
+  --text-get: #38b44a;
+  --text-post: #e6b800;
+  --text-put: #6aa9ff;
+  --text-delete: #f46a6a;
+  --primary: #e95420;
+  --primary-hover: #f0662f;
+  --primary-contrast: #ffffff;
+  --icon-color: #a89f9a;
+  --success: #38b44a;
+  --warning: #e6b800;
+  --danger: #f46a6a;
+  --info: #6aa9ff;
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-.theme-default *,
-.theme-light *,
-.theme-dark * {
-  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
-  transition-duration: 0.25s;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-@keyframes loading {
-  0% { transform: scaleX(0); transform-origin: left; }
-  50% { transform: scaleX(1); transform-origin: left; }
-  51% { transform: scaleX(1); transform-origin: right; }
-  100% { transform: scaleX(0); transform-origin: right; }
+/* ERP scrollbars: thin, square, subtle */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
-
-.animate-loading {
-  animation: loading 2s infinite cubic-bezier(0.65, 0.05, 0.36, 1);
-  background: var(--primary);
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 0;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Markdown Documentation Styles */
@@ -107,27 +136,27 @@ body,
 }
 
 .markdown-body h1 {
-  @apply text-3xl font-extrabold mb-6 pb-4 border-b border-[var(--border-subtle)] text-[var(--text-primary)];
+  @apply text-xl font-bold mb-4 pb-2 border-b border-[var(--border-subtle)] text-[var(--text-primary)];
 }
 
 .markdown-body h2 {
-  @apply text-xl font-bold mt-10 mb-4 text-[var(--text-primary)];
+  @apply text-base font-bold mt-6 mb-3 text-[var(--text-primary)];
 }
 
 .markdown-body h3 {
-  @apply text-base font-semibold mt-6 mb-3 text-[var(--text-primary)];
+  @apply text-sm font-bold mt-4 mb-2 text-[var(--text-primary)];
 }
 
 .markdown-body p {
-  @apply text-sm leading-relaxed mb-4 text-[var(--text-secondary)];
+  @apply text-sm leading-relaxed mb-3 text-[var(--text-secondary)];
 }
 
 .markdown-body code {
-  @apply font-mono text-[var(--text-code)] bg-[var(--bg-hover)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)];
+  @apply font-mono text-[var(--text-code)] bg-[var(--bg-panel)] px-1 py-0.5 rounded border border-[var(--border-subtle)];
 }
 
 .markdown-body pre {
-  @apply bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-lg p-4 my-6 overflow-x-auto shadow-inner;
+  @apply bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-3 my-4 overflow-x-auto;
 }
 
 .markdown-body pre code {
@@ -135,23 +164,23 @@ body,
 }
 
 .markdown-body table {
-  @apply w-full border-collapse my-6 text-sm;
+  @apply w-full border-collapse my-4 text-sm;
 }
 
 .markdown-body th {
-  @apply bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-4 py-2 text-left font-bold text-[var(--text-primary)];
+  @apply bg-[var(--bg-panel)] border border-[var(--border-subtle)] px-3 py-1.5 text-left font-bold text-[var(--text-primary)];
 }
 
 .markdown-body td {
-  @apply border border-[var(--border-subtle)] px-4 py-2 text-[var(--text-secondary)];
+  @apply border border-[var(--border-subtle)] px-3 py-1.5 text-[var(--text-secondary)];
 }
 
 .markdown-body ul {
-  @apply list-disc list-inside mb-4 space-y-1 text-sm text-[var(--text-secondary)];
+  @apply list-disc list-inside mb-3 space-y-1 text-sm text-[var(--text-secondary)];
 }
 
 .markdown-body hr {
-  @apply my-10 border-t border-[var(--border-strong)] opacity-30;
+  @apply my-6 border-t border-[var(--border-subtle)];
 }
 
 .json-tree-container {
@@ -161,4 +190,3 @@ body,
 .json-tree-container .json-tree-node {
   @apply transition-colors duration-150;
 }
-

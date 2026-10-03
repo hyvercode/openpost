@@ -47,8 +47,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/agent ./agent
 COPY --from=builder /app/release ./release
 
-# Buat direktori data untuk SQLite dan uploads
-RUN mkdir -p /app/data /app/uploads && chmod -R 777 /app/data /app/uploads
+# Buat direktori data untuk SQLite dan uploads (bukan 777 — hanya owner).
+RUN mkdir -p /app/data /app/uploads && chown -R node:node /app/data /app/uploads && chmod 750 /app/data /app/uploads
+
+# Jangan jalan sebagai root.
+USER node
 
 # Set environment variables
 ENV NODE_ENV=production

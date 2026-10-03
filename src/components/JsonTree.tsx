@@ -35,16 +35,16 @@ export const JsonTree: React.FC<JsonTreeProps> = ({ data, name, isLast = true, i
   if (!isObject) {
     const renderValue = () => {
       if (typeof data === 'string') {
-        return <span className="text-green-600 dark:text-green-400">"{data}"</span>;
+        return <span className="text-[var(--success)] dark:text-[var(--success)]">"{data}"</span>;
       }
       if (typeof data === 'number') {
-        return <span className="text-blue-600 dark:text-blue-400">{data}</span>;
+        return <span className="text-[var(--info)] dark:text-[var(--info)]">{data}</span>;
       }
       if (typeof data === 'boolean') {
-        return <span className="text-orange-600 dark:text-orange-400">{data ? 'true' : 'false'}</span>;
+        return <span className="text-[var(--primary-hover)] dark:text-[var(--primary)]">{data ? 'true' : 'false'}</span>;
       }
       if (data === null) {
-        return <span className="text-gray-500 italic">null</span>;
+        return <span className="text-[var(--text-tertiary)] italic">null</span>;
       }
       return <span>{String(data)}</span>;
     };

@@ -58,9 +58,8 @@ export default function App() {
     setCurrentEnvironment, 
     activeView, 
     setActiveView,
-    theme, 
+    theme,
     setTheme,
-    primaryColor,
     sidebarCollapsed,
     setSidebarCollapsed,
     sidebarWidth,
@@ -399,18 +398,15 @@ export default function App() {
     };
   }, [dragState]);
 
+  // ERP theme is fixed Ubuntu Orange (#E95420) via CSS tokens.
+  // Legacy custom primaryColor overrides are cleared once.
   useEffect(() => {
     const root = document.documentElement;
-    if (primaryColor) {
-      root.style.setProperty('--primary', primaryColor);
-      root.style.setProperty('--icon-color', primaryColor);
-      root.style.setProperty('--border-focus', primaryColor);
-    } else {
-      root.style.removeProperty('--primary');
-      root.style.removeProperty('--icon-color');
-      root.style.removeProperty('--border-focus');
-    }
-  }, [primaryColor, theme]);
+    root.style.removeProperty('--primary');
+    root.style.removeProperty('--icon-color');
+    root.style.removeProperty('--border-focus');
+    localStorage.removeItem('primaryColor');
+  }, []);
 
   useEffect(() => {
     if (!resizeState) return;
@@ -555,7 +551,7 @@ export default function App() {
           const newUrl = window.location.pathname;
           window.history.replaceState({}, '', newUrl);
           // Reload workspaces to show the new one
-          const list = await apiService.getWorkspaces(user.uid);
+          const list = await apiService.getWorkspaces();
           setWorkspaces(list);
           addToast('Invitation accepted! You joined the workspace.', 'success');
         } catch (e: any) {
@@ -574,12 +570,12 @@ export default function App() {
     
     const loadWorkspaces = async () => {
       try {
-        let list = await apiService.getWorkspaces(user.uid);
+        let list = await apiService.getWorkspaces();
         if (!isMounted) return;
 
         if (list.length === 0) {
           // Create default workspace if none exist
-          const newWS = await apiService.createWorkspace("My Workspace", user.uid);
+          const newWS = await apiService.createWorkspace("My Workspace");
           list = [newWS];
         }
 
@@ -664,16 +660,16 @@ export default function App() {
     }, 2000);
 
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f111a] text-white p-6 font-sans">
-        <div className="w-full max-w-sm bg-[#151824] border border-[#23273a] p-6 rounded-lg text-center shadow-xl flex flex-col items-center">
-          <div className="w-12 h-12 rounded-full bg-green-500/15 text-green-500 flex items-center justify-center mb-4">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--bg-base)] text-[var(--text-primary)] p-6">
+        <div className="w-full max-w-sm bg-[var(--bg-surface)] border border-[var(--border-subtle)] p-6 rounded text-center flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full bg-[var(--success)]/15 text-[var(--success)] flex items-center justify-center mb-4">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6 animate-pulse">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.745 3.745 0 011.043 3.296A3.745 3.745 0 0121 12z" />
             </svg>
           </div>
           <h2 className="text-sm font-semibold text-white mb-1">Authorization Successful!</h2>
-          <p className="text-xs text-gray-400 mb-4">You have successfully authenticated with the provider.</p>
-          <p className="text-[10px] text-gray-500 animate-pulse">This window will close automatically in a moment...</p>
+          <p className="text-xs text-[var(--text-tertiary)] mb-4">You have successfully authenticated with the provider.</p>
+          <p className="text-[10px] text-[var(--text-tertiary)] animate-pulse">This window will close automatically in a moment...</p>
         </div>
       </div>
     );
@@ -697,31 +693,30 @@ export default function App() {
 
   return (
     <div className={cn(
-      "flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] font-sans overflow-hidden relative",
-      theme === 'light' ? 'theme-light' : theme === 'dark' ? 'theme-dark' : 'theme-default'
+      "flex h-screen bg-[var(--bg-base)] text-[var(--text-primary)] overflow-hidden relative",
+      theme === 'dark' ? 'theme-dark' : 'theme-light'
     )}>
       {/* Mobile Backdrop Overlay for Sidebar */}
       {!sidebarCollapsed && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 lg:hidden transition-opacity"
+        <div
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={() => setSidebarCollapsed(true)}
         />
       )}
 
-      <div 
+      <div
         className={cn(
-          "h-full shrink-0 overflow-hidden relative z-40 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)] shadow-2xl lg:shadow-none",
+          "h-full shrink-0 overflow-hidden relative z-40 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)]",
           "lg:static fixed inset-y-0 left-0",
-          !isResizingSidebar && "transition-all duration-300 ease-in-out",
           sidebarCollapsed && "max-lg:-translate-x-full"
         )}
         style={{ width: sidebarCollapsed ? '0px' : sidebarWidth }}
       >
         <Sidebar />
       </div>
-      <div 
+      <div
         className={cn(
-          "w-1 hover:w-1.5 cursor-col-resize select-none shrink-0 transition-all z-30 group relative hidden lg:block border-r border-[var(--border-subtle)]",
+          "w-1 hover:w-1.5 cursor-col-resize select-none shrink-0 z-30 relative hidden lg:block border-r border-[var(--border-subtle)]",
           isResizingSidebar ? "bg-[var(--primary)]" : "bg-transparent hover:bg-[var(--primary)]",
           sidebarCollapsed && "pointer-events-none opacity-0 w-0"
         )}
@@ -729,25 +724,25 @@ export default function App() {
         onMouseDown={handleSidebarMouseDown}
       />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-2.5 md:px-4 shrink-0 bg-[var(--bg-panel)] shadow-2xs select-none gap-2 overflow-x-auto scrollbar-none">
+        <header className="h-12 border-b border-[var(--border-subtle)] flex items-center justify-between px-2.5 md:px-4 shrink-0 bg-[var(--bg-surface)] gap-2 overflow-x-auto">
           {/* Left Context Controls */}
-          <div className="flex-1 flex items-center gap-2 md:gap-3 min-w-0 pr-2">
-            <button 
+          <div className="flex-1 flex items-center gap-2 min-w-0 pr-2">
+            <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1 shadow-2xs cursor-pointer shrink-0"
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1 cursor-pointer shrink-0"
               title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             >
-              <ChevronRight className={cn("w-4 h-4 transition-transform", !sidebarCollapsed && "rotate-180")} />
+              <ChevronRight className={cn("w-4 h-4", !sidebarCollapsed && "rotate-180")} />
               <span className="text-xs font-semibold pr-1 hidden sm:inline">Sidebar</span>
             </button>
 
             {/* Workspace Identifier */}
-            <div 
-              className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[var(--bg-hover)]/60 border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] font-semibold shadow-2xs hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
+            <div
+              className="flex items-center gap-2 px-2.5 py-1 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] font-semibold hover:bg-[var(--bg-hover)] cursor-pointer"
               title="Current Active Workspace"
               onClick={() => setActiveView('settings')}
             >
-              <Server className="w-3.5 h-3.5 text-[var(--primary)]" />
+              <Server className="w-3.5 h-3.5 text-[var(--icon-color)]" />
               <span className="truncate max-w-[120px] md:max-w-[180px]">
                 {currentWorkspace?.name || 'Workspace'}
               </span>
@@ -756,11 +751,11 @@ export default function App() {
             {/* Environment Dropdown Custom Styling */}
             <div className="relative flex items-center">
               <span className={cn(
-                "absolute left-2.5 w-2 h-2 rounded-full pointer-events-none z-10 transition-colors",
-                currentEnvironment ? "bg-emerald-500 animate-pulse shadow-xs" : "bg-gray-400 opacity-40"
+                "absolute left-2.5 w-2 h-2 rounded-full pointer-events-none z-10",
+                currentEnvironment ? "bg-[var(--success)]" : "bg-[var(--text-tertiary)]"
               )} />
-              <select 
-                className="bg-[var(--bg-hover)]/60 hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] rounded-lg pl-6 pr-7 py-1 outline-none focus:ring-1 focus:ring-[var(--primary)] transition-all appearance-none cursor-pointer shadow-2xs"
+              <select
+                className="bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] rounded pl-6 pr-7 py-1 outline-none appearance-none cursor-pointer "
                 value={currentEnvironment?.id || ''}
                 onChange={(e) => {
                   const env = environments.find(env => env.id === e.target.value);
@@ -776,7 +771,7 @@ export default function App() {
             </div>
             <button
               onClick={() => setIsQuickEnvModalOpen(true)}
-              className="p-1.5 rounded-lg bg-[var(--bg-hover)]/60 hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--primary)] transition-all shadow-2xs shrink-0"
+              className="p-1.5 rounded bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] shrink-0 cursor-pointer"
               title="Quick Manage Environment Variables"
             >
               <Eye className="w-3.5 h-3.5" />
@@ -785,14 +780,14 @@ export default function App() {
             {/* Quick Search Workspace Trigger */}
             <button
               onClick={() => setIsQuickSearchOpen(true)}
-              className="flex-1 max-w-sm min-w-[120px] flex items-center justify-between gap-2 bg-[var(--bg-hover)]/60 hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-lg px-2.5 py-1.5 transition-all shadow-2xs cursor-pointer group"
+              className="flex-1 max-w-sm min-w-[120px] flex items-center justify-between gap-2 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded px-2.5 py-1.5 cursor-pointer group"
               title="Quick Search Workspace (Cmd+K / Ctrl+K)"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Search className="w-3.5 h-3.5 text-[var(--text-tertiary)] group-hover:text-[var(--primary)] transition-colors shrink-0" />
+                <Search className="w-3.5 h-3.5 text-[var(--text-tertiary)] shrink-0" />
                 <span className="truncate font-medium">Search...</span>
               </div>
-              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-[var(--text-tertiary)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded shadow-2xs shrink-0">
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-[var(--text-tertiary)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded shrink-0">
                 <span className="text-[11px]">⌘</span>K
               </kbd>
             </button>
@@ -801,13 +796,13 @@ export default function App() {
           {/* Right Layout, Mode & Preferences Controls */}
           <div className="flex items-center gap-2 shrink-0 ml-auto">
             {/* Quick Actions Group */}
-            <div className="flex items-center bg-[var(--bg-hover)]/40 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
+            <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-0.5 gap-0.5">
               <button
                 onClick={() => setIsCurlModalOpen(true)}
-                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-all cursor-pointer group flex items-center justify-center"
+                className="p-1.5 rounded hover:bg-[var(--bg-hover)] cursor-pointer flex items-center justify-center"
                 title="Import request from cURL command string"
               >
-                <TerminalSquare className="w-4 h-4 text-[var(--primary)] transition-transform group-hover:scale-110" />
+                <TerminalSquare className="w-4 h-4 text-[var(--icon-color)]" />
               </button>
 
               <div className="h-3.5 w-px bg-[var(--border-subtle)]" />
@@ -815,18 +810,18 @@ export default function App() {
               <button
                 onClick={handleSyncWorkspace}
                 disabled={isWorkspaceLoading}
-                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-all cursor-pointer flex items-center justify-center disabled:opacity-50"
+                className="p-1.5 rounded hover:bg-[var(--bg-hover)] cursor-pointer flex items-center justify-center disabled:opacity-50"
                 title="Synchronize Workspace Data"
               >
-                <RefreshCw className={cn("w-4 h-4 text-[var(--primary)] transition-transform", isWorkspaceLoading && "animate-spin")} />
+                <RefreshCw className={cn("w-4 h-4 text-[var(--icon-color)]", isWorkspaceLoading && "animate-spin")} />
               </button>
             </div>
 
             {/* Agent Connection Mode Group */}
-            <div className="flex items-center bg-[var(--bg-hover)]/40 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
+            <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-0.5 gap-0.5">
               {isOffline && (
-                <div 
-                  className="px-2 py-1 text-xs font-medium rounded-md bg-orange-500/10 text-orange-500 flex items-center gap-1.5"
+                <div
+                  className="px-2 py-1 text-xs font-medium rounded bg-[var(--bg-hover)] text-[var(--warning)] flex items-center gap-1.5"
                   title="Offline Mode. Changes are saved locally."
                 >
                   <CloudOff className="w-3.5 h-3.5" />
@@ -834,10 +829,10 @@ export default function App() {
                 </div>
               )}
               {!isOffline && syncQueueCount > 0 && (
-                <button 
+                <button
                   onClick={() => syncEngine.processQueue()}
                   disabled={isSyncing}
-                  className="px-2 py-1 text-xs font-medium rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-2 py-1 text-xs font-medium rounded bg-[var(--bg-hover)] text-[var(--info)] hover:bg-[var(--bg-panel)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                   title="Click to sync local changes to cloud"
                 >
                   <RefreshCcw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
@@ -850,18 +845,18 @@ export default function App() {
                   setAgentMode(agentMode === 'cloud' ? 'desktop' : 'cloud');
                   addToast(agentMode === 'cloud' ? 'Switched to Desktop Agent for local requests' : 'Switched to Cloud Agent', 'success', 2000);
                 }}
-                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-all cursor-pointer flex items-center justify-center"
+                className="p-1.5 rounded hover:bg-[var(--bg-hover)] cursor-pointer flex items-center justify-center"
                 title={agentMode === 'cloud' ? 'Current Mode: Cloud Agent (Click to switch to Desktop Agent)' : 'Current Mode: Desktop Agent (Click to switch to Cloud Agent)'}
               >
                 {agentMode === 'cloud' ? (
-                  <Cloud className="w-4 h-4 text-blue-500" />
+                  <Cloud className="w-4 h-4 text-[var(--icon-color)]" />
                 ) : (
-                  <MonitorSmartphone className="w-4 h-4 text-emerald-500" />
+                  <MonitorSmartphone className="w-4 h-4 text-[var(--icon-color)]" />
                 )}
               </button>
               <button
                 onClick={() => setIsAgentModalOpen(true)}
-                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center justify-center"
+                className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
                 title="Download Desktop Agent Bridge & Instructions"
               >
                 <Download className="w-4 h-4" />
@@ -869,27 +864,27 @@ export default function App() {
               <div className="h-3.5 w-px bg-[var(--border-subtle)]" />
               <button
                 onClick={() => setIsKeyboardShortcutsModalOpen(true)}
-                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--primary)] transition-all flex items-center justify-center"
+                className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
                 title="Keyboard Shortcuts & Hotkeys (Ctrl + /)"
               >
                 <Keyboard className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsHelpModalOpen(true)}
-                className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--primary)] transition-all flex items-center justify-center"
+                className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
                 title="Open Documentation & Feature Guide (F1)"
               >
                 <HelpCircle className="w-4 h-4" />
               </button>
             </div>
             {/* Layout Split Mode Segment */}
-            <div className="flex items-center bg-[var(--bg-hover)]/50 border border-[var(--border-subtle)] rounded-lg p-0.5 gap-0.5">
+            <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-0.5 gap-0.5">
               <button
                 onClick={() => setLayoutMode('horizontal')}
                 className={cn(
-                  "p-1.5 rounded-md transition-all flex items-center justify-center",
-                  layoutMode === 'horizontal' 
-                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)]" 
+                  "p-1.5 rounded flex items-center justify-center cursor-pointer",
+                  layoutMode === 'horizontal'
+                    ? "bg-[var(--bg-surface)] text-[var(--primary)] border border-[var(--border-subtle)]"
                     : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Horizontal Split View (Side by Side)"
@@ -899,9 +894,9 @@ export default function App() {
               <button
                 onClick={() => setLayoutMode('vertical')}
                 className={cn(
-                  "p-1.5 rounded-md transition-all flex items-center justify-center",
-                  layoutMode === 'vertical' 
-                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)]" 
+                  "p-1.5 rounded flex items-center justify-center cursor-pointer",
+                  layoutMode === 'vertical'
+                    ? "bg-[var(--bg-surface)] text-[var(--primary)] border border-[var(--border-subtle)]"
                     : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Vertical Split View (Stacked)"
@@ -911,25 +906,25 @@ export default function App() {
               <button
                 onClick={() => setLayoutMode('floating')}
                 className={cn(
-                  "p-1.5 rounded-md transition-all flex items-center justify-center",
-                  layoutMode === 'floating' 
-                    ? "bg-[var(--bg-surface)] text-[var(--primary)] shadow-2xs border border-[var(--border-subtle)]" 
+                  "p-1.5 rounded flex items-center justify-center cursor-pointer",
+                  layoutMode === 'floating'
+                    ? "bg-[var(--bg-surface)] text-[var(--primary)] border border-[var(--border-subtle)]"
                     : "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
                 )}
                 title="Docking Workspace (Floating Windows)"
               >
                 <LayoutGrid className="w-4 h-4" />
               </button>
-              
+
               <div className="h-3.5 w-px bg-[var(--border-subtle)] mx-0.5" />
 
               <button
                 onClick={() => setResponseCollapsed(!responseCollapsed)}
                 className={cn(
-                  "p-1.5 rounded-md transition-all flex items-center justify-center",
-                  !responseCollapsed 
-                    ? "text-[var(--icon-color)] hover:text-[var(--text-primary)]" 
-                    : "bg-amber-500/15 text-amber-500 border border-amber-500/30"
+                  "p-1.5 rounded flex items-center justify-center cursor-pointer",
+                  !responseCollapsed
+                    ? "text-[var(--icon-color)] hover:text-[var(--text-primary)]"
+                    : "bg-[var(--bg-hover)] text-[var(--warning)] border border-[var(--border-strong)]"
                 )}
                 title={responseCollapsed ? "Expand Response Panel" : "Collapse Response Panel"}
               >
@@ -941,33 +936,27 @@ export default function App() {
             {!isDesktop && (
               <button
                 onClick={() => setIsDocsPageOpen(true)}
-                className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs cursor-pointer"
+                className="p-1.5 hover:bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer"
                 title="Developer Documentation (API & Scripting)"
               >
-                <BookOpen className="w-4 h-4 text-[var(--primary)]" />
+                <BookOpen className="w-4 h-4 text-[var(--icon-color)]" />
                 <span className="text-[10px] font-bold uppercase tracking-wider hidden md:inline">
                   Docs
                 </span>
               </button>
             )}
 
-            {/* Theme Toggle Button */}
+            {/* Theme Toggle Button: Ubuntu Light / Ubuntu Dark */}
             <button
-              onClick={() => {
-                const themes: Theme[] = ['default', 'light', 'dark'];
-                const nextIndex = (themes.indexOf(theme) + 1) % themes.length;
-                setTheme(themes[nextIndex]);
-              }}
-              className="p-1.5 hover:bg-[var(--bg-hover)] rounded-lg border border-[var(--border-subtle)] text-[var(--text-primary)] transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs"
-              title={`Theme: ${theme.charAt(0).toUpperCase() + theme.slice(1)}`}
+              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              className="p-1.5 hover:bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)] text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer"
+              title={theme === 'light' ? 'Switch to Ubuntu Dark' : 'Switch to Ubuntu Light'}
             >
-              <div className="transition-transform duration-300 group-hover:rotate-12">
-                {theme === 'default' ? <MonitorSmartphone className="w-4 h-4 text-[var(--icon-color)]" /> : 
-                 theme === 'light' ? <Sun className="w-4 h-4 text-amber-500" /> : 
-                 <Moon className="w-4 h-4 text-indigo-400" />}
-              </div>
+              {theme === 'light'
+                ? <Sun className="w-4 h-4 text-[var(--icon-color)]" />
+                : <Moon className="w-4 h-4 text-[var(--icon-color)]" />}
               <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline text-[var(--text-secondary)]">
-                {theme}
+                {theme === 'light' ? 'Light' : 'Dark'}
               </span>
             </button>
 
@@ -976,9 +965,9 @@ export default function App() {
               <button 
                 onClick={() => setActiveView('settings')}
                 className={cn(
-                  "flex items-center gap-2 p-1 pr-2 rounded-full transition-all border",
+                  "flex items-center gap-2 p-1 pr-2 rounded-full transition-colors border",
                   activeView === 'settings' 
-                    ? "border-[var(--primary)] shadow-xs bg-[var(--bg-hover)]" 
+                    ? "border-[var(--primary)]  bg-[var(--bg-hover)]" 
                     : "border-transparent hover:bg-[var(--bg-hover)] hover:border-[var(--border-subtle)]"
                 )}
                 title="Profile Settings"
@@ -996,7 +985,7 @@ export default function App() {
               </button>
               <button 
                 onClick={logout} 
-                className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded-lg text-[var(--text-secondary)] transition-colors" 
+                className="p-1.5 hover:bg-[var(--danger)]/10 hover:text-[var(--danger)] rounded text-[var(--text-secondary)] transition-colors" 
                 title="Logout"
               >
                 <LogOut className="w-4 h-4" />
@@ -1017,10 +1006,9 @@ export default function App() {
                     layoutMode === 'vertical' ? "flex-col" : "flex-row"
                   )}
                 >
-                  <div 
+                  <div
                     className={cn(
-                      "flex flex-col min-h-0 shadow-[var(--shadow-panel)] z-10 relative",
-                      (!isResizingPanels && !isResizingPanelsVertical) && "transition-all duration-300 ease-in-out",
+                      "flex flex-col min-h-0 z-10 relative",
                       layoutMode === 'horizontal' ? "border-r border-[var(--border-subtle)]" : "border-b border-[var(--border-subtle)]"
                     )}
                     style={{ 
@@ -1053,7 +1041,7 @@ export default function App() {
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
                       className={cn(
-                        "absolute flex items-center justify-center transition-all cursor-pointer z-50 pointer-events-auto bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:scale-105 active:scale-95 shadow-md",
+                        "absolute flex items-center justify-center cursor-pointer z-50 pointer-events-auto bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                         layoutMode === 'horizontal' ? "h-9 w-4" : "h-4 w-9",
                         responseCollapsed 
                           ? (layoutMode === 'horizontal' ? "right-1 top-1/2 -translate-y-1/2" : "bottom-1 left-1/2 -translate-x-1/2") 
@@ -1069,10 +1057,9 @@ export default function App() {
                     </button>
                   </div>
 
-                  <div 
+                  <div
                     className={cn(
-                      "flex flex-col min-h-0 shadow-[var(--shadow-panel)] z-10 relative overflow-hidden",
-                      (!isResizingPanels && !isResizingPanelsVertical) && "transition-all duration-300 ease-in-out",
+                      "flex flex-col min-h-0 z-10 relative overflow-hidden",
                       layoutMode === 'horizontal' ? "" : "border-t border-[var(--border-subtle)]"
                     )}
                     style={{ 
@@ -1093,11 +1080,10 @@ export default function App() {
                   <div
                     onClick={() => setActiveWindow('request')}
                     className={cn(
-                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg overflow-hidden",
-                      (!dragState && !resizeState) ? "transition-all duration-300 ease-in-out" : "transition-none",
-                      activeWindow === 'request' 
-                        ? "border-[var(--primary)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] ring-1 ring-[var(--primary)]/20" 
-                        : "border-[var(--border-strong)] shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded overflow-hidden",
+                      activeWindow === 'request'
+                        ? "border-[var(--primary)]"
+                        : "border-[var(--border-strong)]"
                     )}
                     style={{
                       left: requestWindow.isMaximized ? 0 : `${requestWindow.x}px`,
@@ -1123,14 +1109,14 @@ export default function App() {
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => toggleMaximize('request')}
-                          className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded transition-all"
+                          className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded transition-colors"
                           title={requestWindow.isMaximized ? "Restore Window" : "Maximize Window"}
                         >
                           {requestWindow.isMaximized ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
                         </button>
                         <button
                           onClick={() => setLayoutMode('horizontal')}
-                          className="text-[10px] bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-0.5 border border-[var(--border-subtle)] rounded transition-all font-semibold"
+                          className="text-[10px] bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-0.5 border border-[var(--border-subtle)] rounded transition-colors font-semibold"
                           title="Dock back to Horizontal split"
                         >
                           Dock
@@ -1161,11 +1147,10 @@ export default function App() {
                   <div
                     onClick={() => setActiveWindow('response')}
                     className={cn(
-                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded-lg overflow-hidden",
-                      (!dragState && !resizeState) ? "transition-all duration-300 ease-in-out" : "transition-none",
-                      activeWindow === 'response' 
-                        ? "border-[var(--primary)] shadow-[0_20px_50px_rgba(0,0,0,0.65)] ring-1 ring-[var(--primary)]/20" 
-                        : "border-[var(--border-strong)] shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
+                      "absolute flex flex-col bg-[var(--bg-surface)] border rounded overflow-hidden",
+                      activeWindow === 'response'
+                        ? "border-[var(--primary)]"
+                        : "border-[var(--border-strong)]"
                     )}
                     style={{
                       left: responseWindow.isMaximized ? 0 : `${responseWindow.x}px`,
@@ -1191,14 +1176,14 @@ export default function App() {
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => toggleMaximize('response')}
-                          className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded transition-all"
+                          className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded transition-colors"
                           title={responseWindow.isMaximized ? "Restore Window" : "Maximize Window"}
                         >
                           {responseWindow.isMaximized ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
                         </button>
                         <button
                           onClick={() => setLayoutMode('horizontal')}
-                          className="text-[10px] bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-0.5 border border-[var(--border-subtle)] rounded transition-all font-semibold"
+                          className="text-[10px] bg-[var(--bg-hover)] hover:bg-[var(--bg-hover-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-2 py-0.5 border border-[var(--border-subtle)] rounded transition-colors font-semibold"
                           title="Dock back to Horizontal split"
                         >
                           Dock
@@ -1262,7 +1247,7 @@ export default function App() {
         <BottomDrawer />
         
         {/* Bottom Status Bar */}
-        <footer className="h-6 bg-[var(--border-strong)] text-[var(--text-primary)] text-[10px] px-3 flex items-center justify-between shrink-0">
+        <footer className="h-6 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] text-[var(--text-secondary)] text-[10px] px-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <div className="relative group flex">
               <button 
@@ -1271,24 +1256,24 @@ export default function App() {
               >
                 <div className="flex items-center gap-1.5">
                   {isSyncing ? (
-                    <RefreshCcw className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                    <RefreshCcw className="w-3.5 h-3.5 animate-spin text-[var(--info)]" />
                   ) : syncQueueCount > 0 ? (
-                    <CloudOff className="w-3.5 h-3.5 text-amber-500" />
+                    <CloudOff className="w-3.5 h-3.5 text-[var(--warning)]" />
                   ) : (
-                    <Cloud className="w-3.5 h-3.5 text-emerald-500" />
+                    <Cloud className="w-3.5 h-3.5 text-[var(--success)]" />
                   )}
                   <span>Sync Status:</span>
                 </div>
                 <div className="flex items-center gap-2 font-medium">
-                  <span className="text-emerald-500">{syncedCount} Synced</span>
+                  <span className="text-[var(--success)]">{syncedCount} Synced</span>
                   <span className="text-[var(--text-secondary)]">/</span>
-                  <span className={syncQueueCount > 0 ? "text-amber-500" : "text-[var(--text-secondary)]"}>
+                  <span className={syncQueueCount > 0 ? "text-[var(--warning)]" : "text-[var(--text-secondary)]"}>
                     {syncQueueCount} Pending
                   </span>
                 </div>
               </button>
               
-              <div className="absolute bottom-full left-0 mb-2 w-64 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+              <div className="absolute bottom-full left-0 mb-2 w-64 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible z-50 pointer-events-none">
                 <div className="flex flex-col gap-2 text-xs">
                   <div className="flex justify-between items-center">
                     <span className="text-[var(--text-secondary)]">Pending Items:</span>
@@ -1300,7 +1285,7 @@ export default function App() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-[var(--text-secondary)]">Last Success:</span>
-                    <span className="font-semibold text-emerald-500">{lastSuccessTime ? new Date(lastSuccessTime).toLocaleTimeString() : 'Never'}</span>
+                    <span className="font-semibold text-[var(--success)]">{lastSuccessTime ? new Date(lastSuccessTime).toLocaleTimeString() : 'Never'}</span>
                   </div>
                   <div className="mt-1 pt-2 border-t border-[var(--border-subtle)] text-[var(--text-secondary)] text-center italic">
                     Click to view detailed logs
@@ -1313,10 +1298,10 @@ export default function App() {
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
-              <span className={isOffline ? "text-amber-500" : "text-emerald-500"}>
+              <span className={isOffline ? "text-[var(--warning)]" : "text-[var(--success)]"}>
                 {isOffline ? 'Offline' : 'Online'}
               </span>
-              <div className={cn("w-2 h-2 rounded-full", isOffline ? "bg-amber-500" : "bg-emerald-500")}></div>
+              <div className={cn("w-2 h-2 rounded-full", isOffline ? "bg-[var(--warning)]" : "bg-[var(--success)]")}></div>
             </div>
             <span>UTF-8</span>
           </div>

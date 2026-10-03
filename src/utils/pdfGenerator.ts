@@ -18,7 +18,7 @@ export function generateCollectionPdf(
   const {
     title = collection.name,
     includeIntro = true,
-    accentColor = collection.color || "#4F46E5",
+    accentColor = collection.color || "var(--primary)",
     showPageNumbers = true,
     includeMockResponse = true,
     docVersion = "",

@@ -42,7 +42,7 @@ describe('Workspace API', () => {
     expect(res.body).toEqual(mockWorkspaces);
   });
 
-  it('POST /api/workspaces should create a new workspace', async () => {
+  it('POST /api/workspaces should create a new workspace (ownerId from token)', async () => {
     const newWorkspace = { id: '1', name: 'New Test', ownerId: 'user1' };
     (prisma.user.findUnique as any).mockResolvedValue({ uid: 'user1' });
     (prisma.workspace.create as any).mockResolvedValue(newWorkspace);
@@ -50,7 +50,7 @@ describe('Workspace API', () => {
 
     const res = await request(app)
       .post('/api/workspaces')
-      .send({ name: 'New Test', ownerId: 'user1' });
+      .send({ name: 'New Test' });
 
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('New Test');
@@ -60,9 +60,9 @@ describe('Workspace API', () => {
   it('POST /api/workspaces should validate required fields', async () => {
     const res = await request(app)
       .post('/api/workspaces')
-      .send({ name: 'New Test' }); // Missing ownerId
+      .send({}); // Missing name
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe('Name and ownerId are required');
+    expect(res.body.error).toBe('Invalid request body');
   });
 });

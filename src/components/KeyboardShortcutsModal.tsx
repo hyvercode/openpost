@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { X, Keyboard, Command, Sparkles, Search, Send, Save, Plus, Settings2, Globe, Layers, Play, Zap, HelpCircle } from 'lucide-react';
+import { X, Keyboard, Command, Search, Send, Save, Plus, Settings2, Globe, Layers, Play, Zap, HelpCircle } from 'lucide-react';
 import { cn } from '../utils';
 
 interface ShortcutGroup {
@@ -72,13 +72,13 @@ export function KeyboardShortcutsModal() {
   })).filter(group => group.items.length > 0);
 
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60  p-4">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] w-full max-w-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)]">
+            <div className="w-9 h-9 rounded bg-[var(--primary)]/15 flex items-center justify-center text-[var(--primary)]">
               <Keyboard className="w-5 h-5" />
             </div>
             <div>
@@ -95,7 +95,7 @@ export function KeyboardShortcutsModal() {
           </div>
           <button 
             onClick={() => setIsKeyboardShortcutsModalOpen(false)}
-            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1.5 rounded hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -139,7 +139,7 @@ export function KeyboardShortcutsModal() {
                   {group.items.map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)]/50 transition-colors"
+                      className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)]/50 transition-colors"
                     >
                       <span className="text-xs text-[var(--text-primary)] font-medium">
                         {item.description}
@@ -148,7 +148,7 @@ export function KeyboardShortcutsModal() {
                       <div className="flex items-center gap-1.5 shrink-0 ml-4">
                         {item.keys.map((k, kIdx) => (
                           <React.Fragment key={kIdx}>
-                            <kbd className="px-2 py-1 bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded text-[11px] font-mono font-bold text-[var(--text-primary)] shadow-2xs">
+                            <kbd className="px-2 py-1 bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded text-[11px] font-mono font-bold text-[var(--text-primary)] ">
                               {k}
                             </kbd>
                             {kIdx < item.keys.length - 1 && (
@@ -168,13 +168,13 @@ export function KeyboardShortcutsModal() {
         {/* Modal Footer */}
         <div className="px-5 py-3 border-t border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center justify-between text-xs">
           <div className="flex items-center gap-2 text-[var(--text-secondary)] text-[11px]">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+            <Keyboard className="w-3.5 h-3.5" />
             <span>Tip: Press <kbd className="px-1.5 py-0.5 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded text-[10px] font-mono text-[var(--text-primary)]">{modKey} /</kbd> anywhere to open this menu</span>
           </div>
 
           <button
             onClick={() => setIsKeyboardShortcutsModalOpen(false)}
-            className="px-4 py-1.5 bg-[var(--primary)] hover:opacity-90 text-white rounded-lg font-bold text-xs shadow-xs transition-opacity cursor-pointer"
+            className="px-4 py-1.5 bg-[var(--primary)] hover:opacity-90 text-white rounded font-bold text-xs  transition-opacity cursor-pointer"
           >
             Got it
           </button>

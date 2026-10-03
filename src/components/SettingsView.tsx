@@ -1,22 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../lib/api';
-import { User, Download, BookOpen, FileCode, Folder, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff, Palette, Sun, Moon, Check, RotateCcw, Sparkles } from 'lucide-react';
+import { User, Download, BookOpen, FileCode, Folder, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff, Sun, Moon, Check, RotateCcw, Monitor } from 'lucide-react';
 import { cn } from '../utils';
 import { exportWorkspaceJSON, exportAllPostmanJSON } from '../utils/exportUtils';
-
-const COLOR_PRESETS = [
-  { name: 'Ubuntu Orange', value: '#DD4814' },
-  { name: 'Electric Violet', value: '#8B5CF6' },
-  { name: 'Ocean Cyan', value: '#06B6D4' },
-  { name: 'Mint Emerald', value: '#10B981' },
-  { name: 'Crimson Rose', value: '#F43F5E' },
-  { name: 'Sunset Amber', value: '#F59E0B' },
-  { name: 'Royal Indigo', value: '#6366F1' },
-  { name: 'Cyber Pink', value: '#EC4899' },
-  { name: 'Deep Teal', value: '#14B8A6' },
-  { name: 'Vibrant Coral', value: '#FF6B6B' },
-];
 
 export const SettingsView: React.FC = () => {
   const { 
@@ -31,9 +18,7 @@ export const SettingsView: React.FC = () => {
     proxyConfig, 
     setProxyConfig,
     theme,
-    setTheme,
-    primaryColor,
-    setPrimaryColor
+    setTheme
   } = useStore();
   const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'workspace' | 'team' | 'security' | 'proxy'>('profile');
   const [isSaving, setIsSaving] = useState(false);
@@ -79,6 +64,7 @@ export const SettingsView: React.FC = () => {
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
 
   // Security State
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -128,8 +114,9 @@ export const SettingsView: React.FC = () => {
     }
     setIsSaving(true);
     try {
-      await apiService.changePassword(newPassword);
+      await apiService.changePassword(currentPassword, newPassword);
       addToast('Password updated successfully.', 'success');
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
@@ -215,7 +202,7 @@ export const SettingsView: React.FC = () => {
               activeTab === 'appearance' ? "bg-[var(--primary)] text-white" : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
             )}
           >
-            <Palette className="w-4 h-4" />
+            <Monitor className="w-4 h-4" />
             Theme & Appearance
           </button>
           
@@ -274,7 +261,7 @@ export const SettingsView: React.FC = () => {
                   <p className="text-[var(--text-secondary)]">Manage your public profile information</p>
                 </div>
 
-                <form onSubmit={handleUpdateProfile} className="space-y-4 bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)]">
+                <form onSubmit={handleUpdateProfile} className="space-y-4 bg-[var(--bg-panel)] p-6 rounded border border-[var(--border-subtle)]">
                   <div className="flex items-center gap-6 mb-6">
                     <div className="relative group">
                       {photoURL ? (
@@ -318,7 +305,7 @@ export const SettingsView: React.FC = () => {
                     <button 
                       type="submit"
                       disabled={isSaving}
-                      className="bg-[var(--primary)] text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all"
+                      className="bg-[var(--primary)] text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 disabled:opacity-50 transition-colors"
                     >
                       <Save className="w-4 h-4" />
                       {isSaving ? 'Saving...' : 'Save Changes'}
@@ -331,68 +318,39 @@ export const SettingsView: React.FC = () => {
             {activeTab === 'appearance' && (
               <div className="space-y-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-[var(--text-primary)]">Theme & Appearance</h1>
-                  <p className="text-[var(--text-secondary)]">Customize the visual theme and pick your custom primary accent colors for the UI</p>
+                  <h1 className="text-xl font-bold text-[var(--text-primary)]">Appearance</h1>
+                  <p className="text-sm text-[var(--text-secondary)]">Ubuntu professional theme. Accent color is fixed Ubuntu Orange.</p>
                 </div>
 
-                {/* Base Color Mode */}
-                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
-                    <Sun className="w-4 h-4 text-[var(--primary)]" />
-                    Base Color Mode
+                {/* Theme selection: Ubuntu Light / Ubuntu Dark */}
+                <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                    <Sun className="w-4 h-4" />
+                    Color Mode
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTheme('default');
-                        addToast('Base theme set to Ubuntu Aubergine', 'info');
-                      }}
-                      className={cn(
-                        "p-4 rounded-lg border flex flex-col items-center gap-2 text-center transition-all cursor-pointer relative",
-                        theme === 'default'
-                          ? "border-[var(--primary)] bg-[var(--primary)]/10 ring-2 ring-[var(--primary)]/30"
-                          : "border-[var(--border-strong)] bg-[var(--bg-hover)] hover:border-[var(--text-secondary)]"
-                      )}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-[#2C001E] border-2 border-[#DD4814] flex items-center justify-center shadow-md">
-                        <div className="w-4 h-4 rounded-full bg-[#DD4814]" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-[var(--text-primary)]">Ubuntu Aubergine</div>
-                        <div className="text-[11px] text-[var(--text-secondary)]">Signature warm purple theme</div>
-                      </div>
-                      {theme === 'default' && (
-                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-xs font-bold">
-                          ✓
-                        </span>
-                      )}
-                    </button>
-
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => {
                         setTheme('light');
-                        addToast('Base theme set to Light Mode', 'info');
+                        addToast('Theme set to Ubuntu Light', 'info');
                       }}
                       className={cn(
-                        "p-4 rounded-lg border flex flex-col items-center gap-2 text-center transition-all cursor-pointer relative",
+                        "p-4 rounded border flex items-center gap-3 text-left cursor-pointer",
                         theme === 'light'
-                          ? "border-[var(--primary)] bg-[var(--primary)]/10 ring-2 ring-[var(--primary)]/30"
-                          : "border-[var(--border-strong)] bg-[var(--bg-hover)] hover:border-[var(--text-secondary)]"
+                          ? "border-[var(--primary)] bg-[var(--bg-base)]"
+                          : "border-[var(--border-subtle)] bg-[var(--bg-base)] hover:border-[var(--border-strong)]"
                       )}
                     >
-                      <div className="w-10 h-10 rounded-full bg-[#FDFDFD] border-2 border-[#AEA79F] flex items-center justify-center shadow-md">
-                        <Sun className="w-5 h-5 text-[#DD4814]" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-[var(--text-primary)]">Light Mode</div>
-                        <div className="text-[11px] text-[var(--text-secondary)]">High-contrast bright workspace</div>
-                      </div>
+                      <span className="w-8 h-8 rounded border border-[var(--border-subtle)] bg-white flex items-center justify-center shrink-0">
+                        <Sun className="w-4 h-4 text-[#5d5d5d]" />
+                      </span>
+                      <span>
+                        <span className="text-sm font-bold text-[var(--text-primary)] block">Ubuntu Light</span>
+                        <span className="text-xs text-[var(--text-secondary)] block">White workspace</span>
+                      </span>
                       {theme === 'light' && (
-                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-xs font-bold">
-                          ✓
-                        </span>
+                        <Check className="w-4 h-4 text-[var(--primary)] ml-auto shrink-0" />
                       )}
                     </button>
 
@@ -400,198 +358,60 @@ export const SettingsView: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setTheme('dark');
-                        addToast('Base theme set to Slate Dark Mode', 'info');
+                        addToast('Theme set to Ubuntu Dark', 'info');
                       }}
                       className={cn(
-                        "p-4 rounded-lg border flex flex-col items-center gap-2 text-center transition-all cursor-pointer relative",
+                        "p-4 rounded border flex items-center gap-3 text-left cursor-pointer",
                         theme === 'dark'
-                          ? "border-[var(--primary)] bg-[var(--primary)]/10 ring-2 ring-[var(--primary)]/30"
-                          : "border-[var(--border-strong)] bg-[var(--bg-hover)] hover:border-[var(--text-secondary)]"
+                          ? "border-[var(--primary)] bg-[var(--bg-base)]"
+                          : "border-[var(--border-subtle)] bg-[var(--bg-base)] hover:border-[var(--border-strong)]"
                       )}
                     >
-                      <div className="w-10 h-10 rounded-full bg-[#0F172A] border-2 border-[#334155] flex items-center justify-center shadow-md">
-                        <Moon className="w-5 h-5 text-[#E95420]" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-[var(--text-primary)]">Slate Dark</div>
-                        <div className="text-[11px] text-[var(--text-secondary)]">Modern slate dark workspace</div>
-                      </div>
+                      <span className="w-8 h-8 rounded border border-[#3a3633] bg-[#1a1a1a] flex items-center justify-center shrink-0">
+                        <Moon className="w-4 h-4 text-[var(--text-secondary)]" />
+                      </span>
+                      <span>
+                        <span className="text-sm font-bold text-[var(--text-primary)] block">Ubuntu Dark</span>
+                        <span className="text-xs text-[var(--text-secondary)] block">Dark workspace</span>
+                      </span>
                       {theme === 'dark' && (
-                        <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--primary)] text-white flex items-center justify-center text-xs font-bold">
-                          ✓
-                        </span>
+                        <Check className="w-4 h-4 text-[var(--primary)] ml-auto shrink-0" />
                       )}
                     </button>
                   </div>
                 </div>
 
-                {/* Primary Accent Color Selection */}
-                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
-                        <Palette className="w-4 h-4 text-[var(--primary)]" />
-                        Custom Primary Accent Color
-                      </h3>
-                      <p className="text-xs text-[var(--text-secondary)] mt-1">
-                        Pick any custom color to override buttons, active tabs, highlights, and focus rings.
-                      </p>
-                    </div>
-                    {primaryColor && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPrimaryColor(null);
-                          addToast('Reset primary color to theme default', 'success');
-                        }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        Reset Accent
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Preset Swatches */}
-                  <div>
-                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)] block mb-3">Color Presets</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                      {COLOR_PRESETS.map((preset) => {
-                        const isSelected = primaryColor?.toLowerCase() === preset.value.toLowerCase();
-                        return (
-                          <button
-                            key={preset.value}
-                            type="button"
-                            onClick={() => {
-                              setPrimaryColor(preset.value);
-                              addToast(`Primary color updated to ${preset.name}`, 'success');
-                            }}
-                            className={cn(
-                              "flex items-center gap-2.5 p-2.5 rounded-lg border transition-all text-left group cursor-pointer",
-                              isSelected
-                                ? "border-[var(--primary)] bg-[var(--primary)]/15 shadow-sm ring-1 ring-[var(--primary)]"
-                                : "border-[var(--border-subtle)] bg-[var(--bg-hover)] hover:border-[var(--border-strong)]"
-                            )}
-                          >
-                            <span
-                              className="w-6 h-6 rounded-full shrink-0 border border-white/20 shadow-sm flex items-center justify-center transition-transform group-hover:scale-110"
-                              style={{ backgroundColor: preset.value }}
-                            >
-                              {isSelected && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
-                            </span>
-                            <div className="truncate">
-                              <span className="text-xs font-semibold block text-[var(--text-primary)] truncate">{preset.name}</span>
-                              <span className="text-[10px] font-mono text-[var(--text-secondary)] block">{preset.value}</span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Custom Color Picker & Hex Input */}
-                  <div className="pt-4 border-t border-[var(--border-subtle)]">
-                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)] block mb-2">Custom Color Value</label>
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex items-center">
-                        <input
-                          type="color"
-                          value={primaryColor || (theme === 'dark' ? '#E95420' : '#DD4814')}
-                          onChange={(e) => {
-                            setPrimaryColor(e.target.value);
-                          }}
-                          className="w-10 h-10 rounded cursor-pointer border-0 p-0 bg-transparent"
-                          title="Click to open color picker"
-                        />
-                      </div>
-                      <div className="flex-1 relative">
-                        <input
-                          type="text"
-                          value={primaryColor || ''}
-                          placeholder={theme === 'dark' ? '#E95420' : '#DD4814'}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (!val) {
-                              setPrimaryColor(null);
-                            } else if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
-                              setPrimaryColor(val);
-                            }
-                          }}
-                          className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm font-mono text-[var(--text-primary)] outline-none focus:border-[var(--primary)] uppercase"
-                        />
-                      </div>
-                      <div className="text-xs text-[var(--text-secondary)] font-mono px-2">
-                        {primaryColor ? 'Custom Accent Active' : 'Default Theme Accent'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Live UI Preview Card */}
-                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[var(--primary)]" />
-                    Live Theme Preview
-                  </h3>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    See how your custom primary accent color affects UI controls in real-time.
-                  </p>
-
-                  <div className="p-4 bg-[var(--bg-base)] rounded-md border border-[var(--border-subtle)] space-y-4">
-                    {/* Sample Tabs */}
-                    <div className="flex items-center border-b border-[var(--border-subtle)] gap-4 text-xs font-medium">
-                      <div className="pb-2 text-[var(--primary)] border-b-2 border-[var(--primary)] font-bold">Active Endpoint</div>
-                      <div className="pb-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Headers (3)</div>
-                      <div className="pb-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Body</div>
-                    </div>
-
-                    {/* Sample Controls */}
-                    <div className="flex flex-wrap items-center gap-3">
-                      <button type="button" className="bg-[var(--primary)] text-white px-4 py-2 rounded text-xs font-bold shadow-md hover:opacity-90 transition-opacity">
-                        Primary Action
-                      </button>
-                      <button type="button" className="border border-[var(--primary)] text-[var(--primary)] px-4 py-2 rounded text-xs font-semibold hover:bg-[var(--primary)]/10 transition-colors">
-                        Secondary Action
-                      </button>
-                      <span className="bg-[var(--primary)]/20 text-[var(--primary)] border border-[var(--primary)]/40 px-2.5 py-1 rounded text-[11px] font-bold">
-                        200 OK
-                      </span>
-                      <span className="bg-[var(--primary)] text-white px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
-                        GET
-                      </span>
-
-                    </div>
-                  </div>
-
+                {/* Pending invitations */}
+                <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-3">
                   {invitations.length > 0 && (
-                    <div className="space-y-4 pt-6 border-t border-[var(--border-subtle)]">
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)]">Pending Invitations</h3>
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Pending Invitations</h3>
                       <div className="space-y-2">
                         {invitations.map((inv, i) => (
-                          <div key={inv.id || i} className="flex items-center justify-between p-3 bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)]">
+                          <div key={inv.id || i} className="flex items-center justify-between p-3 bg-[var(--bg-base)] rounded border border-[var(--border-subtle)]">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-500 font-bold text-xs">
+                              <div className="w-8 h-8 rounded bg-[var(--bg-panel)] flex items-center justify-center font-bold text-xs">
                                 <Mail className="w-4 h-4" />
                               </div>
                               <div>
                                 <span className="text-sm font-medium">{inv.email}</span>
-                                <span className="text-[10px] text-[var(--text-secondary)] block">Invited as {inv.role}</span>
+                                <span className="text-xs text-[var(--text-secondary)] block">Invited as {inv.role}</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-orange-500 border border-orange-500/30 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">Pending</span>
+                              <span className="text-xs text-[var(--warning)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>
                               <button
                                 onClick={() => handleResendInvitation(inv.id)}
                                 disabled={resendingId === inv.id}
-                                className="text-[var(--text-secondary)] hover:text-[var(--primary)] p-1 transition-colors disabled:opacity-50"
+                                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 disabled:opacity-50 cursor-pointer"
                                 title="Resend Invitation"
                               >
                                 <RotateCcw className={cn("w-3.5 h-3.5", resendingId === inv.id && "animate-spin text-[var(--primary)]")} />
                               </button>
-                              <button 
+                              <button
                                 onClick={() => handleCancelInvitation(inv.id)}
                                 disabled={resendingId === inv.id}
-                                className="text-[var(--text-secondary)] hover:text-red-500 p-1 transition-colors disabled:opacity-50"
+                                className="text-[var(--text-secondary)] hover:text-[var(--danger)] p-1 disabled:opacity-50 cursor-pointer"
                                 title="Cancel Invitation"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -613,7 +433,7 @@ export const SettingsView: React.FC = () => {
                   <p className="text-[var(--text-secondary)]">Manage your current workspace: <span className="text-[var(--text-primary)] font-semibold">{currentWorkspace?.name}</span></p>
                 </div>
 
-                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-6">
+                <div className="bg-[var(--bg-panel)] p-6 rounded border border-[var(--border-subtle)] space-y-6">
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
                       <Shield className="w-4 h-4" />
@@ -671,7 +491,7 @@ export const SettingsView: React.FC = () => {
                             addToast('Workspace backup exported successfully as JSON', 'success', 2500);
                           }
                         }}
-                        className="flex items-center justify-center gap-2.5 p-3 bg-[var(--primary)] text-white rounded-lg text-xs font-bold hover:opacity-90 transition-all shadow-sm cursor-pointer"
+                        className="flex items-center justify-center gap-2.5 p-3 bg-[var(--primary)] text-white rounded text-xs font-bold hover:opacity-90 transition-colors  cursor-pointer"
                       >
                         <Download className="w-4 h-4" />
                         Export Workspace (JSON Backup)
@@ -685,9 +505,9 @@ export const SettingsView: React.FC = () => {
                             addToast('Postman collection v2.1 exported', 'success', 2500);
                           }
                         }}
-                        className="flex items-center justify-center gap-2.5 p-3 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] rounded-lg text-xs font-bold hover:bg-[var(--bg-surface)] transition-all cursor-pointer"
+                        className="flex items-center justify-center gap-2.5 p-3 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] rounded text-xs font-bold hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
                       >
-                        <BookOpen className="w-4 h-4 text-amber-500" />
+                        <BookOpen className="w-4 h-4 text-[var(--warning)]" />
                         Export Collections (Postman v2.1)
                       </button>
                     </div>
@@ -703,7 +523,7 @@ export const SettingsView: React.FC = () => {
                   <p className="text-[var(--text-secondary)]">Manage workspace members and team collaboration</p>
                 </div>
 
-                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-6">
+                <div className="bg-[var(--bg-panel)] p-6 rounded border border-[var(--border-subtle)] space-y-6">
                   <form onSubmit={handleInviteMember} className="space-y-4">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)]">Invite Member</h3>
                     <div className="flex gap-2">
@@ -717,7 +537,7 @@ export const SettingsView: React.FC = () => {
                       <button 
                         type="submit"
                         disabled={isSaving || !inviteEmail}
-                        className="bg-[var(--primary)] text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all min-w-[100px] justify-center"
+                        className="bg-[var(--primary)] text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 disabled:opacity-50 transition-colors min-w-[100px] justify-center"
                       >
                         {isSaving ? (
                           <>
@@ -740,7 +560,7 @@ export const SettingsView: React.FC = () => {
                       {/* Owner */}
                       <div className="flex items-center justify-between p-3 bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)]">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 font-bold">
+                          <div className="w-8 h-8 rounded-full bg-[var(--info)]/20 flex items-center justify-center text-[var(--info)] font-bold">
                             {user?.displayName?.charAt(0) || user?.email?.charAt(0)}
                           </div>
                           <div>
@@ -748,7 +568,7 @@ export const SettingsView: React.FC = () => {
                             <span className="text-[10px] text-[var(--text-secondary)] block">{user?.email}</span>
                           </div>
                         </div>
-                        <span className="text-[10px] border border-blue-500/30 text-blue-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">Owner</span>
+                        <span className="text-[10px] border border-[var(--info)]/30 text-[var(--info)] px-1.5 py-0.5 rounded font-bold uppercase tracking-tight">Owner</span>
                       </div>
 
                       {isLoadingTeam ? (
@@ -758,7 +578,7 @@ export const SettingsView: React.FC = () => {
                           {members.filter(m => m.user?.uid !== user?.uid).map((member, i) => (
                             <div key={member.id || i} className="flex items-center justify-between p-3 bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)]">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-gray-500/20 flex items-center justify-center text-gray-500 font-bold text-xs">
+                                <div className="w-8 h-8 rounded-full bg-[var(--text-tertiary)]/20 flex items-center justify-center text-[var(--text-tertiary)] font-bold text-xs">
                                   {(member.user?.displayName || member.user?.email || 'U').charAt(0).toUpperCase()}
                                 </div>
                                 <div>
@@ -768,7 +588,7 @@ export const SettingsView: React.FC = () => {
                               </div>
                               <button 
                                 onClick={() => handleRemoveMember(member.user?.uid)}
-                                className="text-[var(--text-secondary)] hover:text-red-500 p-1 transition-colors"
+                                className="text-[var(--text-secondary)] hover:text-[var(--danger)] p-1 transition-colors"
                                 title="Remove Member"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -790,11 +610,24 @@ export const SettingsView: React.FC = () => {
                   <p className="text-[var(--text-secondary)]">Secure your account and manage access</p>
                 </div>
 
-                <form onSubmit={handleUpdatePassword} className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-4">
+                <form onSubmit={handleUpdatePassword} className="bg-[var(--bg-panel)] p-6 rounded border border-[var(--border-subtle)] space-y-4">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)]">Change Password</h3>
-                  
+
                   <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">New Password</label>
+                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Current Password</label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)] pr-10"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">New Password (min 12 chars, upper + lower + number)</label>
                     <div className="relative">
                       <input 
                         type={showNewPassword ? "text" : "password"}
@@ -839,7 +672,7 @@ export const SettingsView: React.FC = () => {
                     <button 
                       type="submit"
                       disabled={isSaving || !newPassword}
-                      className="bg-[var(--primary)] text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 disabled:opacity-50 transition-all"
+                      className="bg-[var(--primary)] text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 disabled:opacity-50 transition-colors"
                     >
                       <Lock className="w-4 h-4" />
                       {isSaving ? 'Updating...' : 'Update Password'}
@@ -847,13 +680,13 @@ export const SettingsView: React.FC = () => {
                   </div>
                 </form>
 
-                <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-lg space-y-4">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-red-500 flex items-center gap-2">
+                <div className="bg-[var(--danger)]/10 border border-[var(--danger)]/30 p-6 rounded space-y-4">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--danger)] flex items-center gap-2">
                     <Trash2 className="w-4 h-4" />
                     Danger Zone
                   </h3>
-                  <p className="text-xs text-red-400">Once you delete your account, there is no going back. Please be certain.</p>
-                  <button className="bg-red-500 text-white px-4 py-2 rounded text-sm font-bold hover:bg-red-600 transition-colors">
+                  <p className="text-xs text-[var(--danger)]">Once you delete your account, there is no going back. Please be certain.</p>
+                  <button className="bg-[var(--danger)] text-white px-4 py-2 rounded text-sm font-bold hover:bg-[var(--danger)] transition-colors">
                     Delete Account
                   </button>
                 </div>
@@ -867,8 +700,8 @@ export const SettingsView: React.FC = () => {
                   <p className="text-[var(--text-secondary)]">Route your API requests through a custom proxy server or tunnel</p>
                 </div>
 
-                <form onSubmit={handleUpdateProxy} className="space-y-6 bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)]">
-                  <div className="flex items-center justify-between p-4 bg-[var(--bg-hover)] rounded-lg border border-[var(--border-subtle)]">
+                <form onSubmit={handleUpdateProxy} className="space-y-6 bg-[var(--bg-panel)] p-6 rounded border border-[var(--border-subtle)]">
+                  <div className="flex items-center justify-between p-4 bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)]">
                     <div>
                       <h3 className="text-sm font-bold text-[var(--text-primary)]">Enable Custom Proxy</h3>
                       <p className="text-xs text-[var(--text-secondary)]">When enabled, all requests will be routed via the configured server</p>
@@ -958,7 +791,7 @@ export const SettingsView: React.FC = () => {
                   <div className="pt-4 flex justify-end">
                     <button
                       type="submit"
-                      className="bg-[var(--primary)] text-white px-6 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-[var(--primary)]/20"
+                      className="bg-[var(--primary)] text-white px-6 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-colors shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/20"
                     >
                       <Save className="w-4 h-4" />
                       Save Proxy Settings
@@ -966,9 +799,9 @@ export const SettingsView: React.FC = () => {
                   </div>
                 </form>
 
-                <div className="bg-[var(--bg-panel)] p-6 rounded-lg border border-[var(--border-subtle)] space-y-3">
+                <div className="bg-[var(--bg-panel)] p-6 rounded border border-[var(--border-subtle)] space-y-3">
                    <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-                     <Shield className="w-4 h-4 text-blue-500" />
+                     <Shield className="w-4 h-4 text-[var(--info)]" />
                      Security & Privacy Note
                    </h3>
                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">

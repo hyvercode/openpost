@@ -52,6 +52,9 @@ CREATE TABLE "Collection" (
     "mockConfig" TEXT,
     "folders" TEXT NOT NULL DEFAULT '[]',
     "requests" TEXT NOT NULL DEFAULT '[]',
+    "shareVisibility" TEXT NOT NULL DEFAULT 'private',
+    "mockVisibility" TEXT NOT NULL DEFAULT 'private',
+    "docVisibility" TEXT NOT NULL DEFAULT 'private',
     CONSTRAINT "Collection_workspaceId_fkey" FOREIGN KEY ("workspaceId") REFERENCES "Workspace" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 

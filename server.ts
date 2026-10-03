@@ -1,9 +1,11 @@
-import jwt from "jsonwebtoken";
 import "dotenv/config";
+// Validate security-critical config FIRST (fail-fast in production).
+import "./server/src/config";
 import express from "express";
 import ipaddr from "ipaddr.js";
 import dns from "dns/promises";
 import cors from "cors";
+import helmet from "helmet";
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import { SocksProxyAgent } from "socks-proxy-agent";
@@ -27,11 +29,13 @@ import { requireAuth } from './server/src/middleware/auth';
 import { rateLimiter } from './server/src/middleware/rateLimiter';
 
 // Resolve the application root across dev and packaged (Electron) layouts:
-// - dev (tsx server.ts):        __dirname = <project>/, cwd = <project>/
-// - bundled dev:                __dirname = <project>/dist/
-// - packaged (asar:false):      __dirname = <resources>/app/dist/
+// - dev (tsx server.ts):        cwd = <project>/
+// - bundled (node dist/server.cjs): cwd = <project>/
+// - packaged (asar:false):      OPENPOST_APP_ROOT=<resources>/app (set by Electron)
 // The Electron child process sets cwd to the userData dir (writable), so
 // process.cwd() must NOT be used to locate bundled assets.
+// NOTE: no __dirname here — this file runs as ESM under tsx (no __dirname)
+// and as bundled CJS under esbuild; process.argv[1] works in both.
 function resolveAppRoot(): string {
   if (process.env.OPENPOST_APP_ROOT && fs.existsSync(process.env.OPENPOST_APP_ROOT)) {
     return process.env.OPENPOST_APP_ROOT;
@@ -41,7 +45,10 @@ function resolveAppRoot(): string {
     const candidate = path.join(resourcesPath, 'app');
     if (fs.existsSync(candidate)) return candidate;
   }
-  if (path.basename(__dirname) === 'dist') return path.dirname(__dirname);
+  const scriptPath = process.argv[1] ? path.resolve(process.argv[1]) : null;
+  if (scriptPath && path.basename(path.dirname(scriptPath)) === 'dist') {
+    return path.dirname(path.dirname(scriptPath));
+  }
   return process.cwd();
 }
 
@@ -49,12 +56,48 @@ const APP_ROOT = resolveAppRoot();
 
 async function startServer() {
   const app = express();
-  
+
   // Dev server must always run on port 3000 per AI Studio environment constraints
   const PORT = process.env.PORT || 3000;
 
-  app.use(cors());
-  app.use(express.json({ limit: "50mb" }));
+  // SECURITY headers (CSP, HSTS, X-Frame-Options, noSniff, ...).
+  // Google sign-in scripts are allow-listed so GIS login keeps working.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://accounts.google.com"],
+          frameSrc: ["https://accounts.google.com"],
+          connectSrc: ["'self'", "https://accounts.google.com", "https://www.googleapis.com", "https://oauth2.googleapis.com"],
+          imgSrc: ["'self'", "data:", "https:"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+    })
+  );
+  app.disable('x-powered-by');
+
+  // Restrict CORS instead of reflecting any origin.
+  const allowedOrigins = (process.env.CORS_ORIGINS || process.env.APP_URL || 'http://localhost:3000')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  app.use(
+    cors({
+      origin: (origin, cb) => {
+        // Same-origin / non-browser (curl, Electron) have no Origin header.
+        if (!origin) return cb(null, true);
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+        return cb(new Error('CORS: origin not allowed'));
+      },
+      credentials: true,
+    })
+  );
+  // Request bodies: 1MB default (raises DoS cost); import endpoints that need
+  // more should set their own limit explicitly.
+  app.use(express.json({ limit: "1mb" }));
 
   // Mount Prisma API Routes
   app.use('/api/auth', authRoutes);
@@ -254,61 +297,101 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
   // The proxy endpoint - Rate limited to 60 req/min per user
   app.all("/api/proxy", requireAuth, rateLimiter(60), async (req, res) => {
     const startTime = performance.now();
-    let dnsTime = 0;
-    let connectTime = 0;
-    let requestSentTime = 0;
-    let responseStartTime = 0;
+
+    // --- SSRF guard helpers (single source of truth for URL safety) ---
+    const BLOCKED_HOST_SUFFIXES = ['.internal', '.local', '.localhost', '.lan', '.home', '.corp'];
+    // Cloud metadata endpoints (IMDS) — not covered by private-range checks.
+    const BLOCKED_IPS = new Set([
+      '169.254.169.254', // AWS / GCP / Azure / DigitalOcean IMDS
+      '100.100.100.100', // Alibaba Cloud IMDS
+      'fd00:ec2::254',   // AWS IPv6 IMDS
+    ]);
+
+    function ipIsBlocked(ipStr: string): boolean {
+      if (BLOCKED_IPS.has(ipStr)) return true;
+      let parsed: any = null;
+      try { parsed = ipaddr.parse(ipStr); } catch { try { parsed = (ipaddr as any).process(ipStr); } catch { return true; } }
+      if (!parsed) return true;
+      // Normalize IPv4-mapped IPv6 (::ffff:127.0.0.1) before range check.
+      const range = typeof parsed.range === 'function' ? parsed.range() : 'unicast';
+      if (range !== 'unicast' && range !== 'global') return true;
+      return false;
+    }
+
+    async function assertUrlSafe(rawUrl: string): Promise<{ urlObj: URL; targetIp: string }> {
+      let urlObj: URL;
+      try {
+        urlObj = new URL(rawUrl);
+      } catch {
+        throw Object.assign(new Error('Invalid URL'), { status: 400 });
+      }
+      // Only http/https — reject file:, gopher:, dict:, ftp:, etc.
+      if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+        throw Object.assign(new Error('Only http(s) URLs are allowed'), { status: 400 });
+      }
+      if (urlObj.username || urlObj.password) {
+        throw Object.assign(new Error('Credentials in URL are not allowed'), { status: 400 });
+      }
+      const host = urlObj.hostname.toLowerCase();
+      if (!host || host === 'localhost' || BLOCKED_HOST_SUFFIXES.some((s) => host === s.slice(1) || host.endsWith(s))) {
+        throw Object.assign(new Error('Access to internal or local networks is blocked'), { status: 403 });
+      }
+      // Resolve ALL addresses (A + AAAA) — block if ANY is non-public (DNS rebinding defense).
+      let records: Array<{ address: string }>;
+      try {
+        const [v4, v6] = await Promise.all([
+          dns.resolve4(host).catch(() => [] as string[]),
+          dns.resolve6(host).catch(() => [] as string[]),
+        ]);
+        records = [...v4.map((a) => ({ address: a })), ...v6.map((a) => ({ address: a }))];
+        if (records.length === 0) {
+          const fallback = await dns.lookup(host);
+          records = [{ address: fallback.address }];
+        }
+      } catch {
+        throw Object.assign(new Error('DNS resolution failed'), { status: 400 });
+      }
+      for (const r of records) {
+        if (ipIsBlocked(r.address)) {
+          throw Object.assign(
+            new Error('SSRF Protection: Access to internal or local networks is blocked.'),
+            { status: 403, suggestion: 'To test local APIs, please use the Desktop Agent Bridge.' }
+          );
+        }
+      }
+      return { urlObj, targetIp: records[0].address };
+    }
 
     try {
       const targetUrl = (req.headers["x-target-url"] as string) || req.body?.url;
-      if (!targetUrl) {
-        return res.status(400).json({ error: "Missing x-target-url header or url in request body" });
+      if (!targetUrl || typeof targetUrl !== 'string' || targetUrl.length > 2048) {
+        return res.status(400).json({ error: "Missing or invalid x-target-url header or url in request body" });
       }
 
-      // SSRF Protection
-      let targetIp: string = "";
-      let urlObj: URL;
-      try {
-        urlObj = new URL(targetUrl);
-        const resolved = await dns.lookup(urlObj.hostname);
-        targetIp = resolved.address;
-        
-        let parsedIp;
-        try {
-          parsedIp = ipaddr.parse(targetIp);
-        } catch (e) {
-          try { parsedIp = ipaddr.process(targetIp); } catch(e) {}
-        }
-        
-        if (parsedIp) {
-           const range = parsedIp.range();
-           const isPrivate = range === 'private' || range === 'loopback' || range === 'linkLocal' || range === 'uniqueLocal' || range === 'ipv4Mapped' || range === 'multicast' || range === 'broadcast';
-           if (isPrivate) {
-             return res.status(403).json({ 
-               error: "SSRF Protection: Access to internal or local networks is blocked.",
-               suggestion: "To test local APIs, please use the Desktop Agent Bridge."
-             });
-           }
-        }
-      } catch (err: any) {
-        return res.status(400).json({ error: "Invalid URL or DNS resolution failed: " + err.message });
-      }
+      const { urlObj, targetIp } = await assertUrlSafe(targetUrl);
 
       const isBodyConfig = req.body && req.body.url && req.body.method;
-      const method = (isBodyConfig ? req.body.method : req.method).toUpperCase();
-      const clientHeaders = isBodyConfig ? req.body.headers : {};
-      
-      const headers = { ...req.headers, ...clientHeaders };
-      
-      // Clean up headers before proxying
-      delete headers["host"];
-      delete headers["x-target-url"];
-      delete headers["content-length"]; // Let axios recalculate
-      
-      let data = isBodyConfig 
-        ? req.body.body 
+      const rawMethod = (isBodyConfig ? req.body.method : req.method) || 'GET';
+      const method = String(rawMethod).toUpperCase();
+      if (!/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)$/.test(method)) {
+        return res.status(400).json({ error: 'Unsupported HTTP method' });
+      }
+      const clientHeaders = (isBodyConfig && typeof req.body.headers === 'object' && req.body.headers) || {};
+
+      const headers: Record<string, any> = { ...req.headers, ...clientHeaders };
+
+      // Strip headers that must never be forwarded (credential relay / request smuggling).
+      const STRIP = [
+        'host', 'content-length', 'transfer-encoding', 'connection',
+        'x-target-url', 'authorization', 'cookie', 'set-cookie',
+        'proxy-authorization', 'proxy-authenticate', 'proxy-connection',
+      ];
+      for (const h of STRIP) delete headers[h];
+
+      let data = isBodyConfig
+        ? req.body.body
         : (req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined);
-      
+
       let isGrpcRequest = false;
       if (headers["x-grpc-protobuf-base64"] === "true") {
         isGrpcRequest = true;
@@ -317,18 +400,41 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         }
         delete headers["x-grpc-protobuf-base64"];
       }
-      
+
+      // Upstream proxy config (user's own egress proxy). Validate to avoid
+      // turning this endpoint into an unrestricted relay.
       const proxyConfig = req.body?.proxyConfig;
-      let httpsAgent = undefined;
-      let httpAgent = undefined;
+      let httpsAgent: any = undefined;
+      let httpAgent: any = undefined;
+
+      // Pin DNS: every connection (including redirects) resolves through this
+      // lookup, which only ever returns the pre-validated IP.
+      const pinnedLookup = (hostname: string, options: any, callback: any) => {
+        if (hostname === urlObj.hostname && targetIp) {
+          const family = targetIp.includes(':') ? 6 : 4;
+          callback(null, targetIp, family);
+        } else {
+          // Redirects to a different host go through full re-validation below
+          // via beforeRedirect; anything else is denied.
+          callback(new Error('DNS resolution denied by SSRF policy'));
+        }
+      };
 
       if (proxyConfig && proxyConfig.enabled && proxyConfig.url) {
-        const proxyUrl = proxyConfig.url.includes('://') ? proxyConfig.url : `${proxyConfig.protocol}://${proxyConfig.url}`;
-        const pUrlObj = new URL(proxyUrl);
-        
+        const proxyUrl = String(proxyConfig.url).includes('://') ? String(proxyConfig.url) : `${proxyConfig.protocol}://${proxyConfig.url}`;
+        let pUrlObj: URL;
+        try {
+          pUrlObj = new URL(proxyUrl);
+        } catch {
+          return res.status(400).json({ error: 'Invalid proxyConfig.url' });
+        }
+        if (pUrlObj.protocol !== 'http:' && pUrlObj.protocol !== 'https:' && pUrlObj.protocol !== 'socks5:') {
+          return res.status(400).json({ error: 'Unsupported proxy protocol' });
+        }
+
         if (proxyConfig.useAuth && proxyConfig.username) {
-          pUrlObj.username = proxyConfig.username;
-          pUrlObj.password = proxyConfig.password || '';
+          pUrlObj.username = String(proxyConfig.username);
+          pUrlObj.password = String(proxyConfig.password || '');
         }
 
         if (proxyConfig.protocol === 'socks5') {
@@ -339,19 +445,10 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
           httpAgent = new HttpsProxyAgent(pUrlObj.toString());
         }
       } else {
-        // TOCTOU Prevention: Use the resolved IP instead of looking up again
-        const customLookup = (hostname: string, options: any, callback: any) => {
-          if (urlObj && hostname === urlObj.hostname && targetIp) {
-            callback(null, targetIp, ipaddr.parse(targetIp).kind() === 'ipv6' ? 6 : 4);
-          } else {
-            // fallback
-            require('dns').lookup(hostname, options, callback);
-          }
-        };
-        httpAgent = new http.Agent({ lookup: customLookup });
-        httpsAgent = new https.Agent({ lookup: customLookup });
+        httpAgent = new http.Agent({ lookup: pinnedLookup });
+        httpsAgent = new https.Agent({ lookup: pinnedLookup });
       }
-      
+
       const config: any = {
         method,
         url: targetUrl,
@@ -361,40 +458,80 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         httpsAgent,
         httpAgent,
         proxy: false, // Disable axios default proxy handling when using custom agents
+        maxRedirects: 0, // Never follow redirects blindly — each hop is re-validated below
+        timeout: 30000,
+        maxBodyLength: 10 * 1024 * 1024,
+        maxContentLength: 10 * 1024 * 1024,
       };
 
       if (isGrpcRequest) {
         config.responseType = 'arraybuffer';
       }
 
-      // Use axios but with a custom agent to get timings if we want to stay with axios
-      // Or just keep using axios and provide total time, while estimating others.
-      // To satisfy the requirement for "DNS lookup time" and "connection time" 
-      // without switching to raw http (which is more complex for body handling), 
-      // we'll provide simulated granular timings based on total time if real ones are hard to get.
-      // However, for a real integration, we'll try to provide at least total and size.
-      
-      const response = await axios(config);
+      // Manual redirect loop: max 3 hops, every Location re-validated with the
+      // same SSRF policy (kills redirect-to-internal bypasses).
+      let response: any = null;
+      let currentUrl = targetUrl;
+      let currentIp = targetIp;
+      for (let hop = 0; hop <= 3; hop++) {
+        response = await axios({ ...config, url: currentUrl });
+        const status = response.status;
+        if (status < 300 || status > 399) break;
+        const location = response.headers?.location;
+        if (!location || hop === 3) {
+          if (!location) break;
+          return res.status(502).json({ error: 'Too many redirects (max 3)' });
+        }
+        let nextUrl: string;
+        try {
+          nextUrl = new URL(location, currentUrl).toString();
+        } catch {
+          return res.status(502).json({ error: 'Invalid redirect location' });
+        }
+        try {
+          const checked = await assertUrlSafe(nextUrl);
+          currentUrl = nextUrl;
+          currentIp = checked.targetIp;
+          // Re-pin DNS to the new hop's validated IP.
+          const hopIp = checked.targetIp;
+          const hopLookup = (hostname: string, options: any, callback: any) => {
+            if (hostname === checked.urlObj.hostname) {
+              callback(null, hopIp, hopIp.includes(':') ? 6 : 4);
+            } else {
+              callback(new Error('DNS resolution denied by SSRF policy'));
+            }
+          };
+          if (!proxyConfig?.enabled) {
+            config.httpAgent = new http.Agent({ lookup: hopLookup });
+            config.httpsAgent = new https.Agent({ lookup: hopLookup });
+          }
+          void currentIp;
+        } catch (e: any) {
+          return res.status(e?.status || 403).json({
+            error: e?.message || 'Redirect target blocked by SSRF policy',
+            ...(e?.suggestion ? { suggestion: e.suggestion } : {}),
+          });
+        }
+      }
       const endTime = performance.now();
       const totalTime = endTime - startTime;
-      
-      // Simulated breakdown for UI demonstration (as real ones are hard to get from Axios without deep complexity)
-      // In a production app, we would use 'http' module events.
-      const simulatedDns = Math.random() * (totalTime * 0.1);
-      const simulatedConnect = Math.random() * (totalTime * 0.2);
-      
-      // Forward headers back to client
-      Object.entries(response.headers).forEach(([key, value]) => {
-        if (key.toLowerCase() !== "transfer-encoding") {
-           res.setHeader(key, value as any);
+
+      // Forward a safe subset of response headers (never hop-by-hop or cookies).
+      const HOP_BY_HOP = new Set([
+        'transfer-encoding', 'connection', 'keep-alive', 'proxy-authenticate',
+        'proxy-authorization', 'te', 'trailer', 'upgrade', 'set-cookie',
+      ]);
+      Object.entries(response.headers || {}).forEach(([key, value]) => {
+        if (!HOP_BY_HOP.has(key.toLowerCase())) {
+          res.setHeader(key, value as any);
         }
       });
-      
+
       const responseData = response.data;
       const isBufferResponse = Buffer.isBuffer(responseData) || responseData instanceof ArrayBuffer;
       const dataToSend = isBufferResponse ? Buffer.from(responseData).toString("base64") : responseData;
       const size = isBufferResponse ? Buffer.from(responseData).length : (typeof responseData === 'string' ? Buffer.byteLength(responseData) : JSON.stringify(responseData).length);
-      
+
       res.json({
         status: response.status,
         statusText: response.statusText,
@@ -404,16 +541,13 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         timeMs: Math.round(totalTime),
         size: size,
         timings: {
-          dns: Math.round(simulatedDns),
-          tcp: Math.round(simulatedConnect),
           total: Math.round(totalTime)
         }
       });
     } catch (error: any) {
       const endTime = performance.now();
-      res.status(500).json({ 
-        error: "Proxy Request Failed", 
-        details: error.message,
+      res.status(500).json({
+        error: "Proxy Request Failed",
         code: error.code,
         timeMs: Math.round(endTime - startTime)
       });
@@ -709,7 +843,22 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
     }
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  // 404 for unknown API routes (the SPA fallback above only serves GET *).
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
+
+  // Global error handler: never leak stack traces or internal messages to
+  // clients. Log server-side, return a generic 500.
+  // (Must be registered after all routes — Express detects it by arity.)
+  app.use((err: any, _req: any, res: any, _next: any) => {
+    console.error('[unhandled-error]', err?.message || err);
+    if (res.headersSent) return;
+    const status = typeof err?.status === 'number' ? err.status : 500;
+    res.status(status).json({ error: status === 500 ? 'Internal server error' : err?.message || 'Request failed' });
+  });
+
+  app.listen(Number(PORT) || 3000, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

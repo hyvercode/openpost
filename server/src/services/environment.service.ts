@@ -8,6 +8,10 @@ export class EnvironmentService {
     return this.environmentRepository.findByWorkspaceId(workspaceId);
   }
 
+  async getEnvironmentById(id: string) {
+    return this.environmentRepository.findById(id);
+  }
+
   async createEnvironment(data: Partial<EnvironmentData>) {
     if (!data.workspaceId || !data.name) {
       throw new Error('WorkspaceId and name are required');

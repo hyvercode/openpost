@@ -13,7 +13,9 @@
     "dev": "tsx server.ts",
     "dev:monolith": "tsx server.ts",
     "dev:backend": "BACKEND_ONLY=true tsx server.ts",
+    "dev:api": "BACKEND_ONLY=true tsx server.ts",
     "dev:frontend": "vite",
+    "dev:web": "vite",
     "prebuild": "npm run db:setup",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "build:monolith": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
@@ -35,10 +37,12 @@
     "build:electron:win": "npm run db:setup:sqlite && npm run build:frontend && npm run build:backend && electron-builder build --win",
     "build:electron:win:nsis": "npm run db:setup:sqlite && npm run build:frontend && npm run build:backend && electron-builder build --win nsis",
     "build:electron:mac": "npm run db:setup:sqlite && npm run build:frontend && npm run build:backend && electron-builder build --mac",
-    "build:electron:mac:dmg": "npm run db:setup:sqlite && npm run build:frontend && npm run build:backend && electron-builder build --mac dmg",
+    "build:electron:mac:dmg": "node scripts/build-mac-dmg.cjs",
     "build:electron:linux": "npm run db:setup:sqlite && npm run build:frontend && npm run build:backend && electron-builder build --linux"
   },
   "dependencies": {
+    "@fontsource/ubuntu": "^5.3.0",
+    "@fontsource/ubuntu-mono": "^5.3.0",
     "@google/genai": "^2.4.0",
     "@prisma-next/adapter-mongo": "^0.11.0",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
@@ -48,16 +52,19 @@
     "@prisma/client": "^7.8.0",
     "@types/nodemailer": "^8.0.1",
     "@types/papaparse": "^5.5.2",
-    "axios": "^1.18.1",
+    "axios": "^1.20.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.11.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
     "date-fns": "^4.4.0",
     "diff": "^9.0.0",
+    "dompurify": "^3.4.16",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "firebase": "^12.16.0",
+    "google-auth-library": "^11.1.0",
+    "helmet": "^8.3.0",
     "https-proxy-agent": "^9.1.0",
     "idb-keyval": "^6.3.0",
     "ipaddr.js": "^2.5.0",
@@ -80,6 +87,7 @@
     "socks-proxy-agent": "^10.1.0",
     "tailwind-merge": "^3.6.0",
     "uuid": "^14.0.1",
+    "zod": "^4.6.5",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -157,7 +165,7 @@
         "portable",
         "zip"
       ],
-      "signAndEditExecutable": false
+      "signExecutable": false
     },
     "nsis": {
       "packElevateHelper": false

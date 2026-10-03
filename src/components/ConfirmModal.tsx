@@ -21,7 +21,7 @@ export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: Co
   
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-lg p-5 w-80 shadow-2xl">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-5 w-80 shadow-[var(--shadow-subtle)]">
         <h3 className="text-[var(--text-primary)] text-sm font-semibold mb-2">{title}</h3>
         <p className="text-[var(--text-secondary)] text-xs mb-5">{message}</p>
         <div className="flex justify-end gap-3">
@@ -34,7 +34,7 @@ export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }: Co
           <button 
             ref={confirmBtnRef}
             onClick={onConfirm} 
-            className="px-4 py-1.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded font-medium transition-colors"
+            className="px-4 py-1.5 text-xs bg-[var(--danger)] hover:bg-[var(--danger)] text-white rounded font-medium transition-colors"
           >
             Delete
           </button>

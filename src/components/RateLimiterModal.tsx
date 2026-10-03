@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Gauge, ShieldCheck, ShieldAlert, Zap, RotateCcw, AlertTriangle, CheckCircle2, Clock, Sparkles } from 'lucide-react';
+import { X, Gauge, ShieldCheck, ShieldAlert, Zap, RotateCcw, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { 
   RateLimiterConfig, 
   RateLimiterPresetKey,
@@ -80,13 +80,13 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
     : 0;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded-xl shadow-2xl w-full max-w-xl flex flex-col overflow-hidden text-[var(--text-primary)]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60  p-4 animate-in fade-in duration-150">
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] w-full max-w-xl flex flex-col overflow-hidden text-[var(--text-primary)]">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-2.5">
             <div className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center border",
+              "w-8 h-8 rounded flex items-center justify-center border",
               localConfig.enabled 
                 ? "bg-[var(--primary)]/10 border-[var(--primary)]/30 text-[var(--primary)]" 
                 : "bg-[var(--bg-hover)] border-[var(--border-subtle)] text-[var(--text-secondary)]"
@@ -99,8 +99,8 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
                 <span className={cn(
                   "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
                   localConfig.enabled 
-                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500" 
-                    : "bg-gray-500/10 border-gray-500/30 text-[var(--text-secondary)]"
+                    ? "bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)]" 
+                    : "bg-[var(--text-tertiary)]/10 border-[var(--text-tertiary)]/30 text-[var(--text-secondary)]"
                 )}>
                   {localConfig.enabled ? 'ACTIVE' : 'OFF'}
                 </span>
@@ -112,7 +112,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
+            className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -121,10 +121,10 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
         {/* Body */}
         <div className="p-5 space-y-5 overflow-y-auto max-h-[75vh] custom-scrollbar">
           {/* Master Enable/Disable Toggle */}
-          <div className="flex items-center justify-between p-3.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg">
+          <div className="flex items-center justify-between p-3.5 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded">
             <div className="flex items-center gap-3">
               {localConfig.enabled ? (
-                <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0" />
+                <ShieldCheck className="w-5 h-5 text-[var(--success)] shrink-0" />
               ) : (
                 <ShieldAlert className="w-5 h-5 text-[var(--text-secondary)] shrink-0" />
               )}
@@ -144,7 +144,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
             >
               <span
                 className={cn(
-                  "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+                  "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-[var(--shadow-subtle)] ring-0 transition duration-200 ease-in-out",
                   localConfig.enabled ? "translate-x-5" : "translate-x-0"
                 )}
               />
@@ -152,7 +152,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
           </div>
 
           {/* Live Quota Bar */}
-          <div className="p-3.5 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-lg space-y-2.5">
+          <div className="p-3.5 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded space-y-2.5">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-[var(--primary)]" />
@@ -177,9 +177,9 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
             <div className="w-full bg-[var(--bg-panel)] h-2 rounded-full overflow-hidden border border-[var(--border-subtle)]">
               <div
                 className={cn(
-                  "h-full transition-all duration-300 rounded-full",
-                  usagePercent >= 100 ? "bg-red-500" :
-                  usagePercent >= 75 ? "bg-amber-500" : "bg-[var(--primary)]"
+                  "h-full transition-colors  rounded-full",
+                  usagePercent >= 100 ? "bg-[var(--danger)]" :
+                  usagePercent >= 75 ? "bg-[var(--warning)]" : "bg-[var(--primary)]"
                 )}
                 style={{ width: `${usagePercent}%` }}
               />
@@ -188,12 +188,12 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
             <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
               <span>{status.remaining} remaining in {localConfig.windowSeconds}s window</span>
               {status.resetInSeconds > 0 ? (
-                <span className="text-amber-500 font-semibold flex items-center gap-1">
+                <span className="text-[var(--warning)] font-semibold flex items-center gap-1">
                   <AlertTriangle className="w-3 h-3" />
                   Resets in {status.resetInSeconds}s
                 </span>
               ) : (
-                <span className="text-emerald-500 font-semibold flex items-center gap-1">
+                <span className="text-[var(--success)] font-semibold flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   Quota Ready
                 </span>
@@ -216,9 +216,9 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
                     type="button"
                     onClick={() => handleSelectPreset(key)}
                     className={cn(
-                      "p-2.5 rounded-lg border text-left transition-all cursor-pointer flex flex-col gap-1",
+                      "p-2.5 rounded border text-left transition-colors cursor-pointer flex flex-col gap-1",
                       isSelected
-                        ? "bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--text-primary)] shadow-sm"
+                        ? "bg-[var(--primary)]/10 border-[var(--primary)] text-[var(--text-primary)] "
                         : "bg-[var(--bg-surface)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
                     )}
                   >
@@ -252,7 +252,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
                     max="100"
                     value={localConfig.maxRequests}
                     onChange={(e) => handleUpdateField('maxRequests', Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--primary)]"
+                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--primary)]"
                   />
                   <span className="text-xs text-[var(--text-secondary)] shrink-0">req</span>
                 </div>
@@ -268,7 +268,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
                     max="120"
                     value={localConfig.windowSeconds}
                     onChange={(e) => handleUpdateField('windowSeconds', Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--primary)]"
+                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono focus:outline-none focus:border-[var(--primary)]"
                   />
                   <span className="text-xs text-[var(--text-secondary)] shrink-0">sec</span>
                 </div>
@@ -285,7 +285,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
               <label
                 onClick={() => handleUpdateField('mode', 'block')}
                 className={cn(
-                  "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                  "flex items-start gap-3 p-3 rounded border cursor-pointer transition-colors",
                   localConfig.mode === 'block'
                     ? "bg-[var(--primary)]/10 border-[var(--primary)]"
                     : "bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:bg-[var(--bg-hover)]"
@@ -300,7 +300,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
                 />
                 <div className="space-y-0.5">
                   <span className="text-xs font-bold block">
-                    🛡️ Block & Show Cooldown Countdown
+                    Block & Show Cooldown Countdown
                   </span>
                   <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
                     Halts request execution before dispatch, showing remaining cooldown seconds on the Send button and displaying an inline countdown banner with bypass controls.
@@ -311,7 +311,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
               <label
                 onClick={() => handleUpdateField('mode', 'simulate_429')}
                 className={cn(
-                  "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
+                  "flex items-start gap-3 p-3 rounded border cursor-pointer transition-colors",
                   localConfig.mode === 'simulate_429'
                     ? "bg-[var(--primary)]/10 border-[var(--primary)]"
                     : "bg-[var(--bg-surface)] border-[var(--border-subtle)] hover:bg-[var(--bg-hover)]"
@@ -326,7 +326,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
                 />
                 <div className="space-y-0.5">
                   <span className="text-xs font-bold block flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <Gauge className="w-3.5 h-3.5" />
                     Simulate HTTP 429 Too Many Requests
                   </span>
                   <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
@@ -345,7 +345,7 @@ export const RateLimiterModal: React.FC<RateLimiterModalProps> = ({
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-bold rounded-lg bg-[var(--primary)] hover:bg-[#e65a2d] text-white transition-colors cursor-pointer shadow-sm"
+            className="px-4 py-2 text-xs font-bold rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white transition-colors cursor-pointer "
           >
             Done
           </button>

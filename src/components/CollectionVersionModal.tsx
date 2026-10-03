@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   GitBranch, GitCommit, History, Tag, AlertTriangle, Plus, Trash2, 
   RotateCcw, Download, Copy, Check, ChevronDown, ChevronRight, 
-  Sparkles, FileText, ArrowRight, ShieldAlert, CheckCircle2, 
+  FileText, ArrowRight, ShieldAlert, CheckCircle2, 
   ExternalLink, Layers, Search, Filter, X
 } from 'lucide-react';
 import { ApiCollection, CollectionVersion, CollectionDiffResult, EndpointDiffItem, RequestItem } from '../types';
@@ -328,15 +328,15 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60  animate-in fade-in duration-150">
       <div 
-        className="w-full max-w-4xl bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden text-[var(--text-primary)]"
+        className="w-full max-w-4xl bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded shadow-[var(--shadow-subtle)] flex flex-col max-h-[92vh] overflow-hidden text-[var(--text-primary)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-panel)] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 flex items-center justify-center shadow-xs">
+            <div className="w-10 h-10 rounded bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 flex items-center justify-center ">
               <History className="w-5 h-5" />
             </div>
             <div>
@@ -355,7 +355,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+              className="p-1.5 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
               title="Close Modal"
             >
               <X className="w-5 h-5" />
@@ -368,9 +368,9 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
                 activeTab === 'history'
-                  ? 'bg-[var(--primary)] text-white shadow-xs'
+                  ? 'bg-[var(--primary)] text-white '
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               }`}
             >
@@ -380,16 +380,16 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
 
             <button
               onClick={() => setActiveTab('diff')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
                 activeTab === 'diff'
-                  ? 'bg-[var(--primary)] text-white shadow-xs'
+                  ? 'bg-[var(--primary)] text-white '
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               }`}
             >
               <GitBranch className="w-3.5 h-3.5" />
               <span>Endpoint Diff & Compare</span>
               {explorerDiffResult.breakingCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/30">
                   {explorerDiffResult.breakingCount} breaking
                 </span>
               )}
@@ -397,16 +397,16 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
 
             <button
               onClick={() => setActiveTab('release')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
                 activeTab === 'release'
-                  ? 'bg-[var(--primary)] text-white shadow-xs'
+                  ? 'bg-[var(--primary)] text-white '
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
               }`}
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Release New Version</span>
               {(releaseDraftDiff.addedCount > 0 || releaseDraftDiff.modifiedCount > 0 || releaseDraftDiff.removedCount > 0) && (
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
               )}
             </button>
           </div>
@@ -431,7 +431,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                 </div>
                 <button
                   onClick={() => setActiveTab('release')}
-                  className="px-3 py-1.5 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                  className="px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors  cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Create Snapshot</span>
@@ -443,7 +443,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                   Loading version history...
                 </div>
               ) : versions.length === 0 ? (
-                <div className="p-10 border border-dashed border-[var(--border-subtle)] rounded-xl text-center space-y-3 bg-[var(--bg-surface)]/30">
+                <div className="p-10 border border-dashed border-[var(--border-subtle)] rounded text-center space-y-3 bg-[var(--bg-surface)]/30">
                   <div className="w-12 h-12 mx-auto rounded-full bg-[var(--primary)]/10 text-[var(--primary)] flex items-center justify-center">
                     <History className="w-6 h-6" />
                   </div>
@@ -453,7 +453,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                   </p>
                   <button
                     onClick={() => setActiveTab('release')}
-                    className="px-4 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold inline-flex items-center gap-2 transition-all cursor-pointer"
+                    className="px-4 py-2 rounded bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Create Version 1.0.0</span>
@@ -466,11 +466,11 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                     return (
                       <div 
                         key={ver.id} 
-                        className="relative group bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-4.5 space-y-3 shadow-xs hover:border-[var(--primary)]/40 transition-all"
+                        className="relative group bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded p-4.5 space-y-3  hover:border-[var(--primary)]/40 transition-colors"
                       >
                         {/* Timeline Node Dot */}
                         <div className={`absolute -left-[31px] top-5 w-4 h-4 rounded-full border-2 bg-[var(--bg-base)] ${
-                          isLatest ? 'border-[var(--primary)] shadow-sm' : 'border-gray-500'
+                          isLatest ? 'border-[var(--primary)] ' : 'border-[var(--text-tertiary)]'
                         }`} />
 
                         {/* Version Header */}
@@ -487,9 +487,9 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                               <span 
                                 key={t} 
                                 className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                                  t === 'latest' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
-                                  t === 'production' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
-                                  t === 'deprecated' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' :
+                                  t === 'latest' ? 'bg-[var(--success)]/15 text-[var(--success)] border border-[var(--success)]/30' :
+                                  t === 'production' ? 'bg-[var(--info)]/15 text-[var(--info)] border border-[var(--info)]/30' :
+                                  t === 'deprecated' ? 'bg-[var(--danger)]/15 text-[var(--danger)] border border-[var(--danger)]/30' :
                                   'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
                                 }`}
                               >
@@ -515,7 +515,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
 
                             <button
                               onClick={() => setConfirmRollbackVersion(ver)}
-                              className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-medium border border-amber-500/30 flex items-center gap-1 transition-colors cursor-pointer"
+                              className="px-2.5 py-1 rounded bg-[var(--warning)]/10 hover:bg-[var(--warning)]/20 text-[var(--warning)] text-xs font-medium border border-[var(--warning)]/30 flex items-center gap-1 transition-colors cursor-pointer"
                               title="Restore entire collection to this version"
                             >
                               <RotateCcw className="w-3.5 h-3.5" />
@@ -527,7 +527,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                               className="px-2.5 py-1 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-medium border border-[var(--border-subtle)] flex items-center gap-1 transition-colors cursor-pointer"
                               title="Branch into a new collection"
                             >
-                              <GitBranch className="w-3.5 h-3.5 text-blue-400" />
+                              <GitBranch className="w-3.5 h-3.5 text-[var(--info)]" />
                               <span>Fork</span>
                             </button>
 
@@ -541,7 +541,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
 
                             <button
                               onClick={() => handleDeleteVersion(ver)}
-                              className="p-1.5 rounded hover:bg-rose-500/10 text-[var(--text-secondary)] hover:text-rose-400 transition-colors cursor-pointer"
+                              className="p-1.5 rounded hover:bg-[var(--danger)]/10 text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors cursor-pointer"
                               title="Delete Version"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -551,17 +551,17 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
 
                         {/* Metadata Details */}
                         <div className="flex flex-wrap items-center gap-4 text-xs text-[var(--text-secondary)]">
-                          <span>👤 Released by <strong className="text-[var(--text-primary)]">{ver.author || 'User'}</strong></span>
-                          <span>🕒 {new Date(ver.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                          <span>📦 {ver.requests?.length || 0} endpoints</span>
+                          <span>Released by <strong className="text-[var(--text-primary)]">{ver.author || 'User'}</strong></span>
+                          <span>{new Date(ver.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                          <span>{ver.requests?.length || 0} endpoints</span>
 
                           {ver.diffSummary && (
                             <div className="flex items-center gap-1.5 font-mono text-[11px]">
-                              {ver.diffSummary.added > 0 && <span className="text-emerald-400">+{ver.diffSummary.added}</span>}
-                              {ver.diffSummary.modified > 0 && <span className="text-amber-400">~{ver.diffSummary.modified}</span>}
-                              {ver.diffSummary.removed > 0 && <span className="text-rose-400">-{ver.diffSummary.removed}</span>}
+                              {ver.diffSummary.added > 0 && <span className="text-[var(--success)]">+{ver.diffSummary.added}</span>}
+                              {ver.diffSummary.modified > 0 && <span className="text-[var(--warning)]">~{ver.diffSummary.modified}</span>}
+                              {ver.diffSummary.removed > 0 && <span className="text-[var(--danger)]">-{ver.diffSummary.removed}</span>}
                               {ver.diffSummary.breaking > 0 && (
-                                <span className="text-rose-400 font-bold flex items-center gap-0.5">
+                                <span className="text-[var(--danger)] font-bold flex items-center gap-0.5">
                                   <AlertTriangle className="w-3 h-3" />
                                   {ver.diffSummary.breaking} breaking
                                 </span>
@@ -572,7 +572,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
 
                         {/* Changelog Description */}
                         {ver.description && (
-                          <div className="bg-[var(--bg-surface)] p-3 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-mono whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                          <div className="bg-[var(--bg-surface)] p-3 rounded border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] font-mono whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
                             {ver.description}
                           </div>
                         )}
@@ -588,7 +588,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
           {activeTab === 'diff' && (
             <div className="space-y-5">
               {/* Compare Selectors Bar */}
-              <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] space-y-4">
+              <div className="p-4 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] space-y-4">
                 <div className="flex flex-col sm:flex-row items-center gap-3">
                   <div className="flex-1 w-full">
                     <label className="block text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1">
@@ -597,7 +597,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                     <select
                       value={baseVersionId}
                       onChange={(e) => setBaseVersionId(e.target.value)}
-                      className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--primary)]"
+                      className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--primary)]"
                     >
                       {versions.map(v => (
                         <option key={v.id} value={v.id}>
@@ -619,7 +619,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                     <select
                       value={targetVersionId}
                       onChange={(e) => setTargetVersionId(e.target.value)}
-                      className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--primary)]"
+                      className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-3 py-1.5 text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--primary)]"
                     >
                       <option value="draft">Current Working Draft ({collection.requests?.length || 0} endpoints)</option>
                       {versions.map(v => (
@@ -635,13 +635,13 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[var(--border-subtle)] text-xs">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-[var(--text-primary)]">Diff Summary:</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                    <span className="px-2 py-0.5 rounded bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20 font-mono">
                       +{explorerDiffResult.addedCount} Added
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono">
+                    <span className="px-2 py-0.5 rounded bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/20 font-mono">
                       ~{explorerDiffResult.modifiedCount} Modified
                     </span>
-                    <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono">
+                    <span className="px-2 py-0.5 rounded bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20 font-mono">
                       -{explorerDiffResult.removedCount} Removed
                     </span>
                     <span className="px-2 py-0.5 rounded bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-subtle)] font-mono">
@@ -650,12 +650,12 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                   </div>
 
                   {explorerDiffResult.breakingCount > 0 ? (
-                    <div className="flex items-center gap-1.5 text-rose-400 font-bold bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/30">
+                    <div className="flex items-center gap-1.5 text-[var(--danger)] font-bold bg-[var(--danger)]/10 px-2.5 py-1 rounded border border-[var(--danger)]/30">
                       <ShieldAlert className="w-4 h-4" />
                       <span>{explorerDiffResult.breakingCount} Breaking Change{explorerDiffResult.breakingCount > 1 ? 's' : ''} Detected!</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                    <div className="flex items-center gap-1.5 text-[var(--success)] font-medium">
                       <CheckCircle2 className="w-4 h-4" />
                       <span>100% Backward Compatible</span>
                     </div>
@@ -665,7 +665,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
 
               {/* Filter and Search */}
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5 bg-[var(--bg-surface)] p-1 rounded-lg border border-[var(--border-subtle)] text-xs">
+                <div className="flex items-center gap-1.5 bg-[var(--bg-surface)] p-1 rounded border border-[var(--border-subtle)] text-xs">
                   <button
                     onClick={() => setDiffFilter('all')}
                     className={`px-2.5 py-1 rounded transition-colors ${
@@ -677,7 +677,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                   <button
                     onClick={() => setDiffFilter('breaking')}
                     className={`px-2.5 py-1 rounded transition-colors flex items-center gap-1 ${
-                      diffFilter === 'breaking' ? 'bg-rose-600 text-white font-semibold' : 'text-[var(--text-secondary)] hover:text-rose-400'
+                      diffFilter === 'breaking' ? 'bg-[var(--danger)] text-white font-semibold' : 'text-[var(--text-secondary)] hover:text-[var(--danger)]'
                     }`}
                   >
                     Breaking ({explorerDiffResult.breakingCount})
@@ -685,7 +685,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                   <button
                     onClick={() => setDiffFilter('added')}
                     className={`px-2.5 py-1 rounded transition-colors ${
-                      diffFilter === 'added' ? 'bg-emerald-600 text-white font-semibold' : 'text-[var(--text-secondary)] hover:text-emerald-400'
+                      diffFilter === 'added' ? 'bg-[var(--success)] text-white font-semibold' : 'text-[var(--text-secondary)] hover:text-[var(--success)]'
                     }`}
                   >
                     Added ({explorerDiffResult.addedCount})
@@ -693,7 +693,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                   <button
                     onClick={() => setDiffFilter('modified')}
                     className={`px-2.5 py-1 rounded transition-colors ${
-                      diffFilter === 'modified' ? 'bg-amber-600 text-white font-semibold' : 'text-[var(--text-secondary)] hover:text-amber-400'
+                      diffFilter === 'modified' ? 'bg-[var(--warning)] text-white font-semibold' : 'text-[var(--text-secondary)] hover:text-[var(--warning)]'
                     }`}
                   >
                     Modified ({explorerDiffResult.modifiedCount})
@@ -701,7 +701,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                   <button
                     onClick={() => setDiffFilter('removed')}
                     className={`px-2.5 py-1 rounded transition-colors ${
-                      diffFilter === 'removed' ? 'bg-rose-600 text-white font-semibold' : 'text-[var(--text-secondary)] hover:text-rose-400'
+                      diffFilter === 'removed' ? 'bg-[var(--danger)] text-white font-semibold' : 'text-[var(--text-secondary)] hover:text-[var(--danger)]'
                     }`}
                   >
                     Removed ({explorerDiffResult.removedCount})
@@ -715,7 +715,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                     placeholder="Search endpoints..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-hidden focus:border-[var(--primary)]"
+                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded pl-8 pr-3 py-1.5 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-hidden focus:border-[var(--primary)]"
                   />
                 </div>
               </div>
@@ -723,7 +723,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
               {/* Endpoint Diff Cards */}
               <div className="space-y-3">
                 {filteredEndpoints.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded-xl">
+                  <div className="p-8 text-center text-xs text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded">
                     No endpoint changes found matching the current filter.
                   </div>
                 ) : (
@@ -732,15 +732,15 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                     return (
                       <div 
                         key={item.id} 
-                        className={`border rounded-xl transition-all overflow-hidden ${
+                        className={`border rounded transition-colors overflow-hidden ${
                           item.isBreaking 
-                            ? 'border-rose-500/40 bg-rose-500/5' 
+                            ? 'border-[var(--danger)]/40 bg-[var(--danger)]/5' 
                             : item.changeType === 'added' 
-                            ? 'border-emerald-500/30 bg-emerald-500/5' 
+                            ? 'border-[var(--success)]/30 bg-[var(--success)]/5' 
                             : item.changeType === 'modified' 
-                            ? 'border-amber-500/30 bg-amber-500/5' 
+                            ? 'border-[var(--warning)]/30 bg-[var(--warning)]/5' 
                             : item.changeType === 'removed' 
-                            ? 'border-rose-500/20 bg-rose-500/5' 
+                            ? 'border-[var(--danger)]/20 bg-[var(--danger)]/5' 
                             : 'border-[var(--border-subtle)] bg-[var(--bg-panel)]'
                         }`}
                       >
@@ -751,11 +751,11 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
-                              item.method === 'GET' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' :
-                              item.method === 'POST' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' :
-                              item.method === 'PUT' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' :
-                              item.method === 'DELETE' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/20' :
-                              'bg-purple-500/15 text-purple-400 border border-purple-500/20'
+                              item.method === 'GET' ? 'bg-[var(--info)]/15 text-[var(--info)] border border-[var(--info)]/20' :
+                              item.method === 'POST' ? 'bg-[var(--success)]/15 text-[var(--success)] border border-[var(--success)]/20' :
+                              item.method === 'PUT' ? 'bg-[var(--warning)]/15 text-[var(--warning)] border border-[var(--warning)]/20' :
+                              item.method === 'DELETE' ? 'bg-[var(--danger)]/15 text-[var(--danger)] border border-[var(--danger)]/20' :
+                              'bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/20'
                             }`}>
                               {item.method}
                             </span>
@@ -771,17 +771,17 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
 
                           <div className="flex items-center gap-2 shrink-0">
                             {item.isBreaking && (
-                              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 uppercase tracking-wider">
+                              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/30 uppercase tracking-wider">
                                 <AlertTriangle className="w-3 h-3" />
                                 Breaking
                               </span>
                             )}
 
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                              item.changeType === 'added' ? 'bg-emerald-500/20 text-emerald-300' :
-                              item.changeType === 'modified' ? 'bg-amber-500/20 text-amber-300' :
-                              item.changeType === 'removed' ? 'bg-rose-500/20 text-rose-300 line-through' :
-                              'bg-zinc-500/20 text-zinc-400'
+                              item.changeType === 'added' ? 'bg-[var(--success)]/20 text-[var(--success)]' :
+                              item.changeType === 'modified' ? 'bg-[var(--warning)]/20 text-[var(--warning)]' :
+                              item.changeType === 'removed' ? 'bg-[var(--danger)]/20 text-[var(--danger)] line-through' :
+                              'bg-[var(--text-tertiary)]/20 text-[var(--text-tertiary)]'
                             }`}>
                               {item.changeType}
                             </span>
@@ -801,27 +801,27 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                               Field Modifications:
                             </h5>
                             {item.fieldDiffs.map((diff, fIdx) => (
-                              <div key={fIdx} className="p-2.5 rounded-lg bg-[var(--bg-base)] border border-[var(--border-subtle)] text-xs space-y-1.5">
+                              <div key={fIdx} className="p-2.5 rounded bg-[var(--bg-base)] border border-[var(--border-subtle)] text-xs space-y-1.5">
                                 <div className="flex items-center justify-between">
                                   <span className="font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-                                    {diff.isBreaking && <AlertTriangle className="w-3 h-3 text-rose-400" />}
+                                    {diff.isBreaking && <AlertTriangle className="w-3 h-3 text-[var(--danger)]" />}
                                     {diff.label}
                                   </span>
                                   {diff.isBreaking && (
-                                    <span className="text-[10px] text-rose-400 font-bold uppercase">Breaking Change</span>
+                                    <span className="text-[10px] text-[var(--danger)] font-bold uppercase">Breaking Change</span>
                                   )}
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[11px]">
                                   {diff.oldValue !== null && (
-                                    <div className="p-2 rounded bg-rose-500/10 border border-rose-500/20 text-rose-300">
-                                      <div className="text-[9px] uppercase font-bold text-rose-400 mb-0.5">Previous Value:</div>
+                                    <div className="p-2 rounded bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)]">
+                                      <div className="text-[9px] uppercase font-bold text-[var(--danger)] mb-0.5">Previous Value:</div>
                                       <div className="break-all">{String(diff.oldValue)}</div>
                                     </div>
                                   )}
                                   {diff.newValue !== null && (
-                                    <div className="p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-                                      <div className="text-[9px] uppercase font-bold text-emerald-400 mb-0.5">New Value:</div>
+                                    <div className="p-2 rounded bg-[var(--success)]/10 border border-[var(--success)]/20 text-[var(--success)]">
+                                      <div className="text-[9px] uppercase font-bold text-[var(--success)] mb-0.5">New Value:</div>
                                       <div className="break-all">{String(diff.newValue)}</div>
                                     </div>
                                   )}
@@ -842,29 +842,29 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
           {activeTab === 'release' && (
             <form onSubmit={handleCreateVersion} className="space-y-6">
               {/* Pre-Release Diff Detection Card */}
-              <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] space-y-3">
+              <div className="p-4 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[var(--primary)]" />
+                    <GitBranch className="w-4 h-4 text-[var(--primary)]" />
                     <span className="font-bold text-xs text-[var(--text-primary)]">
                       Pending Changes Analysis (Draft vs {latestVersion ? latestVersion.version : 'Initial'})
                     </span>
                   </div>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
                     releaseDraftDiff.breakingCount > 0 
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' 
-                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      ? 'bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/30' 
+                      : 'bg-[var(--success)]/20 text-[var(--success)] border border-[var(--success)]/30'
                   }`}>
                     {releaseDraftDiff.suggestedBumpType.toUpperCase()} BUMP SUGGESTED
                   </span>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 text-xs">
-                  <span className="text-emerald-400 font-mono">+{releaseDraftDiff.addedCount} new endpoints</span>
-                  <span className="text-amber-400 font-mono">~{releaseDraftDiff.modifiedCount} modified endpoints</span>
-                  <span className="text-rose-400 font-mono">-{releaseDraftDiff.removedCount} removed endpoints</span>
+                  <span className="text-[var(--success)] font-mono">+{releaseDraftDiff.addedCount} new endpoints</span>
+                  <span className="text-[var(--warning)] font-mono">~{releaseDraftDiff.modifiedCount} modified endpoints</span>
+                  <span className="text-[var(--danger)] font-mono">-{releaseDraftDiff.removedCount} removed endpoints</span>
                   {releaseDraftDiff.breakingCount > 0 && (
-                    <span className="text-rose-400 font-bold flex items-center gap-1">
+                    <span className="text-[var(--danger)] font-bold flex items-center gap-1">
                       <AlertTriangle className="w-3.5 h-3.5" />
                       {releaseDraftDiff.breakingCount} breaking changes
                     </span>
@@ -918,7 +918,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-[var(--text-primary)] mb-1.5">
-                    Version Tag <span className="text-rose-400">*</span>
+                    Version Tag <span className="text-[var(--danger)]">*</span>
                   </label>
                   <input
                     type="text"
@@ -926,7 +926,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                     placeholder="e.g. v1.1.0 or v2.0.0"
                     value={versionInput}
                     onChange={(e) => setVersionInput(e.target.value)}
-                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3.5 py-2 text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-hidden focus:border-[var(--primary)]"
+                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-3.5 py-2 text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-hidden focus:border-[var(--primary)]"
                   />
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
                     Follows Semantic Versioning: MAJOR.MINOR.PATCH
@@ -942,7 +942,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                     placeholder="e.g. Authentication Overhaul & Webhooks"
                     value={releaseTitle}
                     onChange={(e) => setReleaseTitle(e.target.value)}
-                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg px-3.5 py-2 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-hidden focus:border-[var(--primary)]"
+                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-3.5 py-2 text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-hidden focus:border-[var(--primary)]"
                   />
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
                     Short summary title for documentation & changelog
@@ -961,9 +961,9 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                       key={tag}
                       type="button"
                       onClick={() => toggleTag(tag)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
+                      className={`px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer ${
                         selectedTags.includes(tag)
-                          ? 'bg-[var(--primary)] text-white shadow-xs'
+                          ? 'bg-[var(--primary)] text-white '
                           : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)]'
                       }`}
                     >
@@ -1005,18 +1005,18 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                   <button
                     type="button"
                     onClick={handleAutoGenerateChangelog}
-                    className="px-2.5 py-1 rounded-lg bg-[var(--primary)]/15 hover:bg-[var(--primary)]/25 text-[var(--primary)] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="px-2.5 py-1 rounded bg-[var(--primary)]/15 hover:bg-[var(--primary)]/25 text-[var(--primary)] text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <FileText className="w-3.5 h-3.5" />
                     <span>Auto-Generate from Diff</span>
                   </button>
                 </div>
                 <textarea
                   rows={7}
-                  placeholder={`## Release Notes\n\n### 🚀 New Features\n- Added endpoints\n\n### 🛠️ Changes\n- Updated parameters`}
+                  placeholder={`## Release Notes\n\n### New Features\n- Added endpoints\n\n### Changes\n- Updated parameters`}
                   value={releaseNotes}
                   onChange={(e) => setReleaseNotes(e.target.value)}
-                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg p-3 text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-hidden focus:border-[var(--primary)] leading-relaxed resize-y"
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded p-3 text-xs font-mono text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-hidden focus:border-[var(--primary)] leading-relaxed resize-y"
                 />
               </div>
 
@@ -1025,14 +1025,14 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setActiveTab('history')}
-                  className="px-4 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] text-xs font-semibold transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] text-xs font-semibold transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !versionInput.trim()}
-                  className="px-5 py-2 rounded-lg bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold flex items-center gap-2 transition-all shadow-md shadow-[var(--primary)]/20 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 rounded bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/20 cursor-pointer disabled:opacity-50"
                 >
                   <Check className="w-4 h-4" />
                   <span>{isSubmitting ? 'Creating Snapshot...' : `Publish Version ${versionInput.trim() || ''}`}</span>
@@ -1045,9 +1045,9 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
 
         {/* Rollback Confirmation Modal */}
         {confirmRollbackVersion && (
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <div className="bg-[var(--bg-base)] border border-rose-500/40 rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
-              <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto">
+          <div className="absolute inset-0 bg-black/75  z-50 flex items-center justify-center p-4">
+            <div className="bg-[var(--bg-base)] border border-[var(--danger)]/40 rounded p-6 max-w-md w-full space-y-4 shadow-[var(--shadow-subtle)]">
+              <div className="w-12 h-12 rounded-full bg-[var(--danger)]/10 text-[var(--danger)] flex items-center justify-center mx-auto">
                 <RotateCcw className="w-6 h-6" />
               </div>
               <div className="text-center space-y-1.5">
@@ -1057,7 +1057,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                 <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                   This will replace all current endpoints in <strong className="text-[var(--text-primary)]">{collection.name}</strong> with the snapshot from version <strong className="font-mono text-[var(--primary)]">{confirmRollbackVersion.version}</strong> ({confirmRollbackVersion.requests?.length || 0} endpoints).
                 </p>
-                <p className="text-[11px] text-amber-400 bg-amber-500/10 p-2 rounded-lg border border-amber-500/20">
+                <p className="text-[11px] text-[var(--warning)] bg-[var(--warning)]/10 p-2 rounded border border-[var(--warning)]/20">
                   Tip: A new version snapshot of your current draft can be taken before rolling back if you want to keep your draft changes.
                 </p>
               </div>
@@ -1066,7 +1066,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setConfirmRollbackVersion(null)}
-                  className="px-4 py-2 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] text-xs font-semibold cursor-pointer"
+                  className="px-4 py-2 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] text-xs font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1074,7 +1074,7 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => handleRollback(confirmRollbackVersion)}
-                  className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-md shadow-rose-600/25"
+                  className="px-4 py-2 rounded bg-[var(--danger)] hover:bg-[var(--danger)] text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-[var(--shadow-subtle)] shadow-rose-600/25"
                 >
                   <RotateCcw className="w-4 h-4" />
                   <span>{isSubmitting ? 'Restoring...' : 'Confirm Rollback'}</span>

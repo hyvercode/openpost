@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import { cn, replaceEnvironmentVariables } from '../utils';
-import { Play, Plus, Trash2, Save, Sliders, TerminalSquare, Check, Wand2, AlertCircle, Shield, Sparkles, File, Paperclip, Clock, Zap, MoreVertical, Code2, Upload, FolderPlus, Square, Gauge, Timer } from 'lucide-react';
+import { Play, Plus, Trash2, Save, Sliders, TerminalSquare, Check, AlertCircle, Shield, File, Paperclip, Clock, Zap, Info, MoreVertical, Code2, Upload, FolderPlus, Square, Gauge, Timer } from 'lucide-react';
 import { KeyValue, RequestAuth, RequestItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { apiService, api } from '../lib/api';
@@ -24,7 +24,7 @@ import { sseManager } from '../lib/sseManager';
 import { GraphQLSchemaExplorer } from './GraphQLSchemaExplorer';
 import { GraphQLThemeSelector } from './GraphQLThemeSelector';
 import { GraphQLHeaderInjector } from './GraphQLHeaderInjector';
-import { runScriptSandbox } from '../utils/sandbox';
+import { runScriptSandboxAsync } from '../utils/sandboxWorker';
 import { saveGraphQLHistoryItem } from '../utils/graphqlHistory';
 import * as protobuf from 'protobufjs';
 import { CommentsTab } from './CommentsTab';
@@ -523,7 +523,7 @@ if (method === 'WS') {
 
     if (preRequestScript) {
       addConsoleLog('info', 'Running Pre-request script...');
-      const sandboxRes = runScriptSandbox(preRequestScript, {
+      const sandboxRes = await runScriptSandboxAsync(preRequestScript, {
         envVars,
         requestInfo: { url, method, headers: {}, body: bodyContent },
         addConsoleLog
@@ -848,7 +848,7 @@ if (method === 'WS') {
       // Process scripts (Post-response)
       if (postResponseScript) {
         addConsoleLog('info', 'Running Post-response script (Tests)...');
-        const scriptResult = runScriptSandbox(postResponseScript, {
+        const scriptResult = await runScriptSandboxAsync(postResponseScript, {
           envVars: processedEnvVars,
           response: resData,
           requestInfo: { url: finalUrl, method, headers: finalHeaders, body: parsedBody },
@@ -1309,7 +1309,7 @@ if (method === 'WS') {
               value={bulkParamsValue}
               onChange={(e) => setBulkParamsValue(e.target.value)}
               placeholder="id=1&name=test&active=true"
-              className="w-full h-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded-lg p-3 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)] resize-none"
+              className="w-full h-full bg-[var(--bg-input)] border border-[var(--border-strong)] rounded p-3 text-xs font-mono text-[var(--text-primary)] outline-none focus:border-[var(--border-focus)] resize-none"
             />
           </div>
         </div>
@@ -1343,7 +1343,7 @@ if (method === 'WS') {
                     type="checkbox" 
                     checked={item.enabled}
                     onChange={(e) => handleKeyValueChange(type, item.id, 'enabled', e.target.checked)}
-                    className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
+                    className="w-3.5 h-3.5 rounded border-[var(--border-strong)] bg-[var(--bg-panel)] accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
                   />
                 </div>
                 <div className="flex-1 px-1 relative">
@@ -1355,11 +1355,11 @@ if (method === 'WS') {
                     onValueChange={(val) => handleKeyValueChange(type, item.id, 'key', val)}
                     className={cn(
                       "w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors",
-                      isRowInvalid && "border-red-500 bg-red-500/10 focus:border-red-500 rounded px-2"
+                      isRowInvalid && "border-[var(--danger)] bg-[var(--danger)]/10 focus:border-[var(--danger)] rounded px-2"
                     )}
                   />
                   {isRowInvalid && (
-                    <span className="absolute right-2 top-1.5 text-red-500 flex items-center gap-1" title="Key is required when value is provided">
+                    <span className="absolute right-2 top-1.5 text-[var(--danger)] flex items-center gap-1" title="Key is required when value is provided">
                       <AlertCircle className="w-3 h-3" />
                     </span>
                   )}
@@ -1392,7 +1392,7 @@ if (method === 'WS') {
                 const currentItems = type === 'headers' ? headers : type === 'params' ? params : mockHeaders;
                 setter([...currentItems, { id: uuidv4(), key: '', value: '', enabled: true }]);
               }}
-              className="flex items-center gap-1.5 text-xs text-[var(--primary)] hover:opacity-85 font-medium px-2 py-1 rounded border border-dashed border-[var(--primary)]/30 hover:border-[var(--primary)] bg-[var(--primary)]/5 transition-all"
+              className="flex items-center gap-1.5 text-xs text-[var(--primary)] hover:opacity-85 font-medium px-2 py-1 rounded border border-dashed border-[var(--primary)]/30 hover:border-[var(--primary)] bg-[var(--primary)]/5 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Row</span>
@@ -1407,7 +1407,7 @@ if (method === 'WS') {
   if (!activeRequest) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-[var(--bg-panel)] relative text-center px-4">
-        <div className="w-20 h-20 bg-[var(--bg-hover)] rounded-full flex items-center justify-center mb-6 shadow-sm border border-[var(--border-subtle)]">
+        <div className="w-20 h-20 bg-[var(--bg-hover)] rounded-full flex items-center justify-center mb-6  border border-[var(--border-subtle)]">
           <TerminalSquare className="w-10 h-10 text-[var(--primary)] opacity-80" />
         </div>
         <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">No Request Selected</h2>
@@ -1446,14 +1446,14 @@ if (method === 'WS') {
                 addToast('New request created', 'success', 2000);
               }
             }}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] text-white rounded-lg text-sm font-bold shadow-md shadow-[var(--primary)]/20 hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded text-sm font-bold cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Create Request
           </button>
           <button
             onClick={() => setIsCurlModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] rounded-lg text-sm font-bold hover:bg-[var(--bg-surface)] hover:border-[var(--text-secondary)] transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--bg-hover)] text-[var(--text-primary)] border border-[var(--border-strong)] rounded text-sm font-bold hover:bg-[var(--bg-surface)] hover:border-[var(--text-secondary)] transition-colors"
           >
             <Code2 className="w-4 h-4" />
             Import cURL
@@ -1484,9 +1484,9 @@ if (method === 'WS') {
       <div className="flex flex-col px-3 sm:px-4 pt-3 sm:pt-4 pb-0 gap-1.5">
         <div className="flex flex-wrap sm:flex-nowrap items-stretch gap-2">
           <div className={cn(
-            "flex bg-[var(--bg-hover)] border rounded-lg overflow-hidden flex-1 min-w-[200px] transition-all",
+            "flex bg-[var(--bg-hover)] border rounded overflow-hidden flex-1 min-w-[200px] transition-colors",
             urlErrorMsg 
-              ? "border-red-500/80 ring-1 ring-red-500/20 shadow-[0_0_8px_rgba(239,68,68,0.1)]" 
+              ? "border-[var(--danger)]/80 ring-1 ring-[var(--danger)]/20 shadow-[0_0_8px_rgba(239,68,68,0.1)]" 
               : "border-[var(--border-strong)] focus-within:border-[var(--border-focus)]"
           )}>
             <select 
@@ -1532,7 +1532,7 @@ if (method === 'WS') {
                 {isDetectingGql ? (
                   <span className="w-3 h-3 border-2 border-[var(--primary)]/20 border-t-[var(--primary)] rounded-full animate-spin" />
                 ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-yellow-500" />
+                  <Zap className="w-3.5 h-3.5" />
                 )}
                 <span>Detect GQL</span>
               </button>
@@ -1548,8 +1548,8 @@ if (method === 'WS') {
                   }
                 }}
                 className={cn(
-                  "text-white px-4 sm:px-6 py-2 sm:py-0 rounded-lg font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none min-h-[36px]",
-                  "bg-red-500 hover:bg-red-600 cursor-pointer"
+                  "text-white px-4 sm:px-6 py-2 sm:py-0 rounded font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none min-h-[36px]",
+                  "bg-[var(--danger)] hover:bg-[var(--danger)] cursor-pointer"
                 )}
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
@@ -1563,12 +1563,12 @@ if (method === 'WS') {
                   ((method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connecting')
                 }
                 className={cn(
-                  "text-white px-4 sm:px-6 py-2 sm:py-0 rounded-lg font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none min-h-[36px]",
+                  "text-white px-4 sm:px-6 py-2 sm:py-0 rounded font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none min-h-[36px]",
                   rateLimiterConfig.enabled && rateLimiterConfig.mode === 'block' && rateLimitCooldownSec > 0
-                    ? "bg-amber-600 hover:bg-amber-700 opacity-90"
+                    ? "bg-[var(--warning)] hover:bg-amber-700 opacity-90"
                     : (method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connected' 
-                    ? "bg-red-500 hover:bg-red-600" 
-                    : "bg-[var(--primary)] hover:bg-[#e65a2d]",
+                    ? "bg-[var(--danger)] hover:bg-[var(--danger)]" 
+                    : "bg-[var(--primary)] hover:bg-[var(--primary-hover)]",
                   "disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                 )}
               >
@@ -1594,7 +1594,7 @@ if (method === 'WS') {
             
             <div className="hidden sm:flex items-center justify-center text-xs font-medium text-[var(--text-secondary)] shrink-0 px-1">
               {saveStatus === 'Saving...' && <span className="animate-pulse">Saving...</span>}
-              {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-green-500"><Check className="w-3.5 h-3.5" /> Saved</span>}
+              {saveStatus === 'Saved' && <span className="flex items-center gap-1 text-[var(--success)]"><Check className="w-3.5 h-3.5" /> Saved</span>}
               {saveStatus === 'Changed' && <span>Unsaved...</span>}
             </div>
 
@@ -1603,15 +1603,15 @@ if (method === 'WS') {
               onClick={() => setIsRateLimiterModalOpen(true)}
               title={`API Rate Limiter: ${rateLimiterConfig.enabled ? (rateLimiterConfig.mode === 'simulate_429' ? 'Simulating 429' : 'Active') : 'Disabled'}. Click to configure network constraints and limits.`}
               className={cn(
-                "p-2 sm:px-2.5 sm:py-2 rounded-lg border transition-all flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 min-h-[36px]",
+                "p-2 sm:px-2.5 sm:py-2 rounded border transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 min-h-[36px]",
                 rateLimiterConfig.enabled
                   ? rateLimitCooldownSec > 0
-                    ? "bg-red-500/10 border-red-500/40 text-red-500 animate-pulse"
-                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
+                    ? "bg-[var(--danger)]/10 border-[var(--danger)]/40 text-[var(--danger)] animate-pulse"
+                    : "bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)] hover:bg-[var(--success)]/20"
                   : "bg-[var(--bg-hover)] border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-focus)]"
               )}
             >
-              <Gauge className={cn("w-4 h-4 shrink-0", rateLimiterConfig.enabled ? (rateLimitCooldownSec > 0 ? "text-red-500" : "text-emerald-500") : "text-[var(--text-secondary)]")} />
+              <Gauge className={cn("w-4 h-4 shrink-0", rateLimiterConfig.enabled ? (rateLimitCooldownSec > 0 ? "text-[var(--danger)]" : "text-[var(--success)]") : "text-[var(--text-secondary)]")} />
               <span className="hidden xl:inline">
                 {rateLimiterConfig.enabled
                   ? rateLimitCooldownSec > 0
@@ -1625,7 +1625,7 @@ if (method === 'WS') {
             <button
               onClick={() => setIsCodeModalOpen(true)}
               title="Generate Code Snippet"
-              className="p-2 sm:p-2.5 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 min-h-[36px]"
+              className="p-2 sm:p-2.5 rounded bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50 transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 min-h-[36px]"
             >
               <Code2 className="w-4 h-4 text-[var(--primary)]" />
               <span className="hidden md:inline">Code</span>
@@ -1656,10 +1656,10 @@ if (method === 'WS') {
               }}
               title={activeRequest?.collectionId ? "Move request to another collection" : "Save standalone request into a collection"}
               className={cn(
-                "p-2 sm:px-3 sm:py-2 rounded-lg border transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 min-h-[36px]",
+                "p-2 sm:px-3 sm:py-2 rounded border transition-colors flex items-center justify-center gap-1.5 text-xs font-semibold cursor-pointer shrink-0 min-h-[36px]",
                 activeRequest?.collectionId
                   ? "bg-[var(--bg-hover)] border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)]/50"
-                  : "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20"
+                  : "bg-[var(--warning)]/10 border-[var(--warning)]/30 text-[var(--warning)] hover:bg-[var(--warning)]/20"
               )}
             >
               <FolderPlus className="w-4 h-4" />
@@ -1682,22 +1682,22 @@ if (method === 'WS') {
             </button>
 
             {isKebabMenuOpen && (
-              <div className="absolute right-0 top-full mt-1.5 z-[999] w-64 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg shadow-xl py-2 px-1 text-xs space-y-1.5 animate-in fade-in zoom-in-95">
+              <div className="absolute right-0 top-full mt-1.5 z-[999] w-64 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] py-2 px-1 text-xs space-y-1.5 animate-in fade-in zoom-in-95">
                 {/* Last Run Stats */}
                 {activeRequest?.lastRun && (
                   <div className="px-2.5 py-1.5 bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-md text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-tight flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <Clock className="w-3 h-3 text-blue-400" />
+                      <Clock className="w-3 h-3 text-[var(--info)]" />
                       <span>{activeRequest.lastRun.timestamp}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Zap className="w-3 h-3 text-yellow-400" />
+                      <Zap className="w-3 h-3 text-[var(--warning)]" />
                       <span>{activeRequest.lastRun.timeMs}ms</span>
                     </div>
                     <div className={cn(
                       "w-2 h-2 rounded-full",
-                      activeRequest.lastRun.status >= 200 && activeRequest.lastRun.status < 300 ? "bg-green-500" :
-                      activeRequest.lastRun.status >= 400 ? "bg-red-500" : "bg-yellow-500"
+                      activeRequest.lastRun.status >= 200 && activeRequest.lastRun.status < 300 ? "bg-[var(--success)]" :
+                      activeRequest.lastRun.status >= 400 ? "bg-[var(--danger)]" : "bg-[var(--warning)]"
                     )} />
                   </div>
                 )}
@@ -1710,8 +1710,8 @@ if (method === 'WS') {
                     onChange={(e) => setRequestMode(e.target.value as 'proxy' | 'direct')}
                     className="bg-[var(--bg-base)] border border-[var(--border-subtle)] font-bold text-[var(--text-primary)] rounded px-2 py-1 focus:outline-none cursor-pointer text-xs"
                   >
-                    <option value="proxy">☁️ Cloud Proxy</option>
-                    <option value="direct">💻 Direct Browser</option>
+                    <option value="proxy">Cloud Proxy</option>
+                    <option value="direct">Direct Browser</option>
                   </select>
                 </div>
 
@@ -1730,8 +1730,8 @@ if (method === 'WS') {
                   <span className={cn(
                     "text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider",
                     rateLimiterConfig.enabled
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
-                      : "bg-gray-500/10 border-gray-500/30 text-[var(--text-secondary)]"
+                      ? "bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)]"
+                      : "bg-[var(--text-tertiary)]/10 border-[var(--text-tertiary)]/30 text-[var(--text-secondary)]"
                   )}>
                     {rateLimiterConfig.enabled ? 'On' : 'Off'}
                   </span>
@@ -1768,8 +1768,8 @@ if (method === 'WS') {
 
         {/* Rate Limiting Active Banner (Block Mode) */}
         {rateLimiterConfig.enabled && rateLimiterConfig.mode === 'block' && rateLimitCooldownSec > 0 && (
-          <div className="mt-2 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-md flex items-center justify-between text-xs animate-in fade-in">
-            <div className="flex items-center gap-2 text-red-500 font-semibold">
+          <div className="mt-2 px-3 py-2 bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded-md flex items-center justify-between text-xs animate-in fade-in">
+            <div className="flex items-center gap-2 text-[var(--danger)] font-semibold">
               <AlertCircle className="w-4 h-4 shrink-0 animate-bounce" />
               <span>
                 Rate Limit Exceeded: Please wait <strong>{rateLimitCooldownSec}s</strong> before sending another request ({rateLimiterConfig.maxRequests} req / {rateLimiterConfig.windowSeconds}s constraint active).
@@ -1778,13 +1778,13 @@ if (method === 'WS') {
             <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setIsRateLimiterModalOpen(true)}
-                className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded text-[11px] font-bold transition-colors cursor-pointer"
+                className="px-2 py-1 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/30 rounded text-[11px] font-bold transition-colors cursor-pointer"
               >
                 Configure
               </button>
               <button
                 onClick={handleResetRateLimitQuota}
-                className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-bold transition-colors cursor-pointer shadow-sm"
+                className="px-2 py-1 bg-[var(--danger)] hover:bg-red-700 text-white rounded text-[11px] font-bold transition-colors cursor-pointer "
               >
                 Bypass / Reset
               </button>
@@ -1794,16 +1794,16 @@ if (method === 'WS') {
 
         {/* Rate Limiting Simulation Banner (429 Mode) */}
         {rateLimiterConfig.enabled && rateLimiterConfig.mode === 'simulate_429' && (
-          <div className="mt-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center justify-between text-xs animate-in fade-in">
+          <div className="mt-2 px-3 py-1.5 bg-[var(--warning)]/10 border border-[var(--warning)]/20 rounded-md flex items-center justify-between text-xs animate-in fade-in">
             <div className="flex items-center gap-2 text-[var(--text-primary)]">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <Info className="w-3.5 h-3.5 shrink-0" />
               <span className="text-[11px] text-[var(--text-secondary)]">
                 Rate Limiter in <strong>Simulate 429 mode</strong>: Exceeding {rateLimiterConfig.maxRequests} req / {rateLimiterConfig.windowSeconds}s will generate mock HTTP 429 Too Many Requests responses for API resilience testing.
               </span>
             </div>
             <button
               onClick={() => setIsRateLimiterModalOpen(true)}
-              className="text-[10px] text-amber-500 font-bold hover:underline shrink-0 ml-2 cursor-pointer"
+              className="text-[10px] text-[var(--warning)] font-bold hover:underline shrink-0 ml-2 cursor-pointer"
             >
               Adjust
             </button>
@@ -1811,16 +1811,16 @@ if (method === 'WS') {
         )}
 
         {urlErrorMsg && (
-          <div className="flex items-center gap-1.5 text-xs text-red-500 font-medium px-1">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--danger)] font-medium px-1">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <span>{urlErrorMsg}</span>
           </div>
         )}
 
         {isLocalUrl && (
-          <div className="mt-2 px-3 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center justify-between text-xs animate-in fade-in">
+          <div className="mt-2 px-3 py-2.5 bg-[var(--warning)]/10 border border-[var(--warning)]/20 rounded-md flex items-center justify-between text-xs animate-in fade-in">
             <div className="flex flex-col gap-0.5 text-[var(--text-primary)] pr-4">
-              <div className="flex items-center gap-2 font-bold text-amber-500">
+              <div className="flex items-center gap-2 font-bold text-[var(--warning)]">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>Local Address Detected ({url})</span>
               </div>
@@ -1829,7 +1829,7 @@ if (method === 'WS') {
               </p>
             </div>
             <div className="shrink-0">
-              <span className="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-500 border border-amber-500/30">
+              <span className="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-[var(--warning)]/20 text-[var(--warning)] border border-[var(--warning)]/30">
                 Direct Mode Active
               </span>
             </div>
@@ -1839,7 +1839,7 @@ if (method === 'WS') {
         {url && !getUrlError(url) && /graphql|gql/i.test(url) && method !== 'GQL' && (
           <div className="mt-2 px-3 py-2 bg-[var(--primary)]/10 border border-[var(--primary)]/20 rounded-md flex items-center justify-between text-xs animate-in fade-in">
             <div className="flex items-center gap-2 text-[var(--text-primary)]">
-              <Sparkles className="w-4 h-4 text-yellow-500 animate-pulse shrink-0" />
+              <Info className="w-4 h-4 shrink-0" />
               <span>We detected that this URL might be a GraphQL endpoint. Switch to GraphQL Editor?</span>
             </div>
             <button
@@ -1885,7 +1885,7 @@ if (method === 'WS') {
                 </span>
               )}
               {hasTabError && (
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" title="Validation issue detected in this tab" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--danger)] animate-pulse shrink-0" title="Validation issue detected in this tab" />
               )}
             </button>
           );
@@ -1896,12 +1896,12 @@ if (method === 'WS') {
         <div className="hidden sm:flex items-center gap-2 pb-2 shrink-0 ml-4">
           <button
             onClick={() => setIsQuickEnvModalOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-[var(--bg-hover)] hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--primary)] border border-[var(--border-subtle)] transition-colors shadow-2xs group cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-[var(--bg-hover)] hover:bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-[var(--primary)] border border-[var(--border-subtle)] transition-colors  group cursor-pointer"
             title="Manage Environment Variables connected seamlessly to this request"
           >
             <span className={cn(
               "w-2 h-2 rounded-full shrink-0",
-              currentEnvironment ? "bg-emerald-500 animate-pulse" : "bg-gray-400 opacity-40"
+              currentEnvironment ? "bg-[var(--success)] animate-pulse" : "bg-[var(--text-tertiary)] opacity-40"
             )} />
             <span className="font-mono text-[10px] text-[var(--text-primary)] font-semibold truncate max-w-[110px]">
               {currentEnvironment ? currentEnvironment.name : 'No Env'}
@@ -1933,8 +1933,8 @@ if (method === 'WS') {
                       "p-2 rounded border",
                       msg.type === 'sent' ? "bg-[var(--primary)]/10 border-[var(--primary)]/20 text-[var(--primary)] ml-auto w-fit max-w-[80%]" : 
                       msg.type === 'received' ? "bg-[var(--bg-input)] border-[var(--border-strong)] text-[var(--text-primary)] mr-auto w-fit max-w-[80%]" : 
-                      msg.type === 'error' ? "bg-red-500/10 border-red-500/20 text-red-500 mx-auto w-full text-center" : 
-                      "bg-blue-500/10 border-blue-500/20 text-blue-500 mx-auto w-full text-center"
+                      msg.type === 'error' ? "bg-[var(--danger)]/10 border-[var(--danger)]/20 text-[var(--danger)] mx-auto w-full text-center" : 
+                      "bg-[var(--info)]/10 border-[var(--info)]/20 text-[var(--info)] mx-auto w-full text-center"
                     )}>
                       <div className="text-[9px] opacity-70 mb-1">{new Date(msg.timestamp).toLocaleTimeString()}</div>
                       <div className="break-words whitespace-pre-wrap">{msg.data}</div>
@@ -1967,7 +1967,7 @@ if (method === 'WS') {
                       }
                     }}
                     disabled={wsStatus[activeRequest?.id || ''] !== 'connected'}
-                    className="bg-[var(--primary)] hover:bg-[#e65a2d] disabled:opacity-50 text-white px-4 rounded font-bold text-sm transition-colors"
+                    className="bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white px-4 rounded font-bold text-sm transition-colors"
                   >
                     Send
                   </button>
@@ -1993,7 +1993,7 @@ if (method === 'WS') {
                         className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--primary)] uppercase tracking-wider hover:bg-[var(--primary)]/10 px-2 py-1 rounded transition-colors"
                         disabled={isRequestLoading}
                      >
-                       <Wand2 className="w-3 h-3" />
+                       <Zap className="w-3 h-3" />
                        Introspect
                      </button>
                    </div>
@@ -2053,8 +2053,8 @@ if (method === 'WS') {
             {activeTab === 'params' && renderKeyValueEditor('params')}
             {activeTab === 'headers' && renderKeyValueEditor('headers')}
             {activeTab === 'auth' && (
-              <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg max-w-md mx-auto my-auto shadow-sm">
-                <div className="w-12 h-12 rounded-full bg-blue-500/10 text-blue-500 flex items-center justify-center mb-4 border border-blue-500/20">
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded max-w-md mx-auto my-auto ">
+                <div className="w-12 h-12 rounded-full bg-[var(--info)]/10 text-[var(--info)] flex items-center justify-center mb-4 border border-[var(--info)]/20">
                   <Shield className="w-6 h-6" />
                 </div>
                 <h4 className="text-[var(--text-primary)] text-sm font-semibold mb-1">Authorization Protocol</h4>
@@ -2064,8 +2064,8 @@ if (method === 'WS') {
                   <span className={cn(
                     "px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border",
                     authConfig.type === 'none' 
-                      ? "bg-gray-500/10 text-gray-500 border-gray-500/20"
-                      : "bg-green-500/10 text-green-500 border-green-500/20"
+                      ? "bg-[var(--text-tertiary)]/10 text-[var(--text-tertiary)] border-[var(--text-tertiary)]/20"
+                      : "bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/20"
                   )}>
                     {authConfig.type === 'none' ? 'No Auth Active' : 
                      authConfig.type === 'bearer' ? 'Bearer Token' :
@@ -2094,7 +2094,7 @@ if (method === 'WS') {
                 <button
                   type="button"
                   onClick={() => setIsAuthModalOpen(true)}
-                  className="px-5 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold rounded shadow-md hover:shadow-lg transition-all"
+                  className="px-5 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-xs font-semibold rounded shadow-[var(--shadow-subtle)] hover:shadow-[var(--shadow-subtle)] transition-colors"
                 >
                   Configure Authentication...
                 </button>
@@ -2105,7 +2105,7 @@ if (method === 'WS') {
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
-                      <Play className="w-3.5 h-3.5 text-emerald-500" />
+                      <Play className="w-3.5 h-3.5 text-[var(--success)]" />
                       Pre-request Script
                     </label>
                     <span className="text-[10px] text-[var(--text-secondary)] italic">Executes before sending the request</span>
@@ -2142,7 +2142,7 @@ if (method === 'WS') {
                 <div className="flex flex-col gap-3 pb-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
-                      <Check className="w-3.5 h-3.5 text-sky-500" />
+                      <Check className="w-3.5 h-3.5 text-[var(--info)]" />
                       Post-response Script (Tests)
                     </label>
                     <span className="text-[10px] text-[var(--text-secondary)] italic">Executes after receiving response</span>
@@ -2192,7 +2192,7 @@ if (method === 'WS') {
                   />
                 </div>
                 
-                <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-lg p-3 text-[10px] text-[var(--text-secondary)] leading-relaxed">
+                <div className="bg-[var(--primary)]/5 border border-[var(--primary)]/10 rounded p-3 text-[10px] text-[var(--text-secondary)] leading-relaxed">
                   <p className="font-bold text-[var(--text-primary)] mb-1">Available Sandbox API (<code className="text-[var(--primary)]">pm.*</code>):</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-[10px]">
                     <div>
@@ -2235,7 +2235,7 @@ if (method === 'WS') {
                         value={option.id}
                         checked={bodyType === option.id}
                         onChange={() => setBodyType(option.id as any)}
-                        className="w-3.5 h-3.5 rounded-full border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
+                        className="w-3.5 h-3.5 rounded-full border-[var(--border-strong)] bg-[var(--bg-panel)] accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
                       />
                       <span className={cn(bodyType === option.id && "text-[var(--text-primary)] font-semibold")}>
                         {option.label}
@@ -2247,7 +2247,7 @@ if (method === 'WS') {
                 {/* Body Content depending on type */}
                 <div className="flex-1 min-h-0">
                   {bodyType === 'none' && (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg">
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded">
                       <p className="text-[var(--text-secondary)] text-xs">
                         This request does not have a body payload.
                       </p>
@@ -2266,7 +2266,7 @@ if (method === 'WS') {
 
                   {bodyType === 'protobuf' && (
                     <div className="h-full flex flex-col gap-3">
-                      <div className="flex gap-4 p-3 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-lg shrink-0">
+                      <div className="flex gap-4 p-3 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded shrink-0">
                         <div className="flex-1">
                           <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">.proto Schema</label>
                           <div className="flex items-center gap-2">
@@ -2289,7 +2289,7 @@ if (method === 'WS') {
                             <label htmlFor="proto-upload" className="px-3 py-1.5 bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-[11px] font-bold border border-[var(--border-subtle)] rounded cursor-pointer transition-colors flex items-center gap-2">
                               <Upload className="w-3.5 h-3.5" /> {protoFileContent ? 'Change .proto file' : 'Upload .proto file'}
                             </label>
-                            {protoFileContent && <span className="text-xs text-green-500 flex items-center gap-1"><Check className="w-3 h-3" /> Loaded</span>}
+                            {protoFileContent && <span className="text-xs text-[var(--success)] flex items-center gap-1"><Check className="w-3 h-3" /> Loaded</span>}
                           </div>
                         </div>
                         <div className="flex-1">
@@ -2349,7 +2349,7 @@ if (method === 'WS') {
                                     const newItems = bodyFormData.map(b => b.id === item.id ? { ...b, enabled: e.target.checked } : b);
                                     setBodyFormData(newItems);
                                   }}
-                                  className="w-3.5 h-3.5 rounded border-gray-700 bg-gray-800 accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
+                                  className="w-3.5 h-3.5 rounded border-[var(--border-strong)] bg-[var(--bg-panel)] accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
                                 />
                               </div>
                               <div className="flex-1 px-1 relative flex items-center gap-1.5">
@@ -2366,7 +2366,7 @@ if (method === 'WS') {
                                         );
                                         setBodyFormData(newItems);
                                       }}
-                                      className="bg-[var(--bg-surface)] text-[9px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-bold border border-[var(--border-subtle)] rounded px-1.5 py-0.5 cursor-pointer outline-none uppercase transition-all tracking-wider focus:border-[var(--primary)]"
+                                      className="bg-[var(--bg-surface)] text-[9px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-bold border border-[var(--border-subtle)] rounded px-1.5 py-0.5 cursor-pointer outline-none uppercase transition-colors tracking-wider focus:border-[var(--primary)]"
                                     >
                                       <option value="text" className="bg-[var(--bg-surface)] text-[var(--text-primary)] font-sans">Text</option>
                                       <option value="file" className="bg-[var(--bg-surface)] text-[var(--text-primary)] font-sans">File</option>
@@ -2387,7 +2387,7 @@ if (method === 'WS') {
                                     }}
                                     className={cn(
                                       "w-full bg-transparent border-b border-transparent focus:border-[var(--border-strong)] px-2 py-1 text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)] transition-colors",
-                                      isRowInvalid && "border-red-500 bg-red-500/10 focus:border-red-500 rounded px-2"
+                                      isRowInvalid && "border-[var(--danger)] bg-[var(--danger)]/10 focus:border-[var(--danger)] rounded px-2"
                                     )}
                                   />
                                 </div>
@@ -2408,14 +2408,14 @@ if (method === 'WS') {
                                             );
                                             setBodyFormData(newItems);
                                           }}
-                                          className="text-[var(--text-secondary)] hover:text-[var(--text-delete)] p-0.5 rounded transition-all ml-1"
+                                          className="text-[var(--text-secondary)] hover:text-[var(--text-delete)] p-0.5 rounded transition-colors ml-1"
                                           title="Clear file"
                                         >
                                           <Trash2 className="w-3 h-3" />
                                         </button>
                                       </div>
                                     ) : (
-                                      <label className="flex items-center gap-1.5 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-panel)] border border-dashed border-[var(--border-strong)] px-3 py-1 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all font-medium select-none">
+                                      <label className="flex items-center gap-1.5 cursor-pointer bg-[var(--bg-surface)] hover:bg-[var(--bg-panel)] border border-dashed border-[var(--border-strong)] px-3 py-1 rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors font-medium select-none">
                                         <Paperclip className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
                                         <span className="text-[11px]">Select File</span>
                                         <input
@@ -2477,7 +2477,7 @@ if (method === 'WS') {
                             onClick={() => {
                               setBodyFormData([...bodyFormData, { id: uuidv4(), key: '', value: '', enabled: true }]);
                             }}
-                            className="flex items-center gap-1.5 text-xs text-[var(--primary)] hover:opacity-85 font-medium px-2 py-1 rounded border border-dashed border-[var(--primary)]/30 hover:border-[var(--primary)] bg-[var(--primary)]/5 transition-all"
+                            className="flex items-center gap-1.5 text-xs text-[var(--primary)] hover:opacity-85 font-medium px-2 py-1 rounded border border-dashed border-[var(--primary)]/30 hover:border-[var(--primary)] bg-[var(--primary)]/5 transition-colors"
                           >
                             <Plus className="w-3.5 h-3.5" />
                             <span>Add Field</span>

@@ -10,6 +10,7 @@ import { replaceEnvironmentVariables } from '../utils';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 import { PromptModal } from './PromptModal';
+import { sanitizeHtml } from '../utils/sanitize';
 
 function LatencyChart({ data }: { data: number[] }) {
   const chartData = data.map((ms, index) => ({
@@ -19,7 +20,7 @@ function LatencyChart({ data }: { data: number[] }) {
 
   if (data.length === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-[var(--text-secondary)] text-xs italic bg-[var(--bg-base)]/30 rounded-lg border border-dashed border-[var(--border-subtle)] p-8">
+      <div className="h-full flex flex-col items-center justify-center text-[var(--text-secondary)] text-xs italic bg-[var(--bg-base)]/30 rounded border border-dashed border-[var(--border-subtle)] p-8">
         <TrendingUp className="w-8 h-8 mb-2 opacity-20" />
         No performance data yet. Execute requests to see trends.
       </div>
@@ -142,17 +143,17 @@ function highlightJson(json: string, isLightTheme: boolean): string {
     .replace(/>/g, '&gt;');
     
   return escaped.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, (match) => {
-    let cls = isLightTheme ? 'text-amber-600 font-medium' : 'text-amber-400'; // number
+    let cls = isLightTheme ? 'text-[var(--warning)] font-medium' : 'text-[var(--warning)]'; // number
     if (/^"/.test(match)) {
       if (/:$/.test(match)) {
-        cls = isLightTheme ? 'text-blue-700 font-semibold' : 'text-sky-400 font-semibold'; // key
+        cls = isLightTheme ? 'text-blue-700 font-semibold' : 'text-[var(--info)] font-semibold'; // key
       } else {
-        cls = isLightTheme ? 'text-emerald-700 font-medium' : 'text-emerald-400'; // string
+        cls = isLightTheme ? 'text-emerald-700 font-medium' : 'text-[var(--success)]'; // string
       }
     } else if (/true|false/.test(match)) {
-      cls = isLightTheme ? 'text-purple-700 font-semibold' : 'text-purple-400 font-medium'; // boolean
+      cls = isLightTheme ? 'text-purple-700 font-semibold' : 'text-[var(--primary)] font-medium'; // boolean
     } else if (/null/.test(match)) {
-      cls = isLightTheme ? 'text-gray-400 italic' : 'text-gray-500 italic'; // null
+      cls = isLightTheme ? 'text-[var(--text-tertiary)] italic' : 'text-[var(--text-tertiary)] italic'; // null
     }
     return `<span class="${cls}">${match}</span>`;
   });
@@ -166,7 +167,7 @@ function highlightXml(xml: string, isLightTheme: boolean): string {
 
   // 1. Comments
   escaped = escaped.replace(/(&lt;!--[\s\S]*?--&gt;)/g, (match) => {
-    const cls = isLightTheme ? 'text-gray-400 italic' : 'text-gray-500 italic';
+    const cls = isLightTheme ? 'text-[var(--text-tertiary)] italic' : 'text-[var(--text-tertiary)] italic';
     return `<span class="${cls}">${match}</span>`;
   });
 
@@ -178,18 +179,18 @@ function highlightXml(xml: string, isLightTheme: boolean): string {
 
   // 3. Tags and Attributes
   escaped = escaped.replace(/&lt;(\/?[a-zA-Z0-9_:-]+)([\s\S]*?)(\/?)&gt;/g, (match, tagName, attrs, selfClosed) => {
-    const tagCls = isLightTheme ? 'text-blue-700 font-medium' : 'text-sky-400 font-medium';
+    const tagCls = isLightTheme ? 'text-blue-700 font-medium' : 'text-[var(--info)] font-medium';
     
     const highlightedAttrs = attrs.replace(/([a-zA-Z0-9_:-]+)(=(?:"[^"]*"|'[^']*'|[^\s>]+))?/g, (_attrMatch, attrName, attrVal) => {
-      const attrNameCls = isLightTheme ? 'text-amber-700 font-medium' : 'text-amber-400';
-      const attrValCls = isLightTheme ? 'text-emerald-700' : 'text-emerald-400';
+      const attrNameCls = isLightTheme ? 'text-amber-700 font-medium' : 'text-[var(--warning)]';
+      const attrValCls = isLightTheme ? 'text-emerald-700' : 'text-[var(--success)]';
       
       let formattedAttr = `<span class="${attrNameCls}">${attrName}</span>`;
       if (attrVal) {
         const eqIdx = attrVal.indexOf('=');
         const eq = attrVal.substring(0, eqIdx + 1);
         const val = attrVal.substring(eqIdx + 1);
-        formattedAttr += `<span class="text-gray-500">${eq}</span><span class="${attrValCls}">${val}</span>`;
+        formattedAttr += `<span class="text-[var(--text-tertiary)]">${eq}</span><span class="${attrValCls}">${val}</span>`;
       }
       return formattedAttr;
     });
@@ -312,8 +313,8 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
   
   // Get ratings
   const latencyRating = response.timeMs < 150 ? 'Excellent' : response.timeMs < 400 ? 'Good' : response.timeMs < 1000 ? 'Average' : 'Slow';
-  const latencyColor = response.timeMs < 150 ? 'text-green-500' : response.timeMs < 400 ? 'text-blue-500' : response.timeMs < 1000 ? 'text-yellow-500' : 'text-red-500';
-  const latencyBg = response.timeMs < 150 ? 'bg-green-500/10' : response.timeMs < 400 ? 'bg-blue-500/10' : response.timeMs < 1000 ? 'bg-yellow-500/10' : 'bg-red-500/10';
+  const latencyColor = response.timeMs < 150 ? 'text-[var(--success)]' : response.timeMs < 400 ? 'text-[var(--info)]' : response.timeMs < 1000 ? 'text-[var(--warning)]' : 'text-[var(--danger)]';
+  const latencyBg = response.timeMs < 150 ? 'bg-[var(--success)]/10' : response.timeMs < 400 ? 'bg-[var(--info)]/10' : response.timeMs < 1000 ? 'bg-[var(--warning)]/10' : 'bg-[var(--danger)]/10';
 
   return (
     <div className="flex gap-4 items-center text-xs font-mono relative">
@@ -321,8 +322,8 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
         <span className="text-[var(--text-secondary)]">Status:</span>
         <span className={cn(
           "font-bold",
-          response.status >= 200 && response.status < 300 ? "text-green-500" :
-          response.status >= 400 ? "text-red-500" : "text-yellow-500"
+          response.status >= 200 && response.status < 300 ? "text-[var(--success)]" :
+          response.status >= 400 ? "text-[var(--danger)]" : "text-[var(--warning)]"
         )}>
           {response.status} {response.statusText}
         </span>
@@ -333,9 +334,9 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
         id="performance-badge-btn"
         onClick={() => setIsPerfPanelOpen(!isPerfPanelOpen)}
         className={cn(
-          "flex items-center gap-1 px-2 py-0.5 rounded border transition-all active:scale-95 select-none",
+          "flex items-center gap-1 px-2 py-0.5 rounded border transition-colors select-none",
           isPerfPanelOpen 
-            ? "bg-[var(--primary)]/15 text-[var(--primary)] border-[var(--primary)] shadow-sm" 
+            ? "bg-[var(--primary)]/15 text-[var(--primary)] border-[var(--primary)] " 
             : "bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
         )}
         title="View latency, size, and memory allocation details"
@@ -361,7 +362,7 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="absolute right-0 top-7 z-50 w-80 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-xl shadow-xl p-4 font-sans select-none text-[var(--text-primary)]"
+            className="absolute right-0 top-7 z-50 w-80 bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] p-4 font-sans select-none text-[var(--text-primary)]"
             id="perf-panel-container"
           >
             {/* Header */}
@@ -383,7 +384,7 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-blue-400" />
+                    <Clock className="w-3.5 h-3.5 text-[var(--info)]" />
                     Latency
                   </span>
                   <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded uppercase", latencyBg, latencyColor)}>
@@ -391,7 +392,7 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
                   </span>
                 </div>
                 
-                <div className="bg-[var(--bg-input)] rounded-lg p-2.5 border border-[var(--border-subtle)] space-y-1.5">
+                <div className="bg-[var(--bg-input)] rounded p-2.5 border border-[var(--border-subtle)] space-y-1.5">
                   <div className="flex items-baseline justify-between">
                     <span className="text-xs text-[var(--text-secondary)]">Round-Trip Time</span>
                     <span className="text-sm font-extrabold font-mono text-[var(--text-primary)]">{response.timeMs} ms</span>
@@ -400,12 +401,12 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
                   {/* Latency Visual Bar */}
                   <div className="w-full h-1.5 bg-[var(--bg-hover)] rounded-full overflow-hidden flex">
                     <div 
-                      className="h-full bg-blue-500 rounded-l" 
+                      className="h-full bg-[var(--info)] rounded-l" 
                       style={{ width: `${Math.max(10, Math.min(60, ((response.timings?.dns || 5) / (response.timeMs || 100)) * 100))}%` }} 
                       title="DNS Resolution"
                     />
                     <div 
-                      className="h-full bg-purple-500" 
+                      className="h-full bg-[var(--primary)]" 
                       style={{ width: `${Math.max(10, Math.min(60, ((response.timings?.tcp || 10) / (response.timeMs || 100)) * 100))}%` }} 
                       title="TCP Connection"
                     />
@@ -426,10 +427,10 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
               {/* Section 2: Size */}
               <div className="space-y-2">
                 <span className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
-                  <Database className="w-3.5 h-3.5 text-purple-400" />
+                  <Database className="w-3.5 h-3.5 text-[var(--primary)]" />
                   Payload Size
                 </span>
-                <div className="bg-[var(--bg-input)] rounded-lg p-2.5 border border-[var(--border-subtle)] space-y-1">
+                <div className="bg-[var(--bg-input)] rounded p-2.5 border border-[var(--border-subtle)] space-y-1">
                   <div className="flex items-baseline justify-between">
                     <span className="text-xs text-[var(--text-secondary)]">Transferred Payload</span>
                     <span className="text-sm font-extrabold font-mono text-[var(--text-primary)]">{(rawBytes / 1024).toFixed(2)} KB</span>
@@ -449,37 +450,37 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
-                    <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+                    <Cpu className="w-3.5 h-3.5 text-[var(--success)]" />
                     Runtime Memory Footprint
                   </span>
                   <span className="text-[10px] text-[var(--text-secondary)] flex items-center gap-1" title="Calculated memory allocated during fetch, JSON parsing and V8 JS AST parsing of the response">
                     <Info className="w-3 h-3 cursor-help text-[var(--text-secondary)]" />
                   </span>
                 </div>
-                <div className="bg-[var(--bg-input)] rounded-lg p-2.5 border border-[var(--border-subtle)] space-y-2">
+                <div className="bg-[var(--bg-input)] rounded p-2.5 border border-[var(--border-subtle)] space-y-2">
                   <div className="flex items-baseline justify-between">
                     <span className="text-xs text-[var(--text-secondary)]">Total Allocated</span>
-                    <span className="text-sm font-extrabold font-mono text-emerald-400">{(totalMemoryBytes / 1024).toFixed(2)} KB</span>
+                    <span className="text-sm font-extrabold font-mono text-[var(--success)]">{(totalMemoryBytes / 1024).toFixed(2)} KB</span>
                   </div>
 
                   <div className="space-y-1.5 text-[10px] text-[var(--text-secondary)] font-mono">
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                        <span className="w-1.5 h-1.5 bg-[var(--success)] rounded-full"></span>
                         V8 JSON AST Parsing:
                       </span>
                       <span>{(parseOverhead / 1024).toFixed(1)} KB</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+                        <span className="w-1.5 h-1.5 bg-[var(--info)] rounded-full"></span>
                         Socket Buffer Queue:
                       </span>
                       <span>{(networkBuffer / 1024).toFixed(1)} KB</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-purple-400 rounded-full"></span>
+                        <span className="w-1.5 h-1.5 bg-[var(--primary)] rounded-full"></span>
                         Header Metadata:
                       </span>
                       <span>{(headersBytes / 1024).toFixed(2)} KB</span>
@@ -489,7 +490,7 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
                   {/* Memory Gauge Meter */}
                   <div className="w-full bg-[var(--bg-hover)] h-1 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-emerald-500 rounded-full" 
+                      className="h-full bg-[var(--success)] rounded-full" 
                       style={{ width: `${Math.min(100, (totalMemoryBytes / (500 * 1024)) * 100)}%` }} 
                     />
                   </div>
@@ -733,8 +734,8 @@ export function ResponsePanel() {
               <span className="text-[var(--text-secondary)]">Status:</span>
               <span className={cn(
                 "font-bold uppercase",
-                status === 'connected' ? "text-green-500" :
-                status === 'connecting' ? "text-yellow-500 animate-pulse" : "text-[var(--text-secondary)]"
+                status === 'connected' ? "text-[var(--success)]" :
+                status === 'connecting' ? "text-[var(--warning)] animate-pulse" : "text-[var(--text-secondary)]"
               )}>
                 {status}
               </span>
@@ -754,8 +755,8 @@ export function ResponsePanel() {
                 <span className={cn(
                   "px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
                   msg.type === 'sent' ? "bg-[var(--primary)]/10 text-[var(--primary)]" : 
-                  msg.type === 'received' ? "bg-blue-500/10 text-blue-500" : 
-                  msg.type === 'error' ? "bg-red-500/10 text-red-500" : 
+                  msg.type === 'received' ? "bg-[var(--info)]/10 text-[var(--info)]" : 
+                  msg.type === 'error' ? "bg-[var(--danger)]/10 text-[var(--danger)]" : 
                   "bg-[var(--bg-input)] text-[var(--text-secondary)]"
                 )}>
                   {msg.type}
@@ -763,7 +764,7 @@ export function ResponsePanel() {
               </div>
               <div className={cn(
                 "break-words whitespace-pre-wrap flex-1",
-                msg.type === 'error' ? "text-red-500" : "text-[var(--text-primary)]"
+                msg.type === 'error' ? "text-[var(--danger)]" : "text-[var(--text-primary)]"
               )}>
                 {msg.data}
               </div>
@@ -846,7 +847,7 @@ export function ResponsePanel() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="absolute inset-0 bg-[var(--bg-base)]/60 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-4"
+              className="absolute inset-0 bg-[var(--bg-base)]/60  z-50 flex flex-col items-center justify-center gap-4"
             >
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -857,15 +858,15 @@ export function ResponsePanel() {
               >
                 <div className="absolute w-28 h-28 bg-[var(--primary)]/10 blur-xl rounded-full animate-pulse -top-6" />
                 <div className="relative mb-4">
-                  <div className="w-14 h-14 border-4 border-[var(--primary)]/10 border-t-[var(--primary)] rounded-full animate-spin shadow-lg shadow-[var(--primary)]/5" />
+                  <div className="w-14 h-14 border-4 border-[var(--primary)]/10 border-t-[var(--primary)] rounded-full animate-spin shadow-[var(--shadow-subtle)] shadow-[var(--primary)]/5" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Activity className="w-6 h-6 text-[var(--primary)] animate-pulse" />
                   </div>
                 </div>
-                <div className="text-[var(--text-primary)] text-xs font-bold tracking-widest uppercase flex items-center gap-1.5 bg-[var(--bg-panel)] px-3.5 py-1.5 border border-[var(--border-strong)] rounded-full shadow-md">
+                <div className="text-[var(--text-primary)] text-xs font-bold tracking-widest uppercase flex items-center gap-1.5 bg-[var(--bg-panel)] px-3.5 py-1.5 border border-[var(--border-strong)] rounded-full shadow-[var(--shadow-subtle)]">
                   <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--primary)] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--primary)]"></span>
                   </span>
                   Processing Request...
                 </div>
@@ -914,11 +915,11 @@ export function ResponsePanel() {
                    <button 
                      onClick={handleCopy}
                      disabled={!generatedCode}
-                     className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] disabled:opacity-50 border border-[var(--border-strong)] text-[var(--text-primary)] px-3 py-1.5 rounded text-xs font-medium transition-all active:scale-95"
+                     className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] disabled:opacity-50 border border-[var(--border-strong)] text-[var(--text-primary)] px-3 py-1.5 rounded text-xs font-medium transition-colors"
                    >
                      {copied ? (
                        <>
-                         <Check className="w-3.5 h-3.5 text-green-500" />
+                         <Check className="w-3.5 h-3.5 text-[var(--success)]" />
                          <span>Copied!</span>
                        </>
                      ) : (
@@ -930,7 +931,7 @@ export function ResponsePanel() {
                    </button>
                  </div>
                  
-                 <div className="flex-1 overflow-auto bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-lg font-mono text-sm group relative">
+                 <div className="flex-1 overflow-auto bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded font-mono text-sm group relative">
                    {generatedCode ? (
                      <div className="p-4">
                        <pre className="text-[var(--text-code)] leading-relaxed overflow-x-auto whitespace-pre">
@@ -964,25 +965,25 @@ export function ResponsePanel() {
                     </div>
                   </div>
                   
-                  <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-6 h-[200px] shadow-sm relative group overflow-hidden">
+                  <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded p-6 h-[200px]  relative group overflow-hidden">
                     <LatencyChart data={latencyHistory} />
                   </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Timing Breakdown Card */}
-                  <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-5 hover:border-[var(--border-strong)] transition-all">
+                  <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded p-5 hover:border-[var(--border-strong)] transition-colors">
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-blue-400" />
+                        <Clock className="w-4 h-4 text-[var(--info)]" />
                         Timing Breakdown
                       </span>
                       <span className={cn(
                         "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
-                        response.timeMs < 100 ? "bg-green-500/10 text-green-400 border border-green-500/20" :
-                        response.timeMs < 300 ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                        response.timeMs < 1000 ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20" :
-                        "bg-red-500/10 text-red-400 border border-red-500/20"
+                        response.timeMs < 100 ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" :
+                        response.timeMs < 300 ? "bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/20" :
+                        response.timeMs < 1000 ? "bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/20" :
+                        "bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/20"
                       )}>
                         {response.timeMs < 100 ? "Excellent" :
                          response.timeMs < 300 ? "Good" :
@@ -998,7 +999,7 @@ export function ResponsePanel() {
                         </div>
                         <div className="w-full h-1 bg-[var(--bg-input)] rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-blue-500 rounded-full" 
+                            className="h-full bg-[var(--info)] rounded-full" 
                             style={{ width: `${Math.min(100, ((response.timings?.dns || 0) / (response.timeMs || 1)) * 100)}%` }} 
                           />
                         </div>
@@ -1011,7 +1012,7 @@ export function ResponsePanel() {
                         </div>
                         <div className="w-full h-1 bg-[var(--bg-input)] rounded-full overflow-hidden">
                           <div 
-                            className="h-full bg-purple-500 rounded-full" 
+                            className="h-full bg-[var(--primary)] rounded-full" 
                             style={{ width: `${Math.min(100, ((response.timings?.tcp || 0) / (response.timeMs || 1)) * 100)}%` }} 
                           />
                         </div>
@@ -1038,17 +1039,17 @@ export function ResponsePanel() {
                   </div>
 
                   {/* Size Card */}
-                  <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-5 hover:border-[var(--border-strong)] transition-all">
+                  <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded p-5 hover:border-[var(--border-strong)] transition-colors">
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1.5">
-                        <Database className="w-4 h-4 text-purple-400" />
+                        <Database className="w-4 h-4 text-[var(--primary)]" />
                         Response Size
                       </span>
                       <span className={cn(
                         "text-[10px] px-2 py-0.5 rounded-full font-bold uppercase",
-                        response.size < 10240 ? "bg-green-500/10 text-green-400 border border-green-500/20" :
-                        response.size < 102400 ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                        "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
+                        response.size < 10240 ? "bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/20" :
+                        response.size < 102400 ? "bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/20" :
+                        "bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/20"
                       )}>
                         {response.size < 10240 ? "Lightweight" :
                          response.size < 102400 ? "Medium" : "Heavy"}
@@ -1065,7 +1066,7 @@ export function ResponsePanel() {
                     
                     <div className="w-full bg-[var(--bg-input)] rounded-full h-1.5 overflow-hidden mb-3">
                       <div 
-                        className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                        className="h-full bg-[var(--primary)] rounded-full transition-colors "
                         style={{ width: `${Math.min(100, (response.size / 512000) * 100)}%` }}
                       />
                     </div>
@@ -1077,25 +1078,25 @@ export function ResponsePanel() {
                 </div>
 
                 {/* Network Speed Estimations */}
-                <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-5">
+                <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded p-5">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] mb-4 flex items-center gap-1.5">
                     <Wifi className="w-4 h-4 text-[var(--primary)]" />
                     Estimated Download Times
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-[var(--bg-input)] p-3.5 rounded-lg border border-[var(--border-subtle)] flex flex-col justify-between">
+                    <div className="bg-[var(--bg-input)] p-3.5 rounded border border-[var(--border-subtle)] flex flex-col justify-between">
                       <span className="text-[11px] text-[var(--text-secondary)] font-medium">Slow 3G Connection (1.6 Mbps)</span>
                       <span className="text-sm font-bold text-[var(--text-primary)] mt-1.5 font-mono">
                         {Math.max(0.001, response.size / (200 * 1024)).toFixed(3)}s
                       </span>
                     </div>
-                    <div className="bg-[var(--bg-input)] p-3.5 rounded-lg border border-[var(--border-subtle)] flex flex-col justify-between">
+                    <div className="bg-[var(--bg-input)] p-3.5 rounded border border-[var(--border-subtle)] flex flex-col justify-between">
                       <span className="text-[11px] text-[var(--text-secondary)] font-medium">Fast 4G Connection (12 Mbps)</span>
                       <span className="text-sm font-bold text-[var(--text-primary)] mt-1.5 font-mono">
                         {Math.max(0.001, response.size / (1500 * 1024)).toFixed(3)}s
                       </span>
                     </div>
-                    <div className="bg-[var(--bg-input)] p-3.5 rounded-lg border border-[var(--border-subtle)] flex flex-col justify-between">
+                    <div className="bg-[var(--bg-input)] p-3.5 rounded border border-[var(--border-subtle)] flex flex-col justify-between">
                       <span className="text-[11px] text-[var(--text-secondary)] font-medium">Broadband Wi-Fi (100 Mbps)</span>
                       <span className="text-sm font-bold text-[var(--text-primary)] mt-1.5 font-mono">
                         {Math.max(0.001, response.size / (12500 * 1024)).toFixed(3)}s
@@ -1105,11 +1106,11 @@ export function ResponsePanel() {
                 </div>
 
                 {/* Overview Detail Box */}
-                <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl p-5 flex items-center gap-4">
+                <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded p-5 flex items-center gap-4">
                   <div className={cn(
                     "w-12 h-12 rounded-full flex items-center justify-center shrink-0",
-                    response.status >= 200 && response.status < 300 ? "bg-green-500/10 text-green-400" :
-                    "bg-red-500/10 text-red-400"
+                    response.status >= 200 && response.status < 300 ? "bg-[var(--success)]/10 text-[var(--success)]" :
+                    "bg-[var(--danger)]/10 text-[var(--danger)]"
                   )}>
                     {response.status >= 200 && response.status < 300 ? (
                       <CheckCircle2 className="w-6 h-6" />
@@ -1175,9 +1176,9 @@ export function ResponsePanel() {
                       <button
                         onClick={() => setViewMode('pretty')}
                         className={cn(
-                          "px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer",
+                          "px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer",
                           viewMode === 'pretty'
-                            ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm font-semibold"
+                            ? "bg-[var(--primary)]/15 text-[var(--primary)]  font-semibold"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         )}
                       >
@@ -1186,9 +1187,9 @@ export function ResponsePanel() {
                       <button
                         onClick={() => setViewMode('raw')}
                         className={cn(
-                          "px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer",
+                          "px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer",
                           viewMode === 'raw'
-                            ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm font-semibold"
+                            ? "bg-[var(--primary)]/15 text-[var(--primary)]  font-semibold"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         )}
                       >
@@ -1197,9 +1198,9 @@ export function ResponsePanel() {
                       <button
                         onClick={() => setViewMode('diff')}
                         className={cn(
-                          "px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer flex items-center gap-1",
+                          "px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer flex items-center gap-1",
                           viewMode === 'diff'
-                            ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm font-semibold"
+                            ? "bg-[var(--primary)]/15 text-[var(--primary)]  font-semibold"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         )}
                       >
@@ -1237,12 +1238,12 @@ export function ResponsePanel() {
                           setSaveInitialName(`response_${new Date().getTime()}.${ext}`);
                           setIsSaveModalOpen(true);
                         }}
-                        className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                        className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer"
                       >
                         {downloadCopied ? (
                           <>
-                            <Check className="w-3.5 h-3.5 text-green-500" />
-                            <span className="text-green-500">Saved</span>
+                            <Check className="w-3.5 h-3.5 text-[var(--success)]" />
+                            <span className="text-[var(--success)]">Saved</span>
                           </>
                         ) : (
                           <>
@@ -1260,12 +1261,12 @@ export function ResponsePanel() {
                           setBodyCopied(true);
                           setTimeout(() => setBodyCopied(false), 2000);
                         }}
-                        className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-all active:scale-95 cursor-pointer"
+                        className="flex items-center gap-1.5 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer"
                       >
                         {bodyCopied ? (
                           <>
-                            <Check className="w-3.5 h-3.5 text-green-500" />
-                            <span className="text-green-500">Copied!</span>
+                            <Check className="w-3.5 h-3.5 text-[var(--success)]" />
+                            <span className="text-[var(--success)]">Copied!</span>
                           </>
                         ) : (
                           <>
@@ -1308,7 +1309,7 @@ export function ResponsePanel() {
                             <button
                               onClick={handleSaveBaseline}
                               disabled={isSavingBaseline}
-                              className="flex items-center gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white px-3 py-1.5 rounded text-[11px] font-bold shadow transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                              className="flex items-center gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white px-3 py-1.5 rounded text-[11px] font-bold shadow transition-colors disabled:opacity-50 cursor-pointer"
                             >
                               {isSavingBaseline ? (
                                 <>
@@ -1346,7 +1347,7 @@ export function ResponsePanel() {
 
                               {/* Status comparison if different */}
                               {isStatusChanged && (
-                                <div className="flex items-center gap-1 bg-amber-500/10 text-amber-500 font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-500/20">
+                                <div className="flex items-center gap-1 bg-[var(--warning)]/10 text-[var(--warning)] font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border border-[var(--warning)]/20">
                                   <span>Status:</span>
                                   <span className="line-through opacity-70">{savedResponse.status}</span>
                                   <span>&rarr;</span>
@@ -1361,9 +1362,9 @@ export function ResponsePanel() {
                                 <button
                                   onClick={() => setDiffStyle('split')}
                                   className={cn(
-                                    "px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer",
+                                    "px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors cursor-pointer",
                                     diffStyle === 'split'
-                                      ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm"
+                                      ? "bg-[var(--primary)]/15 text-[var(--primary)] "
                                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                                   )}
                                 >
@@ -1372,9 +1373,9 @@ export function ResponsePanel() {
                                 <button
                                   onClick={() => setDiffStyle('unified')}
                                   className={cn(
-                                    "px-1.5 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer",
+                                    "px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors cursor-pointer",
                                     diffStyle === 'unified'
-                                      ? "bg-[var(--primary)]/15 text-[var(--primary)] shadow-sm"
+                                      ? "bg-[var(--primary)]/15 text-[var(--primary)] "
                                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                                   )}
                                 >
@@ -1387,7 +1388,7 @@ export function ResponsePanel() {
                                 onClick={handleSaveBaseline}
                                 disabled={isSavingBaseline}
                                 title="Update baseline to current response"
-                                className="flex items-center gap-1 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2 py-1 rounded text-[10px] font-medium transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                                className="flex items-center gap-1 bg-[var(--bg-hover)] hover:bg-[var(--border-strong)] border border-[var(--border-strong)] text-[var(--text-primary)] px-2 py-1 rounded text-[10px] font-medium transition-colors cursor-pointer disabled:opacity-50"
                               >
                                 <RefreshCw className={cn("w-3 h-3", isSavingBaseline && "animate-spin")} />
                                 <span>Update</span>
@@ -1397,7 +1398,7 @@ export function ResponsePanel() {
                               <button
                                 onClick={handleClearBaseline}
                                 title="Clear baseline saved response"
-                                className="flex items-center gap-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-2 py-1 rounded text-[10px] font-medium transition-all active:scale-95 cursor-pointer"
+                                className="flex items-center gap-1 bg-[var(--danger)]/10 hover:bg-[var(--danger)]/20 text-[var(--danger)] border border-[var(--danger)]/20 px-2 py-1 rounded text-[10px] font-medium transition-colors cursor-pointer"
                               >
                                 <Trash2 className="w-3 h-3" />
                                 <span>Clear</span>
@@ -1476,14 +1477,14 @@ export function ResponsePanel() {
                                           {/* Left Column (Baseline) */}
                                           <td className={cn(
                                             "w-12 text-right pr-2 text-[9px] select-none font-mono border-r border-[var(--border-subtle)]/60 font-bold",
-                                            row.left.type === 'removed' ? "bg-red-500/15 text-red-500 dark:bg-red-950/30" :
+                                            row.left.type === 'removed' ? "bg-[var(--danger)]/15 text-[var(--danger)] dark:bg-red-950/30" :
                                             row.left.type === 'empty' ? "bg-[var(--bg-hover)]/10 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
                                           )}>
                                             {row.left.num ?? ''}
                                           </td>
                                           <td className={cn(
                                             "font-mono text-[11px] px-3 whitespace-pre border-r border-[var(--border-subtle)]",
-                                            row.left.type === 'removed' ? "bg-red-500/10 text-red-700 dark:bg-red-950/20 dark:text-red-300 font-semibold" :
+                                            row.left.type === 'removed' ? "bg-[var(--danger)]/10 text-red-700 dark:bg-red-950/20 dark:text-[var(--danger)] font-semibold" :
                                             row.left.type === 'empty' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-primary)]"
                                           )}>
                                             {row.left.type === 'removed' ? '-' : row.left.type === 'empty' ? '' : ' '} {row.left.text ?? ''}
@@ -1492,14 +1493,14 @@ export function ResponsePanel() {
                                           {/* Right Column (Current) */}
                                           <td className={cn(
                                             "w-12 text-right pr-2 text-[9px] select-none font-mono border-r border-[var(--border-subtle)]/60 font-bold",
-                                            row.right.type === 'added' ? "bg-green-500/15 text-green-500 dark:bg-green-950/30" :
+                                            row.right.type === 'added' ? "bg-[var(--success)]/15 text-[var(--success)] dark:bg-green-950/30" :
                                             row.right.type === 'empty' ? "bg-[var(--bg-hover)]/10 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
                                           )}>
                                             {row.right.num ?? ''}
                                           </td>
                                           <td className={cn(
                                             "font-mono text-[11px] px-3 whitespace-pre",
-                                            row.right.type === 'added' ? "bg-green-500/10 text-green-700 dark:bg-green-950/20 dark:text-green-300 font-semibold" :
+                                            row.right.type === 'added' ? "bg-[var(--success)]/10 text-green-700 dark:bg-green-950/20 dark:text-[var(--success)] font-semibold" :
                                             row.right.type === 'empty' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-primary)]"
                                           )}>
                                             {row.right.type === 'added' ? '+' : row.right.type === 'empty' ? '' : ' '} {row.right.text ?? ''}
@@ -1541,22 +1542,22 @@ export function ResponsePanel() {
                                         <tr key={idx} className="hover:bg-[var(--bg-hover)]/25 leading-normal">
                                           <td className={cn(
                                             "w-10 text-right pr-2 text-[9px] select-none font-mono font-bold",
-                                            row.type === 'removed' ? "bg-red-500/15 text-red-500 dark:bg-red-950/30" :
+                                            row.type === 'removed' ? "bg-[var(--danger)]/15 text-[var(--danger)] dark:bg-red-950/30" :
                                             row.type === 'added' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
                                           )}>
                                             {row.leftNum ?? ''}
                                           </td>
                                           <td className={cn(
                                             "w-10 text-right pr-2 text-[9px] select-none font-mono border-r border-[var(--border-subtle)]/60 font-bold",
-                                            row.type === 'added' ? "bg-green-500/15 text-green-500 dark:bg-green-950/30" :
+                                            row.type === 'added' ? "bg-[var(--success)]/15 text-[var(--success)] dark:bg-green-950/30" :
                                             row.type === 'removed' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
                                           )}>
                                             {row.rightNum ?? ''}
                                           </td>
                                           <td className={cn(
                                             "font-mono text-[11px] px-3 whitespace-pre",
-                                            row.type === 'removed' ? "bg-red-500/10 text-red-700 dark:bg-red-950/20 dark:text-red-300 font-semibold" :
-                                            row.type === 'added' ? "bg-green-500/10 text-green-700 dark:bg-green-950/20 dark:text-green-300 font-semibold" : "text-[var(--text-primary)]"
+                                            row.type === 'removed' ? "bg-[var(--danger)]/10 text-red-700 dark:bg-red-950/20 dark:text-[var(--danger)] font-semibold" :
+                                            row.type === 'added' ? "bg-[var(--success)]/10 text-green-700 dark:bg-green-950/20 dark:text-[var(--success)] font-semibold" : "text-[var(--text-primary)]"
                                           )}>
                                             {row.type === 'removed' ? '-' : row.type === 'added' ? '+' : ' '} {row.text}
                                           </td>
@@ -1578,7 +1579,7 @@ export function ResponsePanel() {
                     if (isTooLarge) {
                       return (
                         <div className="space-y-3">
-                          <div className="text-[11px] bg-amber-500/15 text-amber-500 border border-amber-500/20 rounded p-2.5 flex items-center gap-2">
+                          <div className="text-[11px] bg-[var(--warning)]/15 text-[var(--warning)] border border-[var(--warning)]/20 rounded p-2.5 flex items-center gap-2">
                             <AlertCircle className="w-4 h-4 shrink-0" />
                             <span>Response body ({(formattedContent.length / 1024).toFixed(1)} KB) is too large for syntax highlighting. Showing formatted raw text instead.</span>
                           </div>
@@ -1599,9 +1600,9 @@ export function ResponsePanel() {
                         } catch (_) {
                           // If parsing fails, fall back to highlighted HTML
                           return (
-                            <pre 
+                            <pre
                               className="text-[var(--text-code)] leading-relaxed whitespace-pre"
-                              dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                              dangerouslySetInnerHTML={{ __html: sanitizeHtml(highlightedHtml) }}
                             />
                           );
                         }
@@ -1615,9 +1616,9 @@ export function ResponsePanel() {
                     }
 
                     return (
-                      <pre 
+                      <pre
                         className="text-[var(--text-code)] leading-relaxed whitespace-pre"
-                        dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(highlightedHtml) }}
                       />
                     );
                   })()}

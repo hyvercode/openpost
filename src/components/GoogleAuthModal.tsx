@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
-import { 
-  X, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle2, 
-  User, 
-  Mail, 
-  ShieldCheck, 
+import {
+  X,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
   Copy,
   ExternalLink,
   KeyRound,
-  FlaskConical,
-  Sparkles,
   Info
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -39,12 +35,9 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
   const activeClientId = customClientId || (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '';
   const isConfigured = Boolean(activeClientId && activeClientId.trim().length > 10);
 
-  // Tabs: 'oauth' (Official GIS), 'sandbox' (Test Mock), 'config' (Settings)
-  const [activeTab, setActiveTab] = useState<'oauth' | 'sandbox' | 'config'>(() => isConfigured ? 'oauth' : 'config');
+  // Tabs: 'oauth' (Official GIS), 'config' (Settings)
+  const [activeTab, setActiveTab] = useState<'oauth' | 'config'>(() => isConfigured ? 'oauth' : 'config');
 
-  // Sandbox state
-  const [sandboxEmail, setSandboxEmail] = useState('');
-  const [sandboxName, setSandboxName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedOrigin, setCopiedOrigin] = useState(false);
@@ -111,34 +104,9 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
     }
   };
 
-  const handleSandboxAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!sandboxEmail) {
-      setError('Masukkan alamat email untuk simulasi.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await api.post('/auth/google', {
-        email: sandboxEmail.trim().toLowerCase(),
-        displayName: sandboxName.trim() || sandboxEmail.split('@')[0],
-      });
-
-      const { user, token, message } = res.data;
-      localStorage.setItem('auth_token', token);
-      setUser(user);
-      addToast(message || `[Mode Sandbox] Masuk sebagai ${user.displayName || user.email}`, 'info', 3500);
-      onClose();
-    } catch (err: any) {
-      console.error('Sandbox Auth error:', err);
-      setError(err.response?.data?.error || err.message || 'Gagal login dalam mode sandbox.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // NOTE: the "Sandbox" tab that logged in with an arbitrary email was removed
+  // for security — the backend now requires a Google-signed ID token and
+  // rejects raw-email logins. Use a real Google account for testing.
 
   const handleSaveClientId = (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,17 +134,17 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50  animate-in fade-in duration-200">
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="w-full max-w-md bg-[#1F0015] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col text-white"
+        className="w-full max-w-md bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded overflow-hidden flex flex-col text-[var(--text-primary)]"
       >
         {/* Header */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between bg-[#2C001E]">
+        <div className="p-5 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-surface)]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shadow-md">
+            <div className="w-9 h-9 rounded bg-white flex items-center justify-center shadow-[var(--shadow-subtle)]">
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -190,13 +158,13 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
               </h2>
               <div className="flex items-center gap-1.5 text-[11px]">
                 {isConfigured ? (
-                  <span className="text-emerald-400 flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[var(--success)] flex items-center gap-1 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse" />
                     Google Identity Services Aktif
                   </span>
                 ) : (
-                  <span className="text-amber-400 flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span className="text-[var(--warning)] flex items-center gap-1 font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)]" />
                     OAuth Client ID Belum Dikonfigurasi
                   </span>
                 )}
@@ -205,54 +173,42 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
           </div>
           <button 
             onClick={onClose}
-            className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-white/10 bg-[#16000F] text-xs font-semibold">
+        <div className="flex border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] text-xs font-semibold">
           <button
             onClick={() => setActiveTab('oauth')}
             className={`flex-1 py-2.5 px-3 border-b-2 text-center transition-colors flex items-center justify-center gap-1.5 ${
               activeTab === 'oauth'
-                ? 'border-[#E95420] text-[#E95420]'
-                : 'border-transparent text-white/50 hover:text-white'
+                ? 'border-[var(--primary)] text-[var(--primary)]'
+                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <ShieldCheck className="w-3.5 h-3.5" />
             <span>Google Sign-In Resmi</span>
           </button>
           <button
             onClick={() => setActiveTab('config')}
-            className={`flex-1 py-2.5 px-3 border-b-2 text-center transition-colors flex items-center justify-center gap-1.5 ${
+            className={`py-2.5 px-3 border-b-2 text-center transition-colors flex items-center justify-center gap-1.5 ${
               activeTab === 'config'
-                ? 'border-[#E95420] text-[#E95420]'
-                : 'border-transparent text-white/50 hover:text-white'
+                ? 'border-[var(--primary)] text-[var(--primary)]'
+                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
             <KeyRound className="w-3.5 h-3.5" />
             <span>Konfigurasi Client ID</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('sandbox')}
-            className={`py-2.5 px-3 border-b-2 text-center transition-colors flex items-center justify-center gap-1.5 ${
-              activeTab === 'sandbox'
-                ? 'border-[#E95420] text-[#E95420]'
-                : 'border-transparent text-white/50 hover:text-white'
-            }`}
-            title="Mode Sandbox / Pengujian"
-          >
-            <FlaskConical className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Sandbox</span>
           </button>
         </div>
 
         {/* Content Body */}
         <div className="p-6 space-y-5">
           {error && (
-            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-2">
+            <div className="p-3 rounded bg-[var(--danger)]/10 border border-[var(--danger)]/20 text-[var(--danger)] text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -263,7 +219,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
             <div className="space-y-4">
               {isConfigured ? (
                 <div className="flex flex-col items-center justify-center py-4 space-y-4">
-                  <p className="text-xs text-white/70 text-center max-w-xs">
+                  <p className="text-xs text-[var(--text-secondary)] text-center max-w-xs">
                     Klik tombol di bawah untuk autentikasi resmi menggunakan akun Google Anda via Google Identity Services:
                   </p>
 
@@ -274,20 +230,20 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
                   />
 
                   {loading && (
-                    <div className="flex items-center gap-2 text-xs text-amber-400">
+                    <div className="flex items-center gap-2 text-xs text-[var(--warning)]">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>Memverifikasi kredensial Google...</span>
                     </div>
                   )}
 
-                  <div className="pt-2 text-[11px] text-white/40 text-center flex items-center justify-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <div className="pt-2 text-[11px] text-[var(--text-tertiary)] text-center flex items-center justify-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[var(--success)]" />
                     <span>Token diverifikasi langsung dengan Google TokenInfo API</span>
                   </div>
                 </div>
               ) : (
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-3">
-                  <div className="flex items-start gap-2.5 text-amber-400">
+                <div className="p-4 rounded bg-[var(--warning)]/10 border border-[var(--warning)]/20 space-y-3">
+                  <div className="flex items-start gap-2.5 text-[var(--warning)]">
                     <Info className="w-4 h-4 shrink-0 mt-0.5" />
                     <div className="text-xs leading-relaxed">
                       <strong className="block font-bold mb-1">Google OAuth Client ID Belum Terpasang</strong>
@@ -297,13 +253,13 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
                   <button
                     type="button"
                     onClick={() => setActiveTab('config')}
-                    className="w-full h-9 bg-amber-500 hover:bg-amber-600 text-black font-bold text-xs rounded-lg transition-colors flex items-center justify-center gap-2"
+                    className="w-full h-9 bg-[var(--warning)] hover:bg-[var(--warning)] text-black font-bold text-xs rounded transition-colors flex items-center justify-center gap-2"
                   >
                     <KeyRound className="w-3.5 h-3.5" />
                     <span>Pasang Google Client ID Sekarang</span>
                   </button>
-                  <p className="text-[10px] text-white/50 text-center">
-                    Atau gunakan tab <strong>Sandbox</strong> untuk pengujian instan tanpa setup.
+                  <p className="text-[10px] text-[var(--text-secondary)] text-center">
+                    Gunakan Client ID resmi dari Google Cloud Console untuk mengaktifkan login.
                   </p>
                 </div>
               )}
@@ -313,13 +269,13 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
           {/* TAB 2: Setup / Configuration */}
           {activeTab === 'config' && (
             <form onSubmit={handleSaveClientId} className="space-y-4">
-              <div className="text-xs text-white/70 leading-relaxed">
+              <div className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 Agar Google Sign-In berfungsi resmi dan tidak dummy, Anda perlu memasukkan <strong>OAuth 2.0 Web Client ID</strong> dari Google Cloud Console.
               </div>
 
               {/* Step 1: Copy Origin */}
-              <div className="p-3 bg-[#2C001E] border border-white/10 rounded-xl space-y-2">
-                <div className="text-[11px] font-semibold text-white/80">
+              <div className="p-3 bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded space-y-2">
+                <div className="text-[11px] font-semibold text-[var(--text-primary)]">
                   Langkah 1: Tambahkan domain ke <em>Authorized JavaScript Origins</em>
                 </div>
                 <div className="flex items-center gap-2">
@@ -327,14 +283,14 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
                     type="text"
                     readOnly
                     value={currentOrigin}
-                    className="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-emerald-400 select-all"
+                    className="flex-1 bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded px-2.5 py-1.5 text-[11px] font-mono text-[var(--success)] select-all"
                   />
                   <button
                     type="button"
                     onClick={handleCopyOrigin}
-                    className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors shrink-0"
+                    className="px-2.5 py-1.5 bg-[var(--bg-hover)] hover:bg-[var(--bg-panel)] text-[var(--text-primary)] rounded text-xs font-semibold flex items-center gap-1 shrink-0"
                   >
-                    {copiedOrigin ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedOrigin ? <CheckCircle2 className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedOrigin ? 'Tersalin' : 'Salin'}</span>
                   </button>
                 </div>
@@ -342,7 +298,7 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
 
               {/* Step 2: Paste Client ID */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-white/60 flex items-center justify-between">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center justify-between">
                   <span>Langkah 2: Tempel Google Client ID</span>
                   <a 
                     href="https://console.cloud.google.com/apis/credentials" 
@@ -359,13 +315,13 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
                   value={customClientId}
                   onChange={(e) => setCustomClientId(e.target.value)}
                   placeholder="Contoh: 123456789-abc.apps.googleusercontent.com"
-                  className="w-full bg-[#2C001E] border border-white/10 rounded-xl py-2.5 px-3 text-xs text-white font-mono focus:outline-none focus:border-[#E95420]"
+                  className="w-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded py-2.5 px-3 text-xs text-[var(--text-primary)] font-mono focus:outline-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full h-10 bg-[#E95420] hover:bg-[#c7461b] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+                className="w-full h-10 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded font-bold text-xs flex items-center justify-center gap-2"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Simpan &amp; Aktifkan Google Sign-In</span>
@@ -373,71 +329,12 @@ export const GoogleAuthModal: React.FC<GoogleAuthModalProps> = ({ isOpen, onClos
             </form>
           )}
 
-          {/* TAB 3: Sandbox / Mock Testing Mode */}
-          {activeTab === 'sandbox' && (
-            <form onSubmit={handleSandboxAuth} className="space-y-4">
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 space-y-1">
-                <div className="font-bold flex items-center gap-1.5">
-                  <FlaskConical className="w-4 h-4" />
-                  <span>Mode Simulasi Pengembangan (Sandbox)</span>
-                </div>
-                <p className="text-[11px] text-white/70 leading-relaxed">
-                  Mode ini digunakan untuk menguji fungsionalitas workspace, collection, dan API tanpa memerlukan kredensial Google Cloud resmi.
-                </p>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-                  Email Akun Uji Coba
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-white/30 absolute left-3.5 top-3" />
-                  <input
-                    type="email"
-                    required
-                    value={sandboxEmail}
-                    onChange={(e) => setSandboxEmail(e.target.value)}
-                    placeholder="nama@gmail.com"
-                    className="w-full bg-[#2C001E] border border-white/10 rounded-xl py-2.5 pl-10 pr-3 text-xs text-white focus:outline-none focus:border-[#E95420]"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-white/50">
-                  Nama Tampilan (Opsional)
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-white/30 absolute left-3.5 top-3" />
-                  <input
-                    type="text"
-                    value={sandboxName}
-                    onChange={(e) => setSandboxName(e.target.value)}
-                    placeholder="Nama Developer"
-                    className="w-full bg-[#2C001E] border border-white/10 rounded-xl py-2.5 pl-10 pr-3 text-xs text-white focus:outline-none focus:border-[#E95420]"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 bg-white hover:bg-gray-100 text-gray-900 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer mt-2"
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span>Masuk dengan Akun Simulasi</span>
-                )}
-              </button>
-            </form>
-          )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-[#16000F] border-t border-white/10 flex items-center justify-between text-[11px] text-white/40">
+        <div className="p-4 bg-[var(--bg-surface)] border-t border-[var(--border-subtle)] flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
           <div className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <ShieldCheck className="w-4 h-4 text-[var(--success)]" />
             <span>Keamanan JWT &amp; Enkripsi Sesi</span>
           </div>
           <span>Penyimpanan Prisma DB</span>

@@ -6,24 +6,34 @@ export class WorkspaceController {
 
   getWorkspaces = async (req: Request, res: Response) => {
     try {
-      const { userId } = req.query;
-      const workspaces = await this.workspaceService.getWorkspaces(userId ? String(userId) : undefined);
+      // SECURITY: never trust userId from query — always use the token subject.
+      const userId = (req as any).user?.uid || (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const workspaces = await this.workspaceService.getWorkspaces(userId);
       res.json(workspaces);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch workspaces', details: error.message });
+      res.status(500).json({ error: 'Failed to fetch workspaces' });
     }
   };
 
   createWorkspace = async (req: Request, res: Response) => {
     try {
-      const { id, name, ownerId } = req.body;
-      if (!name || !ownerId) {
-        return res.status(400).json({ error: 'Name and ownerId are required' });
+      // SECURITY: ownerId comes from the token, not the body (prevents
+      // creating workspaces on behalf of other users).
+      const ownerId = (req as any).user?.uid || (req as any).user?.userId;
+      if (!ownerId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const { id, name } = req.body;
+      if (!name) {
+        return res.status(400).json({ error: 'Name is required' });
       }
       const newWorkspace = await this.workspaceService.createWorkspace(id, name, ownerId);
       res.status(201).json(newWorkspace);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to create workspace', details: error.message });
+      res.status(500).json({ error: 'Failed to create workspace' });
     }
   };
 
@@ -133,14 +143,23 @@ export class WorkspaceController {
   acceptInvitation = async (req: Request, res: Response) => {
     try {
       const { token } = req.params;
-      const { userId } = req.body;
+      // SECURITY: bind acceptance to the authenticated user, not a body field.
+      const bodyUserId = req.body?.userId;
+      const tokenUserId = (req as any).user?.uid || (req as any).user?.userId;
+      // Invitation links may be opened before login; allow anonymous accept
+      // only when the route itself is unauthenticated. When a token IS present,
+      // the accepter must match it.
+      const userId = tokenUserId || bodyUserId;
       if (!userId) {
         return res.status(400).json({ error: 'userId is required' });
+      }
+      if (tokenUserId && bodyUserId && tokenUserId !== bodyUserId) {
+        return res.status(403).json({ error: 'Forbidden: invitation must be accepted by the logged-in user' });
       }
       const member = await this.workspaceService.acceptInvitation(token, userId);
       res.json(member);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to accept invitation', details: error.message });
+      res.status(500).json({ error: 'Failed to accept invitation' });
     }
   };
 }

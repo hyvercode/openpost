@@ -33,6 +33,13 @@ export interface SandboxResult {
   requestHeaders?: Record<string, string>;
 }
 
+/**
+ * @deprecated SECURITY: this in-context runner executes user scripts with
+ * full access to the app (localStorage, DOM, network). All callers have been
+ * migrated to runScriptSandboxAsync (src/utils/sandboxWorker.ts) which runs
+ * scripts in an isolated Web Worker with a 5s timeout. Kept only for
+ * reference/tests — do NOT use for user-supplied scripts.
+ */
 export function runScriptSandbox(script: string, context: SandboxContext): SandboxResult {
   if (!script || !script.trim()) {
     return {

@@ -7,10 +7,8 @@ import {
   Check, 
   Eye, 
   EyeOff, 
-  Sparkles, 
   Zap, 
   Lock, 
-  Wand2, 
   Sliders, 
   Info,
   ChevronDown,
@@ -47,7 +45,7 @@ const PRESET_HEADERS: PresetHeader[] = [
     key: 'Authorization',
     defaultValue: 'Bearer {{BEARER_TOKEN}}',
     category: 'Auth',
-    icon: '🔑'
+    icon: 'AUTH'
   },
   {
     id: 'api-key',
@@ -56,7 +54,7 @@ const PRESET_HEADERS: PresetHeader[] = [
     key: 'X-API-Key',
     defaultValue: '{{API_KEY}}',
     category: 'Auth',
-    icon: '🔐'
+    icon: 'KEY'
   },
   {
     id: 'hasura',
@@ -65,7 +63,7 @@ const PRESET_HEADERS: PresetHeader[] = [
     key: 'x-hasura-admin-secret',
     defaultValue: '{{HASURA_ADMIN_SECRET}}',
     category: 'Provider',
-    icon: '⚡'
+    icon: 'ADMIN'
   },
   {
     id: 'shopify',
@@ -74,7 +72,7 @@ const PRESET_HEADERS: PresetHeader[] = [
     key: 'X-Shopify-Storefront-Access-Token',
     defaultValue: '{{SHOPIFY_STOREFRONT_TOKEN}}',
     category: 'Provider',
-    icon: '🛍️'
+    icon: 'SHOP'
   },
   {
     id: 'appsync',
@@ -83,7 +81,7 @@ const PRESET_HEADERS: PresetHeader[] = [
     key: 'x-api-key',
     defaultValue: '{{APPSYNC_API_KEY}}',
     category: 'Provider',
-    icon: '☁️'
+    icon: 'AWS'
   },
   {
     id: 'apollo-preflight',
@@ -92,7 +90,7 @@ const PRESET_HEADERS: PresetHeader[] = [
     key: 'Apollo-Require-Preflight',
     defaultValue: 'true',
     category: 'Security',
-    icon: '🛡️'
+    icon: 'CSRF'
   },
   {
     id: 'github',
@@ -101,7 +99,7 @@ const PRESET_HEADERS: PresetHeader[] = [
     key: 'Authorization',
     defaultValue: 'Bearer {{GITHUB_TOKEN}}',
     category: 'Auth',
-    icon: '🐙'
+    icon: 'GH'
   }
 ];
 
@@ -216,17 +214,17 @@ export function GraphQLHeaderInjector({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all border",
+          "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors border",
           isOpen
-            ? "bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--primary)] shadow-sm"
+            ? "bg-[var(--primary)]/15 border-[var(--primary)] text-[var(--primary)] "
             : hasAuthHeader
-            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20"
+            ? "bg-[var(--success)]/10 border-[var(--success)]/30 text-[var(--success)] hover:bg-[var(--success)]/20"
             : "bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] border-[var(--border-subtle)] text-[var(--text-primary)]"
         )}
         title="GraphQL Custom & Authentication Headers Injector"
       >
         {hasAuthHeader ? (
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <ShieldCheck className="w-3.5 h-3.5 text-[var(--success)]" />
         ) : (
           <Key className="w-3.5 h-3.5 text-[var(--primary)]" />
         )}
@@ -243,7 +241,7 @@ export function GraphQLHeaderInjector({
 
       {/* Injector Popover Drawer */}
       {isOpen && (
-        <div className="absolute right-0 mt-1.5 w-[440px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded-lg shadow-2xl z-50 overflow-hidden text-xs animate-in fade-in slide-in-from-top-1 duration-150">
+        <div className="absolute right-0 mt-1.5 w-[440px] bg-[var(--bg-surface)] border border-[var(--border-strong)] rounded shadow-[var(--shadow-subtle)] z-50 overflow-hidden text-xs animate-in fade-in slide-in-from-top-1 duration-150">
           
           {/* Header Bar */}
           <div className="p-3 border-b border-[var(--border-subtle)] bg-[var(--bg-panel)] flex items-center justify-between">
@@ -255,7 +253,7 @@ export function GraphQLHeaderInjector({
                 <h4 className="font-bold text-[var(--text-primary)] leading-tight flex items-center gap-1.5">
                   GraphQL Header Injector
                   {hasAuthHeader && (
-                    <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-mono font-semibold">
+                    <span className="text-[9px] bg-[var(--success)]/20 text-[var(--success)] px-1.5 py-0.5 rounded font-mono font-semibold">
                       Secured
                     </span>
                   )}
@@ -277,7 +275,7 @@ export function GraphQLHeaderInjector({
           <div className="p-2.5 bg-[var(--bg-base)] border-b border-[var(--border-subtle)] space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-400" />
+                <Info className="w-3 h-3" />
                 Quick Header Presets
               </span>
               <button
@@ -295,10 +293,10 @@ export function GraphQLHeaderInjector({
                 <button
                   key={preset.id}
                   onClick={() => handleInjectPreset(preset)}
-                  className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--bg-input)] hover:bg-[var(--primary)]/15 hover:border-[var(--primary)]/40 border border-[var(--border-subtle)] text-[10px] font-medium text-[var(--text-primary)] whitespace-nowrap transition-all"
+                  className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--bg-input)] hover:bg-[var(--primary)]/15 hover:border-[var(--primary)]/40 border border-[var(--border-subtle)] text-[10px] font-medium text-[var(--text-primary)] whitespace-nowrap transition-colors"
                   title={preset.description}
                 >
-                  <span>{preset.icon}</span>
+                  <span className="text-[9px] font-mono font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded px-1">{preset.icon}</span>
                   <span>{preset.name}</span>
                   <Plus className="w-2.5 h-2.5 text-[var(--text-secondary)]" />
                 </button>
@@ -312,11 +310,11 @@ export function GraphQLHeaderInjector({
                   <button
                     key={preset.id}
                     onClick={() => handleInjectPreset(preset)}
-                    className="flex flex-col text-left p-2 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/50 transition-all group"
+                    className="flex flex-col text-left p-2 rounded bg-[var(--bg-surface)] hover:bg-[var(--bg-hover)] border border-[var(--border-subtle)] hover:border-[var(--primary)]/50 transition-colors group"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-[11px] text-[var(--text-primary)] flex items-center gap-1">
-                        <span>{preset.icon}</span>
+                        <span className="text-[9px] font-mono font-bold text-[var(--text-secondary)] border border-[var(--border-subtle)] rounded px-1">{preset.icon}</span>
                         {preset.name}
                       </span>
                       <span className="text-[9px] font-mono text-[var(--text-secondary)] group-hover:text-[var(--primary)]">
@@ -352,7 +350,7 @@ export function GraphQLHeaderInjector({
                 <div className="flex items-center justify-center gap-2">
                   <button
                     onClick={() => handleInjectPreset(PRESET_HEADERS[0])}
-                    className="px-2.5 py-1 rounded bg-[var(--primary)] text-white font-bold text-[10px] hover:bg-opacity-90 transition-all"
+                    className="px-2.5 py-1 rounded bg-[var(--primary)] text-white font-bold text-[10px] hover:bg-opacity-90 transition-colors"
                   >
                     + Add Bearer Token
                   </button>
@@ -377,7 +375,7 @@ export function GraphQLHeaderInjector({
                     <div
                       key={header.id}
                       className={cn(
-                        "flex items-center gap-2 p-2 rounded-md border transition-all",
+                        "flex items-center gap-2 p-2 rounded-md border transition-colors",
                         header.enabled
                           ? "bg-[var(--bg-base)] border-[var(--border-subtle)]"
                           : "bg-[var(--bg-base)]/50 border-transparent opacity-60"
@@ -445,7 +443,7 @@ export function GraphQLHeaderInjector({
                       <button
                         type="button"
                         onClick={() => handleRemoveHeader(header.id)}
-                        className="text-red-400/70 hover:text-red-400 p-1 shrink-0 hover:bg-red-500/10 rounded transition-colors"
+                        className="text-[var(--danger)]/70 hover:text-[var(--danger)] p-1 shrink-0 hover:bg-[var(--danger)]/10 rounded transition-colors"
                         title="Remove Header"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -460,7 +458,7 @@ export function GraphQLHeaderInjector({
           {/* Footer Info & Actions */}
           <div className="p-3 bg-[var(--bg-panel)] border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
             <div className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)]">
-              <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <Info className="w-3.5 h-3.5 text-[var(--info)] shrink-0" />
               <span>Headers are synced with main Request Headers tab</span>
             </div>
 
@@ -471,9 +469,9 @@ export function GraphQLHeaderInjector({
                   setIsOpen(false);
                 }}
                 disabled={isLoadingIntrospection}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[#e65a2d] disabled:opacity-50 text-white font-bold text-[11px] transition-colors shrink-0"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-50 text-white font-bold text-[11px] transition-colors shrink-0"
               >
-                <Wand2 className="w-3 h-3" />
+                <Zap className="w-3 h-3" />
                 <span>Test & Introspect</span>
               </button>
             )}

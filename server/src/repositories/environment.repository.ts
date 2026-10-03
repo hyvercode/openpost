@@ -23,6 +23,12 @@ export class EnvironmentRepository {
     return envs.map(this.parseEnv);
   }
 
+  async findById(id: string) {
+    const env = await prisma.environment.findUnique({ where: { id } });
+    if (!env) return null;
+    return this.parseEnv(env);
+  }
+
   async create(data: EnvironmentData) {
     const created = await prisma.environment.create({
       data: {
