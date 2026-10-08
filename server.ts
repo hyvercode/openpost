@@ -12,6 +12,7 @@ import fs from "fs";
 import http from "http";
 import https from "https";
 import { GoogleGenAI } from "@google/genai";
+import { z } from "zod";
 
 // New Prisma Routes
 import workspaceRoutes from './server/src/routes/workspace.routes';
@@ -23,6 +24,7 @@ import authRoutes from './server/src/routes/auth.routes';
 import commentRoutes from './server/src/routes/comment.routes';
 import versionRoutes from './server/src/routes/version.routes';
 import monitorRoutes from './server/src/routes/monitor.routes';
+import workflowRoutes from './server/src/routes/workflow.routes';
 import adminRoutes from './server/src/routes/admin.routes';
 import { prisma } from './server/src/db';
 import { requireAuth } from './server/src/middleware/auth';
@@ -68,6 +70,8 @@ const APP_ROOT = resolveAppRoot();
 
 async function startServer() {
   const app = express();
+  // Trust X-Forwarded-For when behind proxy (correct rateLimit req.ip). One hop only.
+  app.set('trust proxy', 1);
 
   // Dev server must always run on port 3000 per AI Studio environment constraints
   const PORT = process.env.PORT || 3000;
@@ -142,59 +146,153 @@ async function startServer() {
   app.use('/api/comments', commentRoutes);
   app.use('/api/versions', versionRoutes);
   app.use('/api/monitors', monitorRoutes);
+  app.use('/api/workflows', workflowRoutes);
   app.use('/api/admin', adminRoutes);
 
-  // AI helpers — provider/model/key/baseUrl can be overridden per-request from Settings → AI (aiConfig), fallback env. No new deps.
+  // AI helpers — provider/model/key/baseUrl can be overridden per-request from Settings → AI (aiConfig), fallback env.
   // Providers: gemini, openai, ollama (local), custom (any OpenAI-compatible baseUrl)
+  // P0 SSRF hardening: provider allowlist, model/apiKey/baseUrl length caps, baseUrl
+  // validated via SSRF guard (reuse server/src/services/ssrf) before any server-side fetch.
+  const AI_ALLOWED_PROVIDERS = new Set(['gemini','openai','ollama','custom']);
   function resolveAi(req) {
     const cfg = req.body?.aiConfig || {};
-    const provider = String(cfg.provider || process.env.AI_PROVIDER || "gemini").toLowerCase();
+    let provider = String(cfg.provider || process.env.AI_PROVIDER || "gemini").toLowerCase().trim();
+    if (!AI_ALLOWED_PROVIDERS.has(provider)) return { provider, model: '', apiKey: '', baseUrl: '', error: 'Invalid AI provider. Allowed: gemini, openai, ollama, custom.' };
     const defaultModel = provider === "openai" ? "gpt-4o-mini" : provider === "ollama" ? "llama3.2" : provider === "custom" ? "gpt-4o-mini" : "gemini-1.5-flash";
-    const model = String(cfg.model || process.env.AI_MODEL || defaultModel);
+    let model = String(cfg.model || process.env.AI_MODEL || defaultModel).trim();
+    if (!model) model = defaultModel;
+    if (model.length > 64) return { provider, model: '', apiKey: '', baseUrl: '', error: 'AI model name too long (max 64).' };
     const rawBaseUrl = String(cfg.baseUrl || process.env.AI_BASE_URL || (provider === "ollama" ? process.env.OLLAMA_BASE_URL : process.env.CUSTOM_AI_BASE_URL) || "").trim().replace(/\/+$/, "");
-    const apiKey = String(cfg.apiKey || (provider === "openai" ? process.env.OPENAI_API_KEY : provider === "custom" ? process.env.CUSTOM_AI_API_KEY : provider === "ollama" ? process.env.OLLAMA_API_KEY : process.env.GEMINI_API_KEY) || "").trim();
+    let apiKey = String(cfg.apiKey || (provider === "openai" ? process.env.OPENAI_API_KEY : provider === "custom" ? process.env.CUSTOM_AI_API_KEY : provider === "ollama" ? process.env.OLLAMA_API_KEY : process.env.GEMINI_API_KEY) || "").trim();
+    if (apiKey.length > 512) return { provider, model: '', apiKey: '', baseUrl: '', error: 'AI API key too long.' };
+    if (rawBaseUrl.length > 2048) return { provider, model: '', apiKey: '', baseUrl: '', error: 'AI baseUrl too long.' };
+    // Pre-validate baseUrl syntax early (no fetch yet). Full SSRF DNS check happens in callAi.
+    if (rawBaseUrl) {
+      try {
+        const u = new URL(rawBaseUrl);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') return { provider, model: '', apiKey: '', baseUrl: '', error: 'AI baseUrl must be http(s).' };
+        if (u.username || u.password) return { provider, model: '', apiKey: '', baseUrl: '', error: 'AI baseUrl must not contain credentials.' };
+        if (!u.hostname) return { provider, model: '', apiKey: '', baseUrl: '', error: 'Invalid AI baseUrl.' };
+      } catch { return { provider, model: '', apiKey: '', baseUrl: '', error: 'Invalid AI baseUrl.' }; }
+    }
     const baseUrl = rawBaseUrl || (provider === "ollama" ? "http://localhost:11434" : "");
     if (provider === "ollama" || provider === "custom") {
       if (!baseUrl) return { provider, model, apiKey, baseUrl: "", error: provider === "ollama" ? "Ollama base URL not set. Set Settings → AI baseUrl (e.g. http://localhost:11434) or env OLLAMA_BASE_URL." : "Custom provider base URL not set. Set Settings → AI baseUrl (e.g. http://localhost:1234/v1) or env CUSTOM_AI_BASE_URL." };
-      // ollama can run without key; custom may also be keyless (local). Only require key if remote and no env.
       return { provider, model, apiKey, baseUrl };
     }
     if (!apiKey) return { provider, model, apiKey: "", baseUrl, error: provider === "openai" ? "OpenAI API key is not configured. Set it in Settings → AI or env OPENAI_API_KEY." : "Gemini API key is not configured. Set it in Settings → AI or env GEMINI_API_KEY." };
+    // openai with optional custom baseUrl — if supplied it will be SSRF-checked in callAi
     return { provider, model, apiKey, baseUrl };
   }
+  async function assertAiBaseUrlSafe(rawUrl: string, allowLocal: boolean) {
+    // Reuse SSRF guard — blocks IMDS 169.254.169.254/100.100.100.100, private ranges, .internal/.local etc.
+    // For ollama/custom we allow loopback (localhost/127.0.0.1/::1) which assertUrlSafe normally blocks.
+    // Loopback is gated by ALLOW_AI_LOCAL: default 1 in dev (ollama local), 0 in production if explicitly set.
+    const allowLocalEffective = allowLocal && (process.env.ALLOW_AI_LOCAL !== '0');
+    const u = new URL(rawUrl);
+    const host = u.hostname.toLowerCase();
+    const isLoopback = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]' || host === '::ffff:127.0.0.1';
+    if (isLoopback) {
+      if (!allowLocalEffective) throw Object.assign(new Error('Access to local network via AI baseUrl is blocked. Set ALLOW_AI_LOCAL=1 to allow.'), { status: 403 });
+      // Still block IMDS literal even when loopback allowed — belt and suspenders
+      const { BLOCKED_IPS } = await import('./server/src/services/ssrf');
+      if (BLOCKED_IPS.has(host) || BLOCKED_IPS.has(u.hostname)) throw Object.assign(new Error('SSRF Protection: metadata IP blocked'), { status: 403 });
+      return;
+    }
+    const { assertUrlSafe } = await import('./server/src/services/ssrf');
+    await assertUrlSafe(rawUrl);
+  }
   async function callAi(provider, model, apiKey, baseUrl, prompt) {
+    // SSRF check for any user-controlled baseUrl before server-side fetch
     if (provider === "ollama") {
-      const url = (baseUrl || "http://localhost:11434").replace(/\/+$/, "") + "/api/chat";
-      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", ...(apiKey ? { Authorization: "Bearer " + apiKey } : {}) }, body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], stream: false }) });
-      if (!r.ok) { const tt = await r.text(); throw new Error("Ollama " + r.status + ": " + tt.slice(0, 600)); }
-      const j: any = await r.json();
-      return j.message?.content || j.response || "";
+      const raw = (baseUrl || "http://localhost:11434").replace(/\/+$/, "");
+      await assertAiBaseUrlSafe(raw, true);
+      const url = raw + "/api/chat";
+      const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 30000);
+      try {
+        const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", ...(apiKey ? { Authorization: "Bearer " + apiKey } : {}) }, body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], stream: false }), redirect: 'error', signal: ctrl.signal as any });
+        if (!r.ok) { const tt = await r.text(); throw new Error("Ollama " + r.status + ": " + tt.slice(0, 600)); }
+        const j: any = await r.json();
+        return j.message?.content || j.response || "";
+      } finally { clearTimeout(t); }
     }
     if (provider === "custom" || provider === "openai") {
-      const base = provider === "openai" && !baseUrl ? "https://api.openai.com/v1" : (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
-      const url = base + "/chat/completions";
+      const rawBase = provider === "openai" && !baseUrl ? "https://api.openai.com/v1" : (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+      // Only SSRF-check when baseUrl is user-supplied (custom or openai override). Default openai is trusted.
+      const isDefaultOpenAi = provider === "openai" && !baseUrl;
+      if (!isDefaultOpenAi) await assertAiBaseUrlSafe(rawBase, true);
+      const url = rawBase + "/chat/completions";
       const headers: Record<string,string> = { "Content-Type": "application/json" };
       if (apiKey) headers.Authorization = "Bearer " + apiKey;
-      const r = await fetch(url, { method: "POST", headers, body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], temperature: 0.4 }) });
-      if (!r.ok) { const tt = await r.text(); throw new Error((provider === "custom" ? "Custom" : "OpenAI") + " " + r.status + ": " + tt.slice(0, 600)); }
-      const j: any = await r.json();
-      return j.choices?.[0]?.message?.content || "";
+      const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 30000);
+      try {
+        const r = await fetch(url, { method: "POST", headers, body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], temperature: 0.4 }), redirect: 'error', signal: ctrl.signal as any });
+        if (!r.ok) { const tt = await r.text(); throw new Error((provider === "custom" ? "Custom" : "OpenAI") + " " + r.status + ": " + tt.slice(0, 600)); }
+        const j: any = await r.json();
+        return j.choices?.[0]?.message?.content || "";
+      } finally { clearTimeout(t); }
     }
     const ai = new GoogleGenAI({ apiKey });
     const r: any = await ai.models.generateContent({ model, contents: prompt });
     return r.text || "";
   }
+  function redactAiError(msg: string): string {
+    // Never echo apiKey back to client or logs — redact bearer-like tokens
+    return String(msg || '').replace(/sk-[A-Za-z0-9-_]{10,}/g, 'sk-***').replace(/AIza[0-9A-Za-z-_]{20,}/g, 'AIza***').slice(0, 800);
+  }
+  // P2: zod validation for AI inputs (uses already-installed zod, no new dep)
+  const aiConfigZ = z.object({
+    provider: z.enum(['gemini','openai','ollama','custom']).optional(),
+    model: z.string().max(64).optional(),
+    baseUrl: z.string().max(2048).optional(),
+    apiKey: z.string().max(512).optional(),
+  }).passthrough().optional();
+  const genTestsZ = z.object({
+    method: z.string().min(1).max(16),
+    url: z.string().min(1).max(2048),
+    status: z.number().int().min(100).max(599),
+    responseBody: z.any().optional(),
+    aiConfig: aiConfigZ,
+  }).passthrough();
+  const genCodeZ = z.object({
+    requestConfig: z.object({ url: z.string().max(2048), method: z.string().max(16).optional(), headers: z.any().optional(), params: z.any().optional(), body: z.any().optional() }).passthrough(),
+    language: z.string().max(32).optional(),
+    aiConfig: aiConfigZ,
+  }).passthrough();
+  const genDocsZ = z.object({
+    collectionName: z.string().min(1).max(200),
+    folders: z.array(z.any()).optional(),
+    requests: z.array(z.any()).optional(),
+    targetType: z.enum(['collection','folder','request']).optional(),
+    targetName: z.string().max(200).optional(),
+    aiConfig: aiConfigZ,
+  }).passthrough();
+  // P2: monthly AI quota (env AI_MONTHLY_LIMIT, default 200/board, 0=unlimited)
+  const AI_MONTHLY_LIMIT = Number(process.env.AI_MONTHLY_LIMIT || 200);
+  async function checkAiQuota(req: any, res: any, next: any) {
+    if (!AI_MONTHLY_LIMIT || AI_MONTHLY_LIMIT <= 0) return next();
+    try {
+      const uid = req.user?.uid || req.user?.userId;
+      if (!uid) return next();
+      const u = await getUsage(uid);
+      const used = (u as any)?.totals?.ai_call || 0;
+      if (used >= AI_MONTHLY_LIMIT) {
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(429).json({ error: `AI monthly quota exceeded (${used}/${AI_MONTHLY_LIMIT}). Try next month or contact admin.` });
+      }
+    } catch {}
+    return next();
+  }
 
   // AI: generate pm.* test assertions from a real response (PRD #56).
-  app.post("/api/generate-tests", requireAuth, rateLimiter(20), async (req, res) => {
+  app.post("/api/generate-tests", requireAuth, rateLimiter(10), checkAiQuota, async (req, res) => {
     try {
-      const { method, url, status, responseBody } = req.body || {};
-      if (!method || !url || status === undefined) {
-        return res.status(400).json({ error: "method, url and status are required" });
-      }
+      const parsed = genTestsZ.safeParse(req.body || {});
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid input" });
+      const { method, url, status, responseBody } = parsed.data as any;
 
       const aiCfg = resolveAi(req);
-      if (aiCfg.error) return res.status(500).json({ error: aiCfg.error });
+      if (aiCfg.error) { res.setHeader("Cache-Control", "no-store"); return res.status(500).json({ error: aiCfg.error }); }
       let bodyPreview = '';
       try {
         const parsed = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
@@ -221,23 +319,24 @@ Body: ${bodyPreview}
       let script = await callAi(aiCfg.provider, aiCfg.model, aiCfg.apiKey, aiCfg.baseUrl, prompt);
       script = script.replace(/^```[a-z]*\n/i, "").replace(/\n```$/i, "").trim();
       meterAiCall(req);
+      res.setHeader("Cache-Control", "no-store");
       res.json({ script });
     } catch (error: any) {
-      console.error("Test generation error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate tests" });
+      console.error("Test generation error:", redactAiError(error?.message || String(error)));
+      res.setHeader("Cache-Control", "no-store");
+      res.status(500).json({ error: redactAiError(error.message || "Failed to generate tests") });
     }
   });
 
-  // NOTE: auth is required — these burn paid Gemini quota (PRD #58).
-  app.post("/api/generate-code", requireAuth, rateLimiter(20), async (req, res) => {
+  // NOTE: auth is required — these burn paid quota (PRD #58).
+  app.post("/api/generate-code", requireAuth, rateLimiter(10), checkAiQuota, async (req, res) => {
     try {
-      const { requestConfig, language } = req.body;
-      if (!requestConfig) {
-        return res.status(400).json({ error: "requestConfig is required" });
-      }
+      const parsed = genCodeZ.safeParse(req.body || {});
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid input" });
+      const { requestConfig, language } = parsed.data as any;
 
       const aiCfg2 = resolveAi(req);
-      if (aiCfg2.error) return res.status(500).json({ error: aiCfg2.error });
+      if (aiCfg2.error) { res.setHeader("Cache-Control", "no-store"); return res.status(500).json({ error: aiCfg2.error }); }
       const prompt = `Convert the following HTTP request to ${language || 'a curl command'} code.
 Return ONLY the raw code block with no markdown formatting. Do not wrap in \`\`\`.
 
@@ -251,22 +350,23 @@ Body: ${JSON.stringify(requestConfig.body || {})}
       let code = await callAi(aiCfg2.provider, aiCfg2.model, aiCfg2.apiKey, aiCfg2.baseUrl, prompt);
       code = code.replace(/^```[a-z]*\n/i, "").replace(/\n```$/i, "").trim();
       meterAiCall(req);
+      res.setHeader("Cache-Control", "no-store");
       res.json({ code });
     } catch (error: any) {
-      console.error("Code generation error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate code" });
+      console.error("Code generation error:", redactAiError(error?.message || String(error)));
+      res.setHeader("Cache-Control", "no-store");
+      res.status(500).json({ error: redactAiError(error.message || "Failed to generate code") });
     }
   });
 
-  app.post("/api/collections/generate-docs", requireAuth, rateLimiter(20), async (req, res) => {
+  app.post("/api/collections/generate-docs", requireAuth, rateLimiter(10), checkAiQuota, async (req, res) => {
     try {
-      const { collectionName, folders, requests, targetType, targetName } = req.body;
-      if (!collectionName) {
-        return res.status(400).json({ error: "collectionName is required" });
-      }
+      const parsed = genDocsZ.safeParse(req.body || {});
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid input" });
+      const { collectionName, folders, requests, targetType, targetName } = parsed.data as any;
 
       const aiCfg3 = resolveAi(req);
-      if (aiCfg3.error) return res.status(500).json({ error: aiCfg3.error });
+      if (aiCfg3.error) { res.setHeader("Cache-Control", "no-store"); return res.status(500).json({ error: aiCfg3.error }); }
 
       const folderList = (folders || []).map((f: any) => f.name).join(", ");
       const requestList = (requests || []).map((r: any) => `- ${r.method} ${r.url || '/'} (${r.name})`).join("\n");
@@ -322,10 +422,12 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
 
       const markdown = (await callAi(aiCfg3.provider, aiCfg3.model, aiCfg3.apiKey, aiCfg3.baseUrl, prompt)) || "";
       meterAiCall(req);
+      res.setHeader("Cache-Control", "no-store");
       res.json({ markdown });
     } catch (error: any) {
-      console.error("Documentation generation error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate documentation" });
+      console.error("Documentation generation error:", redactAiError(error?.message || String(error)));
+      res.setHeader("Cache-Control", "no-store");
+      res.status(500).json({ error: redactAiError(error.message || "Failed to generate documentation") });
     }
   });
 

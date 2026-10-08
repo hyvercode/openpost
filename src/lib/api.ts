@@ -408,6 +408,35 @@ export const apiService = {
     return res.data;
   },
 
+  // Workflows — Full DAG (manual/webhook/schedule, branch/parallel, extract/delay)
+  async getWorkflows(workspaceId: string): Promise<any[]> {
+    const res = await api.get(`/workflows/workspace/${workspaceId}`);
+    return res.data;
+  },
+  async getWorkflow(id: string): Promise<any> {
+    const res = await api.get(`/workflows/${id}`);
+    return res.data;
+  },
+  async createWorkflow(workspaceId: string, data: Record<string, unknown>): Promise<any> {
+    const res = await api.post(`/workflows/workspace/${workspaceId}`, data);
+    return res.data;
+  },
+  async updateWorkflow(id: string, data: Record<string, unknown>): Promise<any> {
+    const res = await api.put(`/workflows/${id}`, data);
+    return res.data;
+  },
+  async deleteWorkflow(id: string): Promise<void> {
+    await api.delete(`/workflows/${id}`);
+  },
+  async getWorkflowRuns(id: string): Promise<any[]> {
+    const res = await api.get(`/workflows/${id}/runs`);
+    return res.data;
+  },
+  async runWorkflow(id: string, variables?: Record<string,string>): Promise<any> {
+    const res = await api.post(`/workflows/${id}/run`, { variables });
+    return res.data;
+  },
+
   // Deployments
   async getDeployments(workspaceId: string): Promise<Deployment[]> {
     const res = await api.get(`/deployments/${workspaceId}`);

@@ -3,6 +3,10 @@
 
 generator client {
   provider        = "prisma-client-js"
+  // Custom output (no dot-dir): node_modules/.prisma cannot be packed by
+  // electron-builder's files filter, which breaks the desktop (asar) build.
+  // The generated client is self-contained — no .prisma indirection.
+  output          = "../src/generated/prisma"
 }
 
 datasource db {
@@ -36,6 +40,8 @@ model Workspace {
   invitations  Invitation[]
   versions     CollectionVersion[]
   monitors     Monitor[]
+  workflows    Workflow[]
+  runs         WorkflowRun[]
 }
 
 model WorkspaceMember {
@@ -189,5 +195,43 @@ model CollectionVersion {
   tags           String?   @default("[]")
   diffSummary    String?
 
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+// Automation Workflow — Full DAG (PRD automation): visual builder, branch/parallel, manual/webhook/schedule triggers.
+model Workflow {
+  id           @@ID@@
+  workspaceId  @@FOREIGN_KEY@@
+  name         String
+  description  String?
+  enabled      Boolean  @default(true)
+  trigger      String   @default("manual") // manual | webhook | schedule
+  scheduleCron String?
+  intervalMinutes Int?
+  webhookToken String?  @unique
+  nodes        String   @default("[]")
+  edges        String   @default("[]")
+  variables    String   @default("[]")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime? @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  runs      WorkflowRun[]
+}
+
+model WorkflowRun {
+  id          @@ID@@
+  workflowId  String
+  workspaceId @@FOREIGN_KEY@@
+  status      String   @default("pending") // pending | running | success | failed | cancelled
+  trigger     String?
+  startedAt   DateTime? @default(now())
+  finishedAt  DateTime?
+  durationMs  Int       @default(0)
+  logs        String?   // JSON array of step results
+  detail      String?
+  createdAt   DateTime  @default(now())
+
+  workflow  Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

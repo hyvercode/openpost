@@ -40,14 +40,22 @@ function parseInlineStyles(text: string): React.ReactNode[] {
       continue;
     }
 
-    // Link check: [label](url)
+    // Link check: [label](url) — allow only http(s) and same-site anchors; block javascript:/data: XSS from AI output
     const linkMatch = currentText.match(/^\[([^\]]+)\]\(([^)]+)\)/);
     if (linkMatch) {
-      parts.push(
-        <a key={idx++} href={linkMatch[2]} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline inline-flex items-center gap-0.5 font-semibold">
-          {linkMatch[1]}
-        </a>
-      );
+      const href = linkMatch[2].trim();
+      const lower = href.toLowerCase();
+      const isSafe = /^(https?:\/\/|\/|#)/i.test(href) && !/^(javascript|data|vbscript|file):/i.test(lower);
+      if (isSafe) {
+        parts.push(
+          <a key={idx++} href={href} target="_blank" rel="noopener noreferrer" className="text-[var(--primary)] hover:underline inline-flex items-center gap-0.5 font-semibold">
+            {linkMatch[1]}
+          </a>
+        );
+      } else {
+        // Render as plain text — do not create clickable link for unsafe schemes
+        parts.push(<span key={idx++} className="font-mono text-[11px] break-all">{linkMatch[1]} ({href})</span>);
+      }
       currentText = currentText.slice(linkMatch[0].length);
       continue;
     }

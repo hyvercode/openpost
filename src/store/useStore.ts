@@ -65,8 +65,8 @@ interface AppState {
   deployments: Deployment[];
   setDeployments: (deployments: Deployment[]) => void;
 
-  activeView: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite' | 'cookies' | 'monitors';
-  setActiveView: (view: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite' | 'cookies' | 'monitors') => void;
+  activeView: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite' | 'cookies' | 'monitors' | 'workflows';
+  setActiveView: (view: 'request' | 'environment' | 'empty' | 'deployments' | 'collection_doc' | 'settings' | 'test_suite' | 'cookies' | 'monitors' | 'workflows') => void;
 
   theme: Theme;
   setTheme: (theme: Theme) => void;

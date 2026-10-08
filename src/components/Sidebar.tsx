@@ -71,7 +71,7 @@ export function Sidebar() {
     removeDraftRequest,
     closeTab
   } = useStore();
-  const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments' | 'history' | 'tests' | 'cookies' | 'monitors'>('collections');
+  const [activeTab, setActiveTab] = useState<'collections' | 'environments' | 'deployments' | 'history' | 'tests' | 'cookies' | 'monitors' | 'workflows'>('collections');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
   
@@ -1915,6 +1915,7 @@ export function Sidebar() {
                      activeTab === 'cookies' ? 'Cookies Manager' :
                      activeTab === 'deployments' ? 'Mock API Servers' :
                      activeTab === 'monitors' ? 'Monitors' :
+                     activeTab === 'workflows' ? 'Workflows' :
                      activeTab === 'history' ? 'History' :
                      activeTab === 'tests' ? 'Tests & Runners' : activeTab}</span>
             </div>
@@ -1931,6 +1932,7 @@ export function Sidebar() {
                   { id: 'cookies', label: 'Cookies', icon: Cookie },
                   { id: 'deployments', label: 'Mocks', icon: Rocket },
                   { id: 'monitors', label: 'Monitors', icon: Activity },
+                  { id: 'workflows', label: 'Workflows', icon: GitBranch },
                   { id: 'history', label: 'History', icon: History },
                   { id: 'tests', label: 'Tests', icon: Play }
                 ].map((item) => (
@@ -2617,6 +2619,17 @@ export function Sidebar() {
               className="mt-3 px-3 py-1.5 bg-[var(--primary)] text-white rounded font-bold hover:bg-[var(--primary-hover)] w-full cursor-pointer"
             >
               Open Monitors
+            </button>
+          </div>
+        ) : activeTab === 'workflows' ? (
+          <div className="p-4 text-xs text-[var(--text-secondary)] text-center bg-[var(--bg-input)] rounded mx-2 mt-2 border border-[var(--border-subtle)]">
+            <GitBranch className="w-6 h-6 mx-auto mb-2 opacity-50" />
+            <p>Full DAG automation — branch, parallel, webhook & schedule triggers.</p>
+            <button
+              onClick={() => setActiveView('workflows')}
+              className="mt-3 px-3 py-1.5 bg-[var(--primary)] text-white rounded font-bold hover:bg-[var(--primary-hover)] w-full cursor-pointer"
+            >
+              Open Workflows
             </button>
           </div>
         ) : activeTab === 'deployments' ? (

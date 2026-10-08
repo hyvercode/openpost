@@ -18,6 +18,7 @@ import { SettingsView } from './components/SettingsView';
 import { CookieManager } from './components/CookieManager';
 import { TestRunnerPanel } from './components/TestRunnerPanel';
 import { MonitorsPanel } from './components/MonitorsPanel';
+import { WorkflowsPanel } from './components/WorkflowsPanel';
 import { PublicDocView } from './components/PublicDocView';
 import { TabBar } from './components/TabBar';
 import { BottomDrawer } from './components/BottomDrawer';
@@ -1250,6 +1251,10 @@ export default function App() {
           ) : activeView === 'monitors' ? (
             <div className="flex-1 flex flex-col min-h-0">
               <MonitorsPanel />
+            </div>
+          ) : activeView === 'workflows' ? (
+            <div className="flex-1 flex flex-col min-h-0">
+              <WorkflowsPanel />
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-sm bg-[var(--bg-base)]">

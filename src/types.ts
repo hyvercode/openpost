@@ -406,3 +406,43 @@ export interface CollectionRunReport {
   passRate: number;
   steps: ExecutedTestStep[];
 }
+
+// Automation Workflow — Full DAG
+export type WorkflowNodeType = 'request' | 'delay' | 'condition' | 'extract' | 'setVariable';
+export interface WorkflowNode {
+  id: string;
+  type: WorkflowNodeType;
+  label: string;
+  data: Record<string, any>;
+  position?: { x: number; y: number };
+}
+export interface WorkflowEdge { id: string; source: string; target: string; label?: string }
+export interface Workflow {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description?: string | null;
+  enabled: boolean;
+  trigger: 'manual' | 'webhook' | 'schedule';
+  scheduleCron?: string | null;
+  intervalMinutes?: number | null;
+  webhookToken?: string | null;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  variables: KeyValue[];
+  createdAt: string;
+  updatedAt?: string | null;
+}
+export interface WorkflowRun {
+  id: string;
+  workflowId: string;
+  workspaceId: string;
+  status: 'pending' | 'running' | 'success' | 'failed' | 'cancelled';
+  trigger?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  durationMs: number;
+  logs?: string | null;
+  detail?: string | null;
+  createdAt: string;
+}

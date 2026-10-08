@@ -7,6 +7,12 @@ interface RateLimitRecord {
 
 const rateLimits = new Map<string, RateLimitRecord>();
 
+// Prevent unbounded growth in long-running / multi-workspace servers
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of rateLimits) if (now > v.resetTime) rateLimits.delete(k);
+}, 60_000).unref?.();
+
 /**
  * Middleware to track and limit the number of outgoing API requests per minute.
  * 
