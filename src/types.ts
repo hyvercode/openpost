@@ -347,6 +347,15 @@ export interface ProxyConfig {
   password?: string;
 }
 
+export type AiProvider = 'gemini' | 'openai' | 'ollama' | 'custom';
+
+export interface AiConfig {
+  provider: AiProvider;
+  model: string;
+  apiKey: string; // stored in localStorage, sent per-request, never persisted server-side
+  baseUrl?: string; // for ollama (http://localhost:11434) & custom OpenAI-compatible
+}
+
 export interface CookieItem {
   id: string;
   workspaceId: string;

@@ -311,7 +311,8 @@ export function CollectionDocPanel() {
       }
     } catch (error: any) {
       console.error("AI Generation failed:", error);
-      addToast('Failed to generate documentation using AI', 'error');
+      const msg = error?.response?.data?.error || error?.message || 'Failed to generate documentation using AI';
+      addToast(msg.includes('API key') ? `${msg} — check Settings → AI` : msg, 'error');
     } finally {
       setIsGeneratingAiDoc(false);
     }

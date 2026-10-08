@@ -836,9 +836,9 @@ export function Sidebar() {
             // Update all positions in database and local store
             const positioned = newCollections.map((c, index) => ({ ...c, position: index }));
             setCollections(positioned);
-            
+            const oldPos = new Map(sorted.map((c) => [c.id, c.position ?? 0]));
             for (let i = 0; i < positioned.length; i++) {
-              if (sorted[i]?.position !== i) {
+              if (oldPos.get(positioned[i].id) !== i) {
                 await apiService.updateCollection(positioned[i].id, { position: i });
               }
             }
@@ -930,9 +930,9 @@ export function Sidebar() {
             
             const positioned = newEnvs.map((env, index) => ({ ...env, position: index }));
             setEnvironments(positioned);
-            
+            const oldEnvPos = new Map(sorted.map((e) => [e.id, e.position ?? 0]));
             for (let i = 0; i < positioned.length; i++) {
-              if (sorted[i]?.position !== i) {
+              if (oldEnvPos.get(positioned[i].id) !== i) {
                 await apiService.updateEnvironment(positioned[i].id, { position: i });
               }
             }
@@ -980,14 +980,52 @@ export function Sidebar() {
         }
       }
 
-      // 3. Nesting folders
+      // 3. Nesting / moving folders (same-collection + cross-collection)
       if (source.type === 'folder' && (targetType === 'collection' || targetType === 'folder')) {
+        // Cross-collection folder move
+        if (source.collectionId !== collectionId) {
+          const sourceCollection = collections.find(c => c.id === source.collectionId);
+          const targetCollection = collections.find(c => c.id === collectionId);
+          if (!sourceCollection || !targetCollection) return;
+          const movingFolder = sourceCollection.folders?.find(f => f.id === source.id);
+          if (!movingFolder) return;
+          const subtreeIds = new Set<string>([movingFolder.id]);
+          const collectDescendants = (parentId: string) => {
+            (sourceCollection.folders || []).forEach(f => {
+              if (f.parentId === parentId && !subtreeIds.has(f.id)) {
+                subtreeIds.add(f.id);
+                collectDescendants(f.id);
+              }
+            });
+          };
+          collectDescendants(movingFolder.id);
+          if (targetType === 'folder' && subtreeIds.has(targetId)) return;
+          if (targetType === 'folder' && !targetCollection.folders?.some(f => f.id === targetId)) return;
+          const newParentId = targetType === 'collection' ? null : targetId;
+          const movedFolders = (sourceCollection.folders || [])
+            .filter(f => subtreeIds.has(f.id))
+            .map(f => f.id === movingFolder.id ? { ...f, parentId: newParentId } : f);
+          const siblingsInTarget = (targetCollection.folders || []).filter(f => (f.parentId || null) === (newParentId || null));
+          const movedWithPos = movedFolders.map(f => f.id === movingFolder.id ? { ...f, position: siblingsInTarget.length } : f);
+          const movedRequests = (sourceCollection.requests || []).filter(r => r.folderId && subtreeIds.has(r.folderId)).map(r => ({ ...r, collectionId }));
+          const sourceFoldersUpdated = (sourceCollection.folders || []).filter(f => !subtreeIds.has(f.id));
+          const sourceRequestsUpdated = (sourceCollection.requests || []).filter(r => !(r.folderId && subtreeIds.has(r.folderId)));
+          const targetFoldersUpdated = [...(targetCollection.folders || []), ...movedWithPos];
+          const targetRequestsUpdated = [...(targetCollection.requests || []), ...movedRequests];
+          setCollections(collections.map(c => {
+            if (c.id === sourceCollection.id) return { ...c, folders: sourceFoldersUpdated, requests: sourceRequestsUpdated };
+            if (c.id === targetCollection.id) return { ...c, folders: targetFoldersUpdated, requests: targetRequestsUpdated };
+            return c;
+          }));
+          await apiService.updateCollection(sourceCollection.id, { folders: sourceFoldersUpdated, requests: sourceRequestsUpdated });
+          await apiService.updateCollection(targetCollection.id, { folders: targetFoldersUpdated, requests: targetRequestsUpdated });
+          addToast(`Folder "${movingFolder.name}" moved`, 'success', 2000);
+          return;
+        }
         const collectionDoc = collections.find(c => c.id === collectionId);
         if (!collectionDoc) return;
-
         const folderIndex = collectionDoc.folders.findIndex(f => f.id === source.id);
         if (folderIndex === -1) return;
-        
         if (targetType === 'folder') {
             let current = collectionDoc.folders.find(f => f.id === targetId);
             while (current) {
@@ -995,13 +1033,11 @@ export function Sidebar() {
                current = collectionDoc.folders.find(f => f.id === current?.parentId);
             }
         }
-
         const updatedFolders = [...collectionDoc.folders];
         updatedFolders[folderIndex] = {
            ...updatedFolders[folderIndex],
            parentId: targetType === 'collection' ? null : targetId
         };
-        
         setCollections(collections.map(c => c.id === collectionId ? { ...c, folders: updatedFolders } : c));
         await apiService.updateCollection(collectionId, { folders: updatedFolders });
       }

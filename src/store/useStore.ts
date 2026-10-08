@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
-import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage, ProxyConfig, CookieItem, CollectionRunReport } from "../types";
+import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage, ProxyConfig, CookieItem, CollectionRunReport, AiConfig } from "../types";
+import { FontScale, readFontScale, applyFontScale, readReduceMotion, applyReduceMotion } from "../utils/appearance";
 
 interface AppState {
   user: User | null;
@@ -69,6 +70,11 @@ interface AppState {
 
   theme: Theme;
   setTheme: (theme: Theme) => void;
+
+  fontScale: FontScale;
+  setFontScale: (scale: FontScale) => void;
+  reduceMotion: boolean;
+  setReduceMotion: (enabled: boolean) => void;
   
   openTabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc' | 'test_suite'; name: string; method?: string; isDirty?: boolean }>;
   setOpenTabs: (tabs: Array<{ id: string; type: 'request' | 'environment' | 'deployments' | 'collection_doc' | 'test_suite'; name: string; method?: string; isDirty?: boolean }>) => void;
@@ -161,6 +167,9 @@ interface AppState {
   addCookie: (cookie: CookieItem) => void;
   updateCookie: (id: string, cookie: Partial<CookieItem>) => void;
   deleteCookie: (id: string) => void;
+
+  aiConfig: AiConfig;
+  setAiConfig: (config: AiConfig) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -302,6 +311,27 @@ export const useStore = create<AppState>((set) => ({
     localStorage.setItem('theme', theme);
     localStorage.removeItem('primaryColor');
     set({ theme });
+  },
+
+  fontScale: (() => {
+    const initial = readFontScale();
+    applyFontScale(initial);
+    return initial;
+  })(),
+  setFontScale: (scale) => {
+    localStorage.setItem('fontScale', scale);
+    applyFontScale(scale);
+    set({ fontScale: scale });
+  },
+  reduceMotion: (() => {
+    const initial = readReduceMotion();
+    applyReduceMotion(initial);
+    return initial;
+  })(),
+  setReduceMotion: (enabled) => {
+    localStorage.setItem('reduceMotion', enabled ? '1' : '0');
+    applyReduceMotion(enabled);
+    set({ reduceMotion: enabled });
   },
 
   openTabs: [],
@@ -572,4 +602,22 @@ export const useStore = create<AppState>((set) => ({
     localStorage.setItem('cookies', JSON.stringify(updated));
     return { cookies: updated };
   }),
+
+  aiConfig: (() => {
+    try {
+      const raw = localStorage.getItem('ai_config');
+      if (raw) {
+        const c = JSON.parse(raw);
+        // normalize old 2-provider configs
+        if (!c.baseUrl) c.baseUrl = c.provider === 'ollama' ? 'http://localhost:11434' : '';
+        if (!['gemini','openai','ollama','custom'].includes(c.provider)) c.provider = 'gemini';
+        return c;
+      }
+    } catch {}
+    return { provider: 'gemini', model: 'gemini-1.5-flash', apiKey: '', baseUrl: '' };
+  })(),
+  setAiConfig: (aiConfig) => {
+    localStorage.setItem('ai_config', JSON.stringify(aiConfig));
+    set({ aiConfig });
+  },
 }));

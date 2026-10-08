@@ -283,7 +283,7 @@ export const GraphQLSchemaExplorer: React.FC<GraphQLSchemaExplorerProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg-panel)] border-l border-[var(--border-subtle)] w-88 shrink-0 overflow-hidden font-sans">
+    <div className="flex flex-col w-full lg:w-88 h-[340px] lg:h-full shrink-0 bg-[var(--bg-panel)] border-t lg:border-t-0 lg:border-l border-[var(--border-subtle)] overflow-hidden font-sans">
       {/* Top Explorer Mode Selector */}
       <div className="p-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 flex items-center justify-between gap-1">
         <div className="flex bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md p-0.5 w-full">

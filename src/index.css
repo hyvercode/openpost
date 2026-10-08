@@ -113,6 +113,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Reduced motion (Appearance setting + OS preference): keep 0.01ms so
+   JS-driven transitions (AnimatePresence, spinners cleanup) still resolve. */
+html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
 /* ERP scrollbars: thin, square, subtle */
 * {
   scrollbar-width: thin;

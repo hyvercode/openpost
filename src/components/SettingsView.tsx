@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { apiService } from '../lib/api';
-import { User, Download, BookOpen, FileCode, Folder, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff, Sun, Moon, Check, RotateCcw, Monitor } from 'lucide-react';
+import { User, Download, BookOpen, FileCode, Folder, Settings, Users, Lock, Save, Plus, Mail, Shield, Trash2, Globe, Laptop, Eye, EyeOff, Sun, Moon, Check, RotateCcw, Monitor, Upload, Sparkles, KeyRound, Type, Columns2, Rows2, LayoutGrid, ZapOff } from 'lucide-react';
 import { cn } from '../utils';
 import { exportWorkspaceJSON, exportAllPostmanJSON } from '../utils/exportUtils';
 
@@ -18,9 +18,17 @@ export const SettingsView: React.FC = () => {
     proxyConfig, 
     setProxyConfig,
     theme,
-    setTheme
+    setTheme,
+    fontScale,
+    setFontScale,
+    reduceMotion,
+    setReduceMotion,
+    layoutMode,
+    setLayoutMode,
+    aiConfig,
+    setAiConfig
   } = useStore();
-  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'workspace' | 'team' | 'security' | 'proxy'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'workspace' | 'team' | 'security' | 'proxy' | 'ai'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [members, setMembers] = useState<any[]>([]);
@@ -59,9 +67,32 @@ export const SettingsView: React.FC = () => {
   const [proxyUsername, setProxyUsername] = useState(proxyConfig.username || '');
   const [proxyPassword, setProxyPassword] = useState(proxyConfig.password || '');
 
+  // AI State — 4 providers: gemini, openai, ollama (local), custom (OpenAI-compatible)
+  const [aiProvider, setAiProvider] = useState(aiConfig.provider);
+  const [aiModel, setAiModel] = useState(aiConfig.model);
+  const [aiKey, setAiKey] = useState(aiConfig.apiKey);
+  const [aiBaseUrl, setAiBaseUrl] = useState((aiConfig as any).baseUrl || '');
+  const [showAiKey, setShowAiKey] = useState(false);
+  useEffect(() => { setAiProvider(aiConfig.provider); setAiModel(aiConfig.model); setAiKey(aiConfig.apiKey); setAiBaseUrl((aiConfig as any).baseUrl || ''); }, [aiConfig.provider, aiConfig.model, aiConfig.apiKey, (aiConfig as any).baseUrl]);
+  const defaultModelFor = (p: string) => p==='openai'?'gpt-4o-mini':p==='ollama'?'llama3.2':p==='custom'?'gpt-4o-mini':'gemini-1.5-flash';
+  const handleSaveAi = (e) => {
+    e.preventDefault();
+    const p = aiProvider as string;
+    setAiConfig({ provider: p as any, model: aiModel.trim() || defaultModelFor(p), apiKey: aiKey.trim(), baseUrl: aiBaseUrl.trim() } as any);
+    addToast('AI settings saved', 'success');
+  };
+
   // Profile State
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Keep form in sync when the user record loads/changes account.
+  useEffect(() => {
+    setDisplayName(user?.displayName || '');
+    setPhotoURL(user?.photoURL || '');
+  }, [user?.uid]);
 
   // Security State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -103,6 +134,55 @@ export const SettingsView: React.FC = () => {
       addToast(error.response?.data?.error || 'Failed to update profile.', 'error');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+  const ACCEPTED_AVATAR_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset the input so the same file can be picked again.
+    e.target.value = '';
+    if (!file) return;
+    if (!ACCEPTED_AVATAR_TYPES.includes(file.type)) {
+      addToast('Avatar must be a PNG, JPEG, GIF or WebP image.', 'error');
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      addToast('Avatar image must not exceed 2 MB.', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      setPhotoURL(dataUrl);
+      setIsUploadingAvatar(true);
+      try {
+        const updatedUser = await apiService.uploadAvatar(dataUrl);
+        setUser(updatedUser);
+        addToast('Avatar updated successfully.', 'success');
+      } catch (error: any) {
+        addToast(error.response?.data?.error || 'Failed to upload avatar.', 'error');
+      } finally {
+        setIsUploadingAvatar(false);
+      }
+    };
+    reader.onerror = () => addToast('Failed to read image file.', 'error');
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = async () => {
+    setIsUploadingAvatar(true);
+    try {
+      const updatedUser = await apiService.deleteAvatar();
+      setUser(updatedUser);
+      setPhotoURL('');
+      addToast('Avatar removed.', 'success');
+    } catch (error: any) {
+      addToast(error.response?.data?.error || 'Failed to remove avatar.', 'error');
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -249,6 +329,17 @@ export const SettingsView: React.FC = () => {
             <Globe className="w-4 h-4" />
             Proxy Settings
           </button>
+
+          <button 
+            onClick={() => setActiveTab('ai')}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+              activeTab === 'ai' ? "bg-[var(--primary)] text-white" : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            )}
+          >
+            <Sparkles className="w-4 h-4" />
+            AI
+          </button>
         </div>
 
         {/* Content */}
@@ -265,10 +356,15 @@ export const SettingsView: React.FC = () => {
                   <div className="flex items-center gap-6 mb-6">
                     <div className="relative group">
                       {photoURL ? (
-                        <img src={photoURL} alt="" className="w-20 h-20 rounded-full border-2 border-[var(--border-strong)]" />
+                        <img src={photoURL} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-2 border-[var(--border-strong)]" />
                       ) : (
                         <div className="w-20 h-20 rounded-full bg-[var(--bg-hover)] flex items-center justify-center border-2 border-[var(--border-strong)]">
                           <User className="w-8 h-8 text-[var(--text-secondary)]" />
+                        </div>
+                      )}
+                      {isUploadingAvatar && (
+                        <div className="absolute inset-0 rounded-full bg-black/50 flex items-center justify-center">
+                          <RotateCcw className="w-5 h-5 text-white animate-spin" />
                         </div>
                       )}
                     </div>
@@ -276,6 +372,36 @@ export const SettingsView: React.FC = () => {
                       <h3 className="font-medium text-[var(--text-primary)] text-lg">{user?.displayName || 'User'}</h3>
                       <p className="text-sm font-medium text-[var(--text-secondary)]">{user?.email}</p>
                       <p className="text-xs text-[var(--text-secondary)]/70 mt-1">Your account email cannot be changed</p>
+                      <div className="flex items-center gap-2 mt-3">
+                        <input
+                          ref={avatarInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/gif,image/webp"
+                          className="hidden"
+                          onChange={handleAvatarSelect}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => avatarInputRef.current?.click()}
+                          disabled={isUploadingAvatar}
+                          className="px-3 py-1.5 text-xs font-bold bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded text-[var(--text-primary)] hover:bg-[var(--bg-surface)] disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          {photoURL ? 'Change Photo' : 'Upload Photo'}
+                        </button>
+                        {photoURL && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveAvatar}
+                            disabled={isUploadingAvatar}
+                            className="px-3 py-1.5 text-xs font-bold text-[var(--danger)] hover:bg-[var(--danger)]/10 rounded disabled:opacity-50 transition-colors flex items-center gap-1.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-[var(--text-secondary)]/70 mt-2">PNG, JPG, GIF or WebP, max 2 MB. Stored on your account.</p>
                     </div>
                   </div>
 
@@ -287,17 +413,6 @@ export const SettingsView: React.FC = () => {
                       onChange={(e) => setDisplayName(e.target.value)}
                       className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
                       placeholder="e.g. John Doe"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Avatar URL</label>
-                    <input 
-                      type="text" 
-                      value={photoURL}
-                      onChange={(e) => setPhotoURL(e.target.value)}
-                      className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
-                      placeholder="https://example.com/avatar.png"
                     />
                   </div>
 
@@ -319,7 +434,7 @@ export const SettingsView: React.FC = () => {
               <div className="space-y-6">
                 <div>
                   <h1 className="text-xl font-bold text-[var(--text-primary)]">Appearance</h1>
-                  <p className="text-sm text-[var(--text-secondary)]">Ubuntu professional theme. Accent color is fixed Ubuntu Orange.</p>
+                  <p className="text-sm text-[var(--text-secondary)]">Ubuntu professional theme. Accent color is fixed Ubuntu Orange. Changes apply instantly and are saved on this device.</p>
                 </div>
 
                 {/* Theme selection: Ubuntu Light / Ubuntu Dark */}
@@ -381,47 +496,116 @@ export const SettingsView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Pending invitations */}
+                {/* Interface text size */}
                 <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-3">
-                  {invitations.length > 0 && (
-                    <div className="space-y-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Pending Invitations</h3>
-                      <div className="space-y-2">
-                        {invitations.map((inv, i) => (
-                          <div key={inv.id || i} className="flex items-center justify-between p-3 bg-[var(--bg-base)] rounded border border-[var(--border-subtle)]">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded bg-[var(--bg-panel)] flex items-center justify-center font-bold text-xs">
-                                <Mail className="w-4 h-4" />
-                              </div>
-                              <div>
-                                <span className="text-sm font-medium">{inv.email}</span>
-                                <span className="text-xs text-[var(--text-secondary)] block">Invited as {inv.role}</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-[var(--warning)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>
-                              <button
-                                onClick={() => handleResendInvitation(inv.id)}
-                                disabled={resendingId === inv.id}
-                                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 disabled:opacity-50 cursor-pointer"
-                                title="Resend Invitation"
-                              >
-                                <RotateCcw className={cn("w-3.5 h-3.5", resendingId === inv.id && "animate-spin text-[var(--primary)]")} />
-                              </button>
-                              <button
-                                onClick={() => handleCancelInvitation(inv.id)}
-                                disabled={resendingId === inv.id}
-                                className="text-[var(--text-secondary)] hover:text-[var(--danger)] p-1 disabled:opacity-50 cursor-pointer"
-                                title="Cancel Invitation"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                    <Type className="w-4 h-4" />
+                    Interface Text Size
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {([
+                      { id: 'small', label: 'Compact', hint: 'More content fits', sample: 'text-xs' },
+                      { id: 'medium', label: 'Default', hint: 'Balanced', sample: 'text-sm' },
+                      { id: 'large', label: 'Large', hint: 'Easier to read', sample: 'text-base' },
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setFontScale(opt.id);
+                          addToast(`Interface text size set to ${opt.label}`, 'info');
+                        }}
+                        className={cn(
+                          "p-4 rounded border text-left cursor-pointer",
+                          fontScale === opt.id
+                            ? "border-[var(--primary)] bg-[var(--bg-base)]"
+                            : "border-[var(--border-subtle)] bg-[var(--bg-base)] hover:border-[var(--border-strong)]"
+                        )}
+                      >
+                        <span className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-[var(--text-primary)]">{opt.label}</span>
+                          {fontScale === opt.id && <Check className="w-4 h-4 text-[var(--primary)] shrink-0" />}
+                        </span>
+                        <span className="text-xs text-[var(--text-secondary)] block mt-0.5">{opt.hint}</span>
+                        <span className={cn("text-[var(--text-tertiary)] block mt-2", opt.sample)}>Ag</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Workspace layout */}
+                <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                    <Columns2 className="w-4 h-4" />
+                    Request / Response Layout
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {([
+                      { id: 'horizontal', label: 'Side by Side', hint: 'Panels next to each other', Icon: Columns2 },
+                      { id: 'vertical', label: 'Stacked', hint: 'Response below request', Icon: Rows2 },
+                      { id: 'floating', label: 'Floating', hint: 'Movable windows', Icon: LayoutGrid },
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          setLayoutMode(opt.id);
+                          addToast(`Workspace layout set to ${opt.label}`, 'info');
+                        }}
+                        className={cn(
+                          "p-4 rounded border flex items-center gap-3 text-left cursor-pointer",
+                          layoutMode === opt.id
+                            ? "border-[var(--primary)] bg-[var(--bg-base)]"
+                            : "border-[var(--border-subtle)] bg-[var(--bg-base)] hover:border-[var(--border-strong)]"
+                        )}
+                      >
+                        <span className="w-8 h-8 rounded border border-[var(--border-subtle)] bg-[var(--bg-base)] flex items-center justify-center shrink-0">
+                          <opt.Icon className="w-4 h-4 text-[var(--text-secondary)]" />
+                        </span>
+                        <span>
+                          <span className="text-sm font-bold text-[var(--text-primary)] block">{opt.label}</span>
+                          <span className="text-xs text-[var(--text-secondary)] block">{opt.hint}</span>
+                        </span>
+                        {layoutMode === opt.id && (
+                          <Check className="w-4 h-4 text-[var(--primary)] ml-auto shrink-0" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Motion */}
+                <div className="bg-[var(--bg-surface)] p-4 rounded border border-[var(--border-subtle)] space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-2">
+                    <ZapOff className="w-4 h-4" />
+                    Motion & Animation
+                  </h3>
+                  <div className="flex items-center justify-between gap-4 p-3 bg-[var(--bg-base)] rounded border border-[var(--border-subtle)]">
+                    <div>
+                      <p className="text-sm font-bold text-[var(--text-primary)]">Reduce motion</p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5">Minimizes transitions and looping animations across the interface.</p>
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={reduceMotion}
+                      onClick={() => {
+                        setReduceMotion(!reduceMotion);
+                        addToast(!reduceMotion ? 'Motion reduced' : 'Motion restored', 'info');
+                      }}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 cursor-pointer",
+                        reduceMotion ? "bg-[var(--primary)]" : "bg-[var(--bg-input)]"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                          reduceMotion ? "translate-x-6" : "translate-x-1"
+                        )}
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -553,6 +737,46 @@ export const SettingsView: React.FC = () => {
                       </button>
                     </div>
                   </form>
+
+                  {invitations.length > 0 && (
+                    <div className="space-y-3 pt-6 border-t border-[var(--border-subtle)]">
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)]">Pending Invitations</h3>
+                      <div className="space-y-2">
+                        {invitations.map((inv, i) => (
+                          <div key={inv.id || i} className="flex items-center justify-between p-3 bg-[var(--bg-hover)] rounded border border-[var(--border-subtle)]">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded bg-[var(--bg-panel)] flex items-center justify-center font-bold text-xs">
+                                <Mail className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium">{inv.email}</span>
+                                <span className="text-xs text-[var(--text-secondary)] block">Invited as {inv.role}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-[var(--warning)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded font-bold uppercase">Pending</span>
+                              <button
+                                onClick={() => handleResendInvitation(inv.id)}
+                                disabled={resendingId === inv.id}
+                                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] p-1 disabled:opacity-50 cursor-pointer"
+                                title="Resend Invitation"
+                              >
+                                <RotateCcw className={cn("w-3.5 h-3.5", resendingId === inv.id && "animate-spin text-[var(--primary)]")} />
+                              </button>
+                              <button
+                                onClick={() => handleCancelInvitation(inv.id)}
+                                disabled={resendingId === inv.id}
+                                className="text-[var(--text-secondary)] hover:text-[var(--danger)] p-1 disabled:opacity-50 cursor-pointer"
+                                title="Cancel Invitation"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-4 pt-6 border-t border-[var(--border-subtle)]">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-secondary)]">Current Members</h3>
@@ -710,6 +934,57 @@ export const SettingsView: React.FC = () => {
                   >
                     Delete Account
                   </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'ai' && (
+              <div className="space-y-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[var(--text-primary)]">AI Settings</h1>
+                  <p className="text-[var(--text-secondary)]">Configure provider, model and API key for AI Generate (docs, tests, code). Stored locally, sent per-request — never persisted on server.</p>
+                </div>
+                <form onSubmit={handleSaveAi} className="space-y-5 bg-[var(--bg-panel)] p-6 rounded border border-[var(--border-subtle)]">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Provider</label>
+                    <select value={aiProvider} onChange={(e)=>{const v=e.target.value; setAiProvider(v as any); if(!aiModel || ['gemini-1.5-flash','gpt-4o-mini','llama3.2'].includes(aiModel)) setAiModel(defaultModelFor(v)); if(v==='ollama' && !aiBaseUrl) setAiBaseUrl('http://localhost:11434');}} className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]">
+                      <option value="gemini">Gemini (Google)</option>
+                      <option value="openai">OpenAI</option>
+                      <option value="ollama">Ollama (local)</option>
+                      <option value="custom">Custom (OpenAI-compatible)</option>
+                    </select>
+                    <p className="text-[11px] text-[var(--text-secondary)]">{aiProvider==='openai' ? 'Uses https://api.openai.com/v1/chat/completions — needs OpenAI key.' : aiProvider==='ollama' ? 'Uses Ollama /api/chat at baseUrl (default http://localhost:11434) — no key needed for local.' : aiProvider==='custom' ? 'Any OpenAI-compatible API (LM Studio, vLLM, Together, etc.) — set baseUrl to your /v1 endpoint.' : 'Uses @google/genai — needs Gemini key (env GEMINI_API_KEY fallback if blank).'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Model</label>
+                    <input type="text" value={aiModel} onChange={(e)=>setAiModel(e.target.value)} placeholder={aiProvider==='openai'?'gpt-4o-mini':aiProvider==='ollama'?'llama3.2':'gemini-1.5-flash'} className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)] font-mono" />
+                    <p className="text-[11px] text-[var(--text-secondary)]">Blank = default ({aiProvider==='openai'?'gpt-4o-mini':aiProvider==='ollama'?'llama3.2':aiProvider==='custom'?'gpt-4o-mini':'gemini-1.5-flash'}). Docs bug was invalid model gemini-3.6-flash — fixed.</p>
+                  </div>
+                  {(aiProvider==='ollama' || aiProvider==='custom' || aiProvider==='openai') && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-[var(--text-secondary)]">Base URL {aiProvider==='ollama' ? '(Ollama)' : aiProvider==='custom' ? '(OpenAI-compatible)' : '(optional override)'}</label>
+                      <input type="text" value={aiBaseUrl} onChange={(e)=>setAiBaseUrl(e.target.value)} placeholder={aiProvider==='ollama'?'http://localhost:11434':aiProvider==='custom'?'http://localhost:1234/v1':'https://api.openai.com/v1'} className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)] font-mono" />
+                      <p className="text-[11px] text-[var(--text-secondary)]">{aiProvider==='ollama' ? 'Default http://localhost:11434. Must be reachable from server (not browser).' : aiProvider==='custom' ? 'Your OpenAI-compatible endpoint base (e.g. LM Studio http://localhost:1234/v1). Key optional for local.' : 'Leave blank for https://api.openai.com/v1, or set custom gateway.'}</p>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-[var(--text-secondary)] flex items-center gap-1.5"><KeyRound className="w-3.5 h-3.5" />API Key {(aiProvider==='ollama' || aiProvider==='custom') ? '(optional for local)' : ''}</label>
+                    <div className="relative">
+                      <input type={showAiKey?"text":"password"} value={aiKey} onChange={(e)=>setAiKey(e.target.value)} placeholder={aiProvider==='openai'?'sk-...':'AIza...'} className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)] pr-10 font-mono" />
+                      <button type="button" onClick={()=>setShowAiKey(!showAiKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{showAiKey?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}</button>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-secondary)]">{aiProvider==='ollama' ? 'Ollama local needs no key. Leave blank unless your Ollama requires auth.' : aiProvider==='custom' ? 'Many local endpoints need no key. Leave blank for local, or set for hosted.' : `Empty = use server env (${aiProvider==='openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY'}). If that is also empty, docs/tests/code return a clear error.`}</p>
+                  </div>
+                  <div className="flex items-center gap-2 pt-2">
+                    <button type="submit" className="bg-[var(--primary)] text-white px-4 py-2 rounded text-sm font-bold flex items-center gap-2 hover:opacity-90"><Save className="w-4 h-4"/>Save AI Settings</button>
+                    <button type="button" onClick={()=>{setAiProvider('gemini'); setAiModel('gemini-1.5-flash'); setAiKey(''); setAiBaseUrl(''); setAiConfig({provider:'gemini', model:'gemini-1.5-flash', apiKey:'', baseUrl:''} as any); addToast('AI settings reset','info')}} className="px-4 py-2 rounded text-sm font-bold border border-[var(--border-strong)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">Reset</button>
+                  </div>
+                </form>
+                <div className="bg-[var(--bg-panel)] p-4 rounded border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] leading-relaxed">
+                  <strong className="text-[var(--text-primary)]">Troubleshooting</strong><br/>
+                  500 "API key is not configured" → set key here or env.<br/>
+                  400/404 model not found → fix Model field.<br/>
+                  429/resource_exhausted → quota/billing at provider.
                 </div>
               </div>
             )}

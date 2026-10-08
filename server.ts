@@ -74,21 +74,32 @@ async function startServer() {
 
   // SECURITY headers (CSP, HSTS, X-Frame-Options, noSniff, ...).
   // Google sign-in scripts are allow-listed so GIS login keeps working.
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "https://accounts.google.com"],
-          frameSrc: ["https://accounts.google.com"],
-          connectSrc: ["'self'", "https://accounts.google.com", "https://www.googleapis.com", "https://oauth2.googleapis.com"],
-          imgSrc: ["'self'", "data:", "https:"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+  // NOTE: helmet CSP is production-only. In dev, Vite injects an inline
+  // `<script type="module">` preamble (react-refresh) plus /@vite/client HMR
+  // over ws:. The production CSP below has no 'unsafe-inline'/'unsafe-eval'
+  // in scriptSrc and no ws: in connectSrc, so it blocks that preamble —
+  // window.$RefreshReg$ is never set and every transformed module throws
+  // "@vitejs/plugin-react can't detect preamble. Something is wrong."
+  if (process.env.NODE_ENV === "production") {
+    app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "https://accounts.google.com"],
+            frameSrc: ["https://accounts.google.com"],
+            connectSrc: ["'self'", "https://accounts.google.com", "https://www.googleapis.com", "https://oauth2.googleapis.com"],
+            imgSrc: ["'self'", "data:", "https:"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+          },
         },
-      },
-      crossOriginEmbedderPolicy: false,
-    })
-  );
+        crossOriginEmbedderPolicy: false,
+      })
+    );
+  } else {
+    // Dev: keep basic hardening but leave CSP off so Vite HMR works.
+    app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+  }
   app.disable('x-powered-by');
 
   // Restrict CORS instead of reflecting any origin.
@@ -109,7 +120,17 @@ async function startServer() {
   );
   // Request bodies: 1MB default (raises DoS cost); import endpoints that need
   // more should set their own limit explicitly.
-  app.use(express.json({ limit: "1mb" }));
+  // Exception: avatar upload carries a base64 image (up to 2 MB binary ≈
+  // 2.8 MB JSON), so that single route gets a 4 MB limit. The controller
+  // still enforces the 2 MB decoded-image cap.
+  const jsonParser = express.json({ limit: "1mb" });
+  const avatarJsonParser = express.json({ limit: "4mb" });
+  app.use((req, res, next) => {
+    if (req.method === 'POST' && req.path === '/api/users/avatar') {
+      return avatarJsonParser(req, res, next);
+    }
+    return jsonParser(req, res, next);
+  });
 
   // Mount Prisma API Routes
   app.use('/api/auth', authRoutes);
@@ -123,6 +144,47 @@ async function startServer() {
   app.use('/api/monitors', monitorRoutes);
   app.use('/api/admin', adminRoutes);
 
+  // AI helpers — provider/model/key/baseUrl can be overridden per-request from Settings → AI (aiConfig), fallback env. No new deps.
+  // Providers: gemini, openai, ollama (local), custom (any OpenAI-compatible baseUrl)
+  function resolveAi(req) {
+    const cfg = req.body?.aiConfig || {};
+    const provider = String(cfg.provider || process.env.AI_PROVIDER || "gemini").toLowerCase();
+    const defaultModel = provider === "openai" ? "gpt-4o-mini" : provider === "ollama" ? "llama3.2" : provider === "custom" ? "gpt-4o-mini" : "gemini-1.5-flash";
+    const model = String(cfg.model || process.env.AI_MODEL || defaultModel);
+    const rawBaseUrl = String(cfg.baseUrl || process.env.AI_BASE_URL || (provider === "ollama" ? process.env.OLLAMA_BASE_URL : process.env.CUSTOM_AI_BASE_URL) || "").trim().replace(/\/+$/, "");
+    const apiKey = String(cfg.apiKey || (provider === "openai" ? process.env.OPENAI_API_KEY : provider === "custom" ? process.env.CUSTOM_AI_API_KEY : provider === "ollama" ? process.env.OLLAMA_API_KEY : process.env.GEMINI_API_KEY) || "").trim();
+    const baseUrl = rawBaseUrl || (provider === "ollama" ? "http://localhost:11434" : "");
+    if (provider === "ollama" || provider === "custom") {
+      if (!baseUrl) return { provider, model, apiKey, baseUrl: "", error: provider === "ollama" ? "Ollama base URL not set. Set Settings → AI baseUrl (e.g. http://localhost:11434) or env OLLAMA_BASE_URL." : "Custom provider base URL not set. Set Settings → AI baseUrl (e.g. http://localhost:1234/v1) or env CUSTOM_AI_BASE_URL." };
+      // ollama can run without key; custom may also be keyless (local). Only require key if remote and no env.
+      return { provider, model, apiKey, baseUrl };
+    }
+    if (!apiKey) return { provider, model, apiKey: "", baseUrl, error: provider === "openai" ? "OpenAI API key is not configured. Set it in Settings → AI or env OPENAI_API_KEY." : "Gemini API key is not configured. Set it in Settings → AI or env GEMINI_API_KEY." };
+    return { provider, model, apiKey, baseUrl };
+  }
+  async function callAi(provider, model, apiKey, baseUrl, prompt) {
+    if (provider === "ollama") {
+      const url = (baseUrl || "http://localhost:11434").replace(/\/+$/, "") + "/api/chat";
+      const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", ...(apiKey ? { Authorization: "Bearer " + apiKey } : {}) }, body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], stream: false }) });
+      if (!r.ok) { const tt = await r.text(); throw new Error("Ollama " + r.status + ": " + tt.slice(0, 600)); }
+      const j: any = await r.json();
+      return j.message?.content || j.response || "";
+    }
+    if (provider === "custom" || provider === "openai") {
+      const base = provider === "openai" && !baseUrl ? "https://api.openai.com/v1" : (baseUrl || "https://api.openai.com/v1").replace(/\/+$/, "");
+      const url = base + "/chat/completions";
+      const headers: Record<string,string> = { "Content-Type": "application/json" };
+      if (apiKey) headers.Authorization = "Bearer " + apiKey;
+      const r = await fetch(url, { method: "POST", headers, body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], temperature: 0.4 }) });
+      if (!r.ok) { const tt = await r.text(); throw new Error((provider === "custom" ? "Custom" : "OpenAI") + " " + r.status + ": " + tt.slice(0, 600)); }
+      const j: any = await r.json();
+      return j.choices?.[0]?.message?.content || "";
+    }
+    const ai = new GoogleGenAI({ apiKey });
+    const r: any = await ai.models.generateContent({ model, contents: prompt });
+    return r.text || "";
+  }
+
   // AI: generate pm.* test assertions from a real response (PRD #56).
   app.post("/api/generate-tests", requireAuth, rateLimiter(20), async (req, res) => {
     try {
@@ -131,10 +193,8 @@ async function startServer() {
         return res.status(400).json({ error: "method, url and status are required" });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "Gemini API key is not configured" });
-      }
-
+      const aiCfg = resolveAi(req);
+      if (aiCfg.error) return res.status(500).json({ error: aiCfg.error });
       let bodyPreview = '';
       try {
         const parsed = typeof responseBody === 'string' ? JSON.parse(responseBody) : responseBody;
@@ -143,7 +203,6 @@ async function startServer() {
         bodyPreview = String(responseBody || '').slice(0, 3000);
       }
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const prompt = `Generate Postman-style test assertions (pm.* JavaScript) for the following HTTP response.
 Return ONLY raw JavaScript code, no markdown fences, no explanations.
 
@@ -159,14 +218,8 @@ Status: ${status}
 Body: ${bodyPreview}
 `;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: prompt
-      });
-
-      let script = response.text || "";
+      let script = await callAi(aiCfg.provider, aiCfg.model, aiCfg.apiKey, aiCfg.baseUrl, prompt);
       script = script.replace(/^```[a-z]*\n/i, "").replace(/\n```$/i, "").trim();
-
       meterAiCall(req);
       res.json({ script });
     } catch (error: any) {
@@ -183,11 +236,8 @@ Body: ${bodyPreview}
         return res.status(400).json({ error: "requestConfig is required" });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "Gemini API key is not configured" });
-      }
-
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const aiCfg2 = resolveAi(req);
+      if (aiCfg2.error) return res.status(500).json({ error: aiCfg2.error });
       const prompt = `Convert the following HTTP request to ${language || 'a curl command'} code.
 Return ONLY the raw code block with no markdown formatting. Do not wrap in \`\`\`.
 
@@ -198,14 +248,8 @@ Params: ${JSON.stringify(requestConfig.params || [])}
 Body: ${JSON.stringify(requestConfig.body || {})}
 `;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: prompt
-      });
-
-      let code = response.text || "";
+      let code = await callAi(aiCfg2.provider, aiCfg2.model, aiCfg2.apiKey, aiCfg2.baseUrl, prompt);
       code = code.replace(/^```[a-z]*\n/i, "").replace(/\n```$/i, "").trim();
-
       meterAiCall(req);
       res.json({ code });
     } catch (error: any) {
@@ -221,18 +265,8 @@ Body: ${JSON.stringify(requestConfig.body || {})}
         return res.status(400).json({ error: "collectionName is required" });
       }
 
-      if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: "Gemini API key is not configured" });
-      }
-
-      const ai = new GoogleGenAI({ 
-        apiKey: process.env.GEMINI_API_KEY,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
-        }
-      });
+      const aiCfg3 = resolveAi(req);
+      if (aiCfg3.error) return res.status(500).json({ error: aiCfg3.error });
 
       const folderList = (folders || []).map((f: any) => f.name).join(", ");
       const requestList = (requests || []).map((r: any) => `- ${r.method} ${r.url || '/'} (${r.name})`).join("\n");
@@ -286,12 +320,7 @@ Please output a beautifully-structured Markdown document containing the followin
 Write with clarity, high-contrast structural formatting, tables, list items, and clear headings. Do NOT include any meta-introductions (like "Here is your documentation"). Start directly with the markdown.`;
       }
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: prompt
-      });
-
-      const markdown = response.text || "";
+      const markdown = (await callAi(aiCfg3.provider, aiCfg3.model, aiCfg3.apiKey, aiCfg3.baseUrl, prompt)) || "";
       meterAiCall(req);
       res.json({ markdown });
     } catch (error: any) {
@@ -841,9 +870,38 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       const { createServer: createViteServer } = await import("vite");
       const vite = await createViteServer({
         server: { middlewareMode: true },
-        appType: "spa",
+        appType: "custom",
       });
       app.use(vite.middlewares);
+      // SPA fallback with explicit index.html transform. In middlewareMode
+      // Vite does NOT serve index.html automatically — without
+      // transformIndexHtml the @vitejs/plugin-react preamble
+      // (window.$RefreshReg$) is never injected and every React module
+      // throws "can't detect preamble. Something is wrong."
+      // Skip API/mock/downloads so they never get HTML.
+      app.use(async (req, res, next) => {
+        try {
+          if (req.method !== 'GET') return next();
+          const url = req.originalUrl.split('?')[0];
+          if (
+            url.startsWith('/api/') ||
+            url.startsWith('/mock/') ||
+            url.startsWith('/downloads/') ||
+            url.startsWith('/@') ||
+            url.startsWith('/src/') ||
+            url.startsWith('/node_modules/') ||
+            /\.\w+$/.test(url)
+          ) {
+            return next();
+          }
+          let template = fs.readFileSync(path.join(APP_ROOT, 'index.html'), 'utf-8');
+          template = await vite.transformIndexHtml(req.originalUrl, template);
+          res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
+        } catch (e) {
+          (vite as any).ssrFixStacktrace?.(e as Error);
+          next(e);
+        }
+      });
     } else {
       // Packaged dist path resolves relative to the app root, not cwd
       // (cwd is the userData dir under Electron).

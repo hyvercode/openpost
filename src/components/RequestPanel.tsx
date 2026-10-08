@@ -1346,7 +1346,7 @@ if (method === 'WS') {
                     className="w-3.5 h-3.5 rounded border-[var(--border-strong)] bg-[var(--bg-panel)] accent-[var(--primary)] text-[var(--primary)] focus:ring-offset-gray-900"
                   />
                 </div>
-                <div className="flex-1 px-1 relative">
+                <div className="flex-1 px-1 relative min-w-0">
                   <AutocompleteInput
                     type="text"
                     placeholder="Key"
@@ -1364,7 +1364,7 @@ if (method === 'WS') {
                     </span>
                   )}
                 </div>
-                <div className="flex-1 px-1">
+                <div className="flex-1 px-1 min-w-0">
                    <AutocompleteInput
                     type="text"
                     placeholder="Value"
@@ -1539,7 +1539,7 @@ if (method === 'WS') {
             )}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
             {isRequestLoading && method !== 'WS' && method !== 'SSE' ? (
               <button 
                 onClick={() => {
@@ -1856,8 +1856,8 @@ if (method === 'WS') {
       </div>
 
       {/* Tabs Header Bar with Seamless Env Connection */}
-      <div className="flex items-center justify-between mt-4 border-b border-[var(--border-subtle)] px-4 shrink-0 overflow-x-auto no-scrollbar">
-        <div className="flex gap-6">
+      <div className="flex items-center justify-between mt-4 border-b border-[var(--border-subtle)] px-3 sm:px-4 shrink-0 overflow-x-auto no-scrollbar">
+        <div className="flex gap-4 sm:gap-6">
         {(method === 'WS' || method === 'SSE' ? ['ws_messages', 'params', 'headers', 'auth', 'scripts', 'comments'] as const : (method === 'GQL' ? ['graphql', 'params', 'headers', 'auth', 'scripts', 'comments'] as const : ['params', 'auth', 'headers', 'body', 'scripts', 'mock', 'comments'] as const)).map(tab => {
           const hasTabError = (() => {
             if (tab === 'headers') return hasInvalidHeaders;
@@ -1872,7 +1872,7 @@ if (method === 'WS') {
               key={tab}
               onClick={() => setActiveTab(tab as any)}
               className={cn(
-                "text-xs pb-2 font-medium transition-colors capitalize flex items-center gap-1.5",
+                "text-xs pb-2 font-medium transition-colors capitalize flex items-center gap-1.5 shrink-0 whitespace-nowrap",
                 activeTab === tab 
                   ? "text-[var(--primary)] border-b-2 border-[var(--primary)]" 
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -1915,7 +1915,7 @@ if (method === 'WS') {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 min-h-0 bg-[var(--bg-base)] p-4 relative">
+      <div className="flex-1 min-h-0 bg-[var(--bg-base)] p-3 sm:p-4 relative">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -1984,7 +1984,7 @@ if (method === 'WS') {
             )}
             {activeTab === 'graphql' && (
               <div className="h-full flex flex-col min-h-0 bg-[var(--bg-base)]">
-                <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] shrink-0">
+                <div className="flex items-center justify-between flex-wrap gap-y-2 px-3 sm:px-4 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-subtle)] shrink-0">
                    <div className="flex items-center gap-2">
                      <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--text-secondary)]">GraphQL Editor</span>
                      <div className="h-3 w-px bg-[var(--border-subtle)] mx-1" />
@@ -2007,8 +2007,8 @@ if (method === 'WS') {
                      <GraphQLThemeSelector />
                    </div>
                 </div>
-                <div className="flex-1 flex min-h-0 overflow-hidden">
-                  <div className="flex-1 flex flex-col border-r border-[var(--border-subtle)] min-w-0">
+                <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden">
+                  <div className="flex flex-col min-w-0 shrink-0 lg:shrink h-[300px] lg:h-auto lg:flex-1 border-b lg:border-b-0 lg:border-r border-[var(--border-subtle)]">
                     <div className="px-4 py-1.5 bg-[var(--bg-panel)] text-[10px] text-[var(--text-secondary)] font-bold uppercase border-b border-[var(--border-subtle)] select-none">Query</div>
                     <div className="flex-1 min-h-0">
                       <AutocompleteTextarea
@@ -2021,7 +2021,7 @@ if (method === 'WS') {
                       />
                     </div>
                   </div>
-                  <div className="w-1/3 flex flex-col min-w-0 border-r border-[var(--border-subtle)]">
+                  <div className="w-full lg:w-1/3 flex flex-col min-w-0 shrink-0 lg:shrink h-[240px] lg:h-auto border-b lg:border-b-0 lg:border-r border-[var(--border-subtle)]">
                     <div className="px-4 py-1.5 bg-[var(--bg-panel)] text-[10px] text-[var(--text-secondary)] font-bold uppercase border-b border-[var(--border-subtle)] select-none">Variables (JSON)</div>
                     <div className="flex-1 min-h-0">
                       <JsonEditor
@@ -2228,7 +2228,7 @@ if (method === 'WS') {
                     { id: 'x-www-form-urlencoded', label: 'x-www-form-urlencoded' },
                     { id: 'protobuf', label: 'protobuf (.proto)' }
                   ].map((option) => (
-                    <label key={option.id} className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                    <label key={option.id} className="flex items-center gap-1.5 cursor-pointer select-none text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors shrink-0 whitespace-nowrap">
                       <input
                         type="radio"
                         name="bodyType"
@@ -2455,7 +2455,7 @@ if (method === 'WS') {
                                   />
                                 )}
                               </div>
-                              <div className="w-10 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="w-10 shrink-0 flex items-center justify-center opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus-within:opacity-100 transition-opacity">
                                 <button 
                                   onClick={() => {
                                     if (bodyFormData.length === 1) {

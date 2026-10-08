@@ -667,11 +667,9 @@ export function ResponsePanel() {
     // Fallback to AI for others
     setIsGeneratingCode(true);
     try {
-      const res = await api.post('/generate-code', {
-        requestConfig: resolvedConfig,
-        language: targetLang
-      });
-      let code = res.data.code;
+      const { apiService: _svc3 } = await import('../lib/api');
+      const res3 = await _svc3.generateCode({ requestConfig: resolvedConfig, language: targetLang });
+      let code = (res3 as any).code;
       code = code.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '');
       setGeneratedCode(code);
     } catch (error) {
@@ -703,13 +701,14 @@ export function ResponsePanel() {
     }
     setIsGeneratingTests(true);
     try {
-      const res = await api.post('/generate-tests', {
+      const { apiService: _svc2 } = await import('../lib/api');
+      const res = await _svc2.generateTests({
         method: activeRequest.method,
         url: activeRequest.url,
         status: response.status,
         responseBody: typeof response.data === 'object' ? JSON.stringify(response.data) : String(response.data ?? ''),
       });
-      const script = String(res.data.script || '').trim();
+      const script = String((res as any).script || (res as any)?.data?.script || '').trim();
       if (!script) {
         addToast('AI returned an empty script', 'error');
         return;
@@ -767,13 +766,13 @@ export function ResponsePanel() {
         transition={{ duration: 0.2 }}
         className="flex flex-col h-full bg-[var(--bg-input)] border-l border-[var(--border-subtle)] shrink-0 min-w-0"
       >
-        <div className="h-10 border-b border-[var(--border-subtle)] flex items-center justify-between px-4 bg-[var(--bg-surface)] shrink-0">
+        <div className="min-h-10 border-b border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-y-1 px-3 sm:px-4 py-1 bg-[var(--bg-surface)] shrink-0">
           <div className="flex gap-4 h-full items-end">
-             <div className="text-xs font-medium pb-2 text-[var(--text-primary)] border-b-2 border-[var(--primary)] cursor-default">
-               Event Log
-             </div>
+              <div className="text-xs font-medium pb-2 text-[var(--text-primary)] border-b-2 border-[var(--primary)] cursor-default whitespace-nowrap">
+                Event Log
+              </div>
           </div>
-          <div className="flex gap-4 text-xs font-mono">
+          <div className="flex gap-2 sm:gap-4 text-xs font-mono shrink-0">
             <div className="flex items-center gap-1.5">
               <span className="text-[var(--text-secondary)]">Status:</span>
               <span className={cn(
@@ -784,7 +783,7 @@ export function ResponsePanel() {
                 {status}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 border-l border-[var(--border-subtle)] pl-4">
+            <div className="hidden sm:flex items-center gap-1.5 border-l border-[var(--border-subtle)] pl-2 sm:pl-4">
               <span className="text-[var(--text-secondary)]">Events:</span>
               <span className="font-bold text-[var(--text-primary)]">{messages.length}</span>
             </div>
@@ -832,41 +831,41 @@ export function ResponsePanel() {
       transition={{ duration: 0.2 }}
       className="flex flex-col h-full bg-[var(--bg-input)] border-l border-[var(--border-subtle)] shrink-0 min-w-0"
     >
-      <div className="h-10 border-b border-[var(--border-subtle)] flex items-center justify-between px-3 sm:px-4 bg-[var(--bg-surface)] shrink-0 gap-2">
-        <div className="flex gap-4 h-full items-end overflow-x-auto scrollbar-none shrink"> 
+      <div className="min-h-10 border-b border-[var(--border-subtle)] flex items-center justify-between px-3 sm:px-4 bg-[var(--bg-surface)] shrink-0 gap-2">
+        <div className="flex gap-3 sm:gap-4 h-full items-end overflow-x-auto scrollbar-none min-w-0 shrink"> 
            <div 
-             className={cn("text-xs font-medium pb-2 cursor-pointer", activeTab === 'body' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
-             onClick={() => setActiveTab('body')}
-           >
-             Body
-           </div>
-           <div 
-             className={cn("text-xs font-medium pb-2 cursor-pointer", activeTab === 'preview' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
-             onClick={() => setActiveTab('preview')}
-           >
-             Preview
-           </div>
-           <div 
-             className={cn("text-xs font-medium pb-2 cursor-pointer", activeTab === 'headers' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
-             onClick={() => setActiveTab('headers')}
-           >
-             Headers
-           </div>
-           <div 
-             className={cn("text-xs font-medium pb-2 cursor-pointer", activeTab === 'code' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
-             onClick={() => setActiveTab('code')}
-           >
-             Code
-           </div>
-           <div 
-             className={cn("text-xs font-medium pb-2 cursor-pointer", activeTab === 'stats' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
-             onClick={() => setActiveTab('stats')}
-           >
-             Stats
-           </div>
+              className={cn("text-xs font-medium pb-2 cursor-pointer shrink-0 whitespace-nowrap", activeTab === 'body' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
+              onClick={() => setActiveTab('body')}
+            >
+              Body
+            </div>
+            <div 
+              className={cn("text-xs font-medium pb-2 cursor-pointer shrink-0 whitespace-nowrap", activeTab === 'preview' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
+              onClick={() => setActiveTab('preview')}
+            >
+              Preview
+            </div>
+            <div 
+              className={cn("text-xs font-medium pb-2 cursor-pointer shrink-0 whitespace-nowrap", activeTab === 'headers' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
+              onClick={() => setActiveTab('headers')}
+            >
+              Headers
+            </div>
+            <div 
+              className={cn("text-xs font-medium pb-2 cursor-pointer shrink-0 whitespace-nowrap", activeTab === 'code' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
+              onClick={() => setActiveTab('code')}
+            >
+              Code
+            </div>
+            <div 
+              className={cn("text-xs font-medium pb-2 cursor-pointer shrink-0 whitespace-nowrap", activeTab === 'stats' ? "text-[var(--text-primary)] border-b-2 border-[var(--primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
+              onClick={() => setActiveTab('stats')}
+            >
+              Stats
+            </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {response && !response.error && activeTab !== 'code' && (
             <PerformanceOverview
               response={response}
@@ -878,11 +877,11 @@ export function ResponsePanel() {
             <button
               onClick={handleGenerateTests}
               disabled={isGeneratingTests}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-xs font-bold text-[var(--text-primary)] disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-xs font-bold text-[var(--text-primary)] disabled:opacity-50 cursor-pointer shrink-0"
               title="Generate pm.* test assertions from this response (AI)"
             >
-              <FlaskConical className="w-3.5 h-3.5 text-[var(--primary)]" />
-              {isGeneratingTests ? 'Generating...' : 'AI Tests'}
+              <FlaskConical className="w-3.5 h-3.5 text-[var(--primary)] shrink-0" />
+              <span className="hidden sm:inline">{isGeneratingTests ? 'Generating...' : 'AI Tests'}</span>
             </button>
           )}
           <button
@@ -1189,7 +1188,7 @@ export function ResponsePanel() {
               </div>
             ) : activeTab === 'headers' && response ? (
               <div className="flex-1 overflow-auto p-4 font-mono text-sm">
-                <pre className="text-[var(--text-code)] leading-relaxed overflow-hidden">
+                <pre className="text-[var(--text-code)] leading-relaxed inline-block min-w-full">
                   {JSON.stringify(response.headers, null, 2)}
                 </pre>
               </div>
@@ -1224,8 +1223,8 @@ export function ResponsePanel() {
             ) : (
               <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-input)]">
                 {/* Format and language selector toolbar */}
-                <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 gap-2">
-                  <div className="flex items-center gap-3">
+                <div className="flex items-center justify-between flex-wrap gap-y-2 px-3 sm:px-4 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0 gap-x-2">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     {/* View mode toggle */}
                     <div className="flex items-center bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded p-0.5">
                       <button
@@ -1266,8 +1265,8 @@ export function ResponsePanel() {
 
                     {/* Language selector */}
                     {viewMode !== 'diff' && (
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider">Type:</span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="hidden min-[420px]:inline text-[10px] text-[var(--text-secondary)] font-medium uppercase tracking-wider shrink-0">Type:</span>
                         <select
                           className="bg-[var(--bg-hover)] border border-[var(--border-strong)] text-[11px] text-[var(--text-primary)] rounded px-2 py-1 outline-none focus:border-[var(--border-focus)] font-medium cursor-pointer"
                           value={selectedLang}

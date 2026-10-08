@@ -3,6 +3,21 @@ import { useStore } from '../store/useStore';
 import { Workspace, ApiCollection, Environment, Deployment, CollectionVersion } from '../types';
 import { syncEngine } from './syncEngine';
 
+function getAiConfig(): Record<string,string> | undefined {
+  try {
+    const raw = localStorage.getItem('ai_config');
+    if (!raw) return undefined;
+    const c = JSON.parse(raw);
+    // ollama/custom can run without key (local/baseUrl)
+    if (c?.provider === 'ollama' || c?.provider === 'custom') {
+      if (!c?.baseUrl && !c?.apiKey) return undefined;
+      return c;
+    }
+    if (!c?.apiKey) return undefined;
+    return c;
+  } catch { return undefined; }
+}
+
 /**
  * Optimistic locking helpers (PRD #51).
  * If the record carries the `updatedAt` we last saw, send it as
@@ -129,6 +144,17 @@ export const apiService = {
     return res.data;
   },
 
+  // Avatar: base64 image data-URL (max 2 MB decoded), stored in User.photoURL.
+  async uploadAvatar(image: string) {
+    const res = await api.post('/users/avatar', { image });
+    return res.data;
+  },
+
+  async deleteAvatar() {
+    const res = await api.delete('/users/avatar');
+    return res.data;
+  },
+
   async changePassword(currentPassword: string, password: string) {
     const res = await api.post('/auth/change-password', { currentPassword, password });
     return res.data;
@@ -242,7 +268,20 @@ export const apiService = {
   },
 
   async generateDocumentation(collectionName: string, folders: any[], requests: any[], targetType?: 'collection' | 'folder' | 'request', targetName?: string): Promise<{ markdown: string }> {
-    const res = await api.post('/collections/generate-docs', { collectionName, folders, requests, targetType, targetName });
+    const aiConfig = getAiConfig();
+    const res = await api.post('/collections/generate-docs', { collectionName, folders, requests, targetType, targetName, ...(aiConfig ? { aiConfig } : {}) });
+    return res.data;
+  },
+
+  async generateTests(payload: Record<string, unknown>): Promise<{ script: string }> {
+    const aiConfig = getAiConfig();
+    const res = await api.post('/generate-tests', { ...payload, ...(aiConfig ? { aiConfig } : {}) });
+    return res.data;
+  },
+
+  async generateCode(payload: Record<string, unknown>): Promise<{ code: string }> {
+    const aiConfig = getAiConfig();
+    const res = await api.post('/generate-code', { ...payload, ...(aiConfig ? { aiConfig } : {}) });
     return res.data;
   },
 
