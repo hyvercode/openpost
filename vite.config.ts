@@ -1,9 +1,17 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
+import {defineConfig, loadEnv} from 'vite';
 
 export default defineConfig(({ command }) => {
+  // Production builds ALWAYS use .env.production (never .env), no matter
+  // which --mode flag is passed. Real process env still wins over file values.
+  if (command === 'build') {
+    const prod = loadEnv('production', process.cwd());
+    for (const [k, v] of Object.entries(prod)) {
+      if (process.env[k] === undefined && v !== undefined) process.env[k] = v;
+    }
+  }
   return {
     plugins: [react(), tailwindcss()],
     // IMPORTANT: @vitejs/plugin-react injects its preamble as

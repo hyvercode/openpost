@@ -1,6 +1,19 @@
 const fs = require('fs');
 const path = require('path');
-require('dotenv/config');
+// Mirror server/src/env.ts: production builds always read .env.production,
+// development reads .env. Real environment variables always win.
+(function loadEnv() {
+  const filename = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+  const roots = [process.cwd()];
+  if (process.env.OPENPOST_APP_ROOT) roots.push(process.env.OPENPOST_APP_ROOT);
+  for (const root of roots) {
+    const file = path.join(root, filename);
+    if (fs.existsSync(file)) {
+      require('dotenv').config({ path: file, override: false });
+      return;
+    }
+  }
+})();
 
 const argv = process.argv.slice(2);
 // Allow forcing a provider from CLI (used by desktop packaging which must

@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./server/src/env";
 // Validate security-critical config FIRST (fail-fast in production).
 import "./server/src/config";
 import express from "express";

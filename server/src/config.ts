@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './env';
 
 // Centralized security-sensitive configuration with fail-fast validation.
 // Import this module FIRST in server.ts (before any route/middleware import)
