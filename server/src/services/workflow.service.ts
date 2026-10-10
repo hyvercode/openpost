@@ -18,9 +18,26 @@ export interface WfEdge { id: string; source: string; target: string; label?: st
 
 function parseJson(s: string, fallback: any) { try { return JSON.parse(s); } catch { return fallback; } }
 
+// Bound DAG size so one workflow cannot burn unbounded CPU/time on run.
+const MAX_NODES = 100, MAX_EDGES = 300, MAX_VARS = 100;
+function sanitizeDag(data: any) {
+  const nodes = Array.isArray(data.nodes) ? data.nodes.slice(0, MAX_NODES) : [];
+  const edges = Array.isArray(data.edges) ? data.edges.slice(0, MAX_EDGES) : [];
+  const variables = Array.isArray(data.variables) ? data.variables.slice(0, MAX_VARS) : [];
+  if (Array.isArray(data.nodes) && data.nodes.length > MAX_NODES) throw new Error(`Too many nodes (max ${MAX_NODES})`);
+  if (Array.isArray(data.edges) && data.edges.length > MAX_EDGES) throw new Error(`Too many edges (max ${MAX_EDGES})`);
+  if (Array.isArray(data.variables) && data.variables.length > MAX_VARS) throw new Error(`Too many variables (max ${MAX_VARS})`);
+  return { nodes, edges, variables };
+}
+
 function interpolate(str: string, vars: Record<string,string>) {
   if (!str) return str;
-  return str.replace(/\{\{([^}]+)\}\}/g, (_, k) => vars[k.trim()] ?? '');
+  // {{var}} from environment / workflow variables / extracts
+  let out = str.replace(/\{\{([^}]+)\}\}/g, (_, k) => vars[k.trim()] ?? '');
+  // {pathParam} single-brace (collection URLs like /item/{productCode}): only
+  // replace when the var exists, otherwise keep literal so missing params stay visible.
+  out = out.replace(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (m, k) => (k in vars ? vars[k] : m));
+  return out;
 }
 function getByPath(obj: any, path: string) {
   if (!path) return obj;
@@ -36,29 +53,83 @@ function getByPath(obj: any, path: string) {
   return cur;
 }
 function evalCondition(expr: string, ctx: Record<string,any>): boolean {
-  // Safe eval: only allow comparison of vars/status/data. No Function with arbitrary code.
-  // expr like "{{status}} == 200" or "data.user.id != null" — we interpolate then eval simple logic.
+  // expr like "{{status}} == 200" — interpolate first, then eval the literal expression.
   const interpolated = interpolate(expr, ctx as any);
   // Allow only chars: alphanum, spaces, quotes, dots, brackets, operators
   if (!/^[\w\s"'`.\[\]!&|<>=()+-/*%,:]+$/.test(interpolated)) return false;
   try {
-    // Provide limited globals: ctx values as vars
-    const fn = new Function(...Object.keys(ctx), `return (${interpolated});`);
-    return !!fn(...Object.values(ctx));
+    // Only identifier-safe keys may become Function params. Env keys like
+    // "base-url" or "core-url\n" are NOT valid identifiers and previously made
+    // EVERY condition throw (silently evaluated as false). They remain usable
+    // via {{var}} interpolation above; bare identifiers keep working.
+    const safeEntries = Object.entries(ctx).filter(([k]) => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(k));
+    const fn = new Function(...safeEntries.map(([k]) => k), `return (${interpolated});`);
+    return !!fn(...safeEntries.map(([, v]) => v));
   } catch { return false; }
 }
 
-async function execRequestNode(node: WfNode, vars: Record<string,string>, logs: any[]) {
+async function resolveNodeRequest(node: WfNode, vars: Record<string,string>): Promise<{ method:string; url:string; headers: any[]; params: any[]; body?: string }> {
   const cfg = node.data || {};
-  const method = String(cfg.method || 'GET').toUpperCase();
-  const rawUrl = interpolate(String(cfg.url || ''), vars);
+  // Auto-fill from collection API but keep editable: DB template merged with
+  // user-edited overrides (edited fields win per-key). Headers union by key so
+  // node edits never silently drop collection headers; same for query params.
+  if (cfg.requestId && cfg.collectionId) {
+    try {
+      const col: any = await prisma.collection.findUnique({ where: { id: String(cfg.collectionId) } });
+      if (col) {
+        const reqs = JSON.parse(col.requests || '[]');
+        const found = reqs.find((r:any)=> String(r.id)===String(cfg.requestId));
+        if (found) {
+          const dbHeaders = Array.isArray(found.headers) ? found.headers : [];
+          const dbParams = Array.isArray(found.params) ? found.params : [];
+          const dbBody = found.body?.content;
+          const mergeKv = (db: any[], edited: any[]) => {
+            const map = new Map<string, any>();
+            for (const h of db || []) if (h?.key) map.set(String(h.key).toLowerCase(), { ...h });
+            for (const h of edited || []) {
+              if (!h?.key) continue;
+              const k = String(h.key).toLowerCase();
+              if (map.has(k)) map.set(k, { ...map.get(k), ...h });
+              else map.set(k, { ...h });
+            }
+            return [...map.values()];
+          };
+          const hasEditedHeaders = Array.isArray(cfg.headers) && cfg.headers.some((h:any)=>h?.key);
+          const hasEditedParams = Array.isArray(cfg.params) && cfg.params.some((p:any)=>p?.key);
+          return {
+            method: String(cfg.method || found.method || 'GET'),
+            url: String(cfg.url ?? found.url ?? ''),
+            headers: hasEditedHeaders ? mergeKv(dbHeaders, cfg.headers) : dbHeaders.length ? dbHeaders : (cfg.headers || []),
+            params: hasEditedParams ? mergeKv(dbParams, cfg.params) : dbParams.length ? dbParams : (cfg.params || []),
+            body: cfg.body !== undefined && cfg.body !== '' ? cfg.body : (dbBody ?? cfg.body),
+          };
+        }
+      }
+    } catch {}
+  }
+  return { method: String(cfg.method||'GET'), url: String(cfg.url||''), headers: cfg.headers||[], params: cfg.params||[], body: cfg.body };
+}
+
+async function execRequestNode(node: WfNode, vars: Record<string,string>, logs: any[]) {
+  const resolved = await resolveNodeRequest(node, vars);
+  const method = String(resolved.method || 'GET').toUpperCase();
+  const rawUrl = interpolate(String(resolved.url || ''), vars);
   if (!rawUrl) throw new Error(`Node ${node.label}: missing url`);
-  const urlStr = rawUrl.startsWith('http') ? rawUrl : `http://${rawUrl}`;
+  if (/\{\{[^}]+\}\}/.test(rawUrl)) throw new Error(`Node ${node.label}: unresolved variable in URL "${rawUrl}" — check Environment and workflow variables (e.g. {{baseUrl}})`);
+  // Append enabled query params (collection params auto-mapped, interpolated)
+  let urlWithParams = rawUrl;
+  const qps: string[] = [];
+  for (const p of (resolved.params || [])) {
+    if (!p?.key || p.enabled === false) continue;
+    qps.push(`${encodeURIComponent(interpolate(String(p.key), vars))}=${encodeURIComponent(interpolate(String(p.value ?? ''), vars))}`);
+  }
+  if (qps.length) urlWithParams += (urlWithParams.includes('?') ? '&' : '?') + qps.join('&');
+  const urlStr = urlWithParams.startsWith('http') ? urlWithParams : `http://${urlWithParams}`;
   const { urlObj, targetIp } = await assertUrlSafe(urlStr);
   const headers: Record<string,string> = {};
-  for (const h of (cfg.headers || [])) if (h?.key) headers[h.key] = interpolate(String(h.value ?? ''), vars);
+  for (const h of (resolved.headers || [])) if (h?.key) headers[h.key] = interpolate(String(h.value ?? ''), vars);
   delete headers['authorization']; delete headers['cookie'];
-  let data: any = cfg.body ? interpolate(String(cfg.body), vars) : undefined;
+  let data: any = resolved.body ? interpolate(String(resolved.body), vars) : undefined;
   if (data) try { data = JSON.parse(data); } catch {}
   const lookup = createPinnedLookup(urlObj.hostname, targetIp);
   const t0 = Date.now();
@@ -71,13 +142,12 @@ async function execRequestNode(node: WfNode, vars: Record<string,string>, logs: 
   });
   const duration = Date.now() - t0;
   const passed = res.status >= 200 && res.status < 400;
-  logs.push({ nodeId: node.id, label: node.label, type: 'request', status: res.status, duration, passed });
-  // Extract handling: if node has extract config, set vars
+  logs.push({ nodeId: node.id, label: node.label, type: 'request', method, url: urlObj.toString(), status: res.status, duration, passed });
+  const cfg = node.data || {};
   if (cfg.extractPath && cfg.extractVar) {
     const val = getByPath(res.data, String(cfg.extractPath));
     if (val !== undefined) vars[String(cfg.extractVar)] = String(val);
   }
-  // Generic var extraction map: { "token": "$.data.token" }
   if (cfg.extracts && typeof cfg.extracts === 'object') {
     for (const [k,v] of Object.entries(cfg.extracts as Record<string,string>)) {
       const val = getByPath(res.data, String(v));
@@ -102,6 +172,7 @@ export class WorkflowService {
     const ws = await prisma.workspace.findUnique({ where: { id: data.workspaceId } });
     if (!ws) throw new Error('Workspace not found');
     const isWebhook = data.trigger === 'webhook';
+    const dag = sanitizeDag(data);
     const row = await (prisma as any).workflow.create({ data: {
       id: data.id || uuidv4(),
       workspaceId: data.workspaceId,
@@ -112,9 +183,10 @@ export class WorkflowService {
       scheduleCron: data.scheduleCron || null,
       intervalMinutes: data.intervalMinutes ? Math.max(5, Math.min(1440, Number(data.intervalMinutes))) : null,
       webhookToken: isWebhook ? uuidv4().replace(/-/g,'') : null,
-      nodes: JSON.stringify(data.nodes || []),
-      edges: JSON.stringify(data.edges || []),
-      variables: JSON.stringify(data.variables || []),
+      environmentId: data.environmentId ? String(data.environmentId) : null,
+      nodes: JSON.stringify(dag.nodes),
+      edges: JSON.stringify(dag.edges),
+      variables: JSON.stringify(dag.variables),
     }});
     await audit('workflow.create', { workspaceId: data.workspaceId, userId: actorUserId, entityType:'workflow', entityId: row.id, detail: row.name });
     return { ...row, nodes: parseJson(row.nodes,'[]'), edges: parseJson(row.edges,'[]'), variables: parseJson(row.variables,'[]') };
@@ -129,9 +201,13 @@ export class WorkflowService {
     if (data.trigger !== undefined) upd.trigger = ['manual','webhook','schedule'].includes(data.trigger) ? data.trigger : 'manual';
     if (data.scheduleCron !== undefined) upd.scheduleCron = data.scheduleCron || null;
     if (data.intervalMinutes !== undefined) upd.intervalMinutes = data.intervalMinutes ? Math.max(5, Math.min(1440, Number(data.intervalMinutes))) : null;
-    if (data.nodes !== undefined) upd.nodes = JSON.stringify(data.nodes);
-    if (data.edges !== undefined) upd.edges = JSON.stringify(data.edges);
-    if (data.variables !== undefined) upd.variables = JSON.stringify(data.variables);
+    if (data.nodes !== undefined || data.edges !== undefined || data.variables !== undefined) {
+      const dag = sanitizeDag({ nodes: data.nodes ?? parseJson(existing.nodes, []), edges: data.edges ?? parseJson(existing.edges, []), variables: data.variables ?? parseJson(existing.variables, []) });
+      upd.nodes = JSON.stringify(dag.nodes);
+      upd.edges = JSON.stringify(dag.edges);
+      upd.variables = JSON.stringify(dag.variables);
+    }
+    if (data.environmentId !== undefined) upd.environmentId = data.environmentId ? String(data.environmentId) : null;
     if (data.trigger === 'webhook' && !existing.webhookToken) upd.webhookToken = uuidv4().replace(/-/g,'');
     const row = await (prisma as any).workflow.update({ where:{id}, data: upd });
     await audit('workflow.update', { workspaceId: row.workspaceId, userId: actorUserId, entityType:'workflow', entityId: id });
@@ -155,6 +231,31 @@ export class WorkflowService {
     const varsList: any[] = parseJson(wf.variables,'[]');
     const vars: Record<string,string> = {};
     for (const v of varsList) if (v?.key) vars[v.key]= String(v.value??'');
+    // Workflow environment — inject vars for {{baseUrl}} etc. Trim keys (DB has "core-url\n").
+    // Selected env first, then fallback fill missing keys from all envs (so {{baseUrl}} never empty).
+    const selectedEnvId = (wf as any).environmentId ? String((wf as any).environmentId) : null;
+    if (selectedEnvId) {
+      try {
+        const env: any = await prisma.environment.findUnique({ where: { id: selectedEnvId } });
+        if (env && String(env.workspaceId)===String(wf.workspaceId) && !env.deletedAt) {
+          const evs = JSON.parse(env.variables || '[]');
+          for (const v of evs) if (v?.key && String(v.key).trim() && v.enabled !== false) vars[String(v.key).trim()] = String(v.value ?? '');
+        }
+      } catch {}
+    }
+    // Fallback fill any missing keys from workspace envs (covers workflow without env selection, or selected env missing baseUrl)
+    try {
+      const envs: any[] = await prisma.environment.findMany({ where: { workspaceId: String(wf.workspaceId), deletedAt: null } as any });
+      for (const env of envs) {
+        if (selectedEnvId && String(env.id)===selectedEnvId) continue;
+        const evs = JSON.parse(env.variables || '[]');
+        for (const v of evs) {
+          const k = String(v.key||'').trim();
+          if (!k || v.enabled===false || k in vars) continue;
+          vars[k] = String(v.value ?? '');
+        }
+      }
+    } catch {}
     Object.assign(vars, triggerVars);
     // Check cycles
     if (this.hasCycle(nodes, edges)) throw new Error('Workflow has a cycle');
@@ -239,19 +340,21 @@ export class WorkflowService {
             const res = await execRequestNode(node, vars, stepLogs);
             lastResponse = res;
             vars['lastStatus'] = String(res.status);
-            if (res.data && typeof res.data === 'object') {
-              // expose simple fields as vars for extract shortcut
-            }
-            if (!res.passed && node.data?.stopOnError !== false) {
-              // mark but continue unless strict
+            // HTTP 4xx/5xx fails the run (testing semantics) unless the node
+            // explicitly opts out via continueOnError. DAG continues regardless.
+            if (!res.passed && !node.data?.continueOnError) {
+              failed = true;
+              if (!failDetail) failDetail = `${node.label}: HTTP ${res.status}`;
             }
           } else {
             stepLogs.push({ nodeId:nid, label: node.label, type: node.type, passed:true });
           }
         } catch (e:any) {
-          failed=true; failDetail = `${node.label}: ${e?.message||e}`;
-          stepLogs.push({ nodeId:nid, label: node.label, type: node.type, passed:false, error: String(e?.message||e).slice(0,500) });
-          if (node.data?.continueOnError) {/* allow */} else { /* will cause overall failure */ }
+          const msg = String(e?.message||e).slice(0,500);
+          stepLogs.push({ nodeId:nid, label: node.label, type: node.type, passed:false, error: msg });
+          if (!node.data?.continueOnError) {
+            failed=true; failDetail = `${node.label}: ${e?.message||e}`;
+          }
         }
         executed.add(nid);
       });
@@ -287,4 +390,32 @@ export class WorkflowService {
     }
     return { success: !failed, detail: failDetail };
   }
+}
+
+// ---- Schedule-trigger scheduler (mirrors monitor.service pattern) ----
+// Runs workflows with trigger='schedule' every intervalMinutes (>=5).
+// Overlap-guarded per workflow; uses lastRunAt-equivalent = latest WorkflowRun.
+const wfRunning = new Set<string>();
+
+export function startWorkflowScheduler(intervalMs = 60000): void {
+  if ((global as any).__openpostWorkflowScheduler) return;
+  (global as any).__openpostWorkflowScheduler = true;
+  setInterval(async () => {
+    try {
+      const due = await (prisma as any).workflow.findMany({ where: { enabled: true, trigger: 'schedule' } });
+      const now = Date.now();
+      const svc = new WorkflowService();
+      for (const w of due) {
+        const interval = Math.max(5, Math.min(1440, Number(w.intervalMinutes) || 60)) * 60000;
+        const last: any = await (prisma as any).workflowRun.findFirst({ where: { workflowId: w.id }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }).catch(() => null);
+        const lastTs = last?.createdAt ? new Date(last.createdAt).getTime() : 0;
+        if (now - lastTs < interval) continue;
+        if (wfRunning.has(w.id)) continue;
+        wfRunning.add(w.id);
+        svc.run(w.id, 'schedule', {}).catch((e) => console.error(`[workflow-scheduler] ${w.id} failed:`, e?.message)).finally(() => wfRunning.delete(w.id));
+      }
+    } catch (e: any) {
+      console.error('[workflow-scheduler] tick failed:', e?.message);
+    }
+  }, intervalMs);
 }

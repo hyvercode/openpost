@@ -1045,6 +1045,13 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         console.log('[monitor] scheduler started (60s tick)');
       }).catch((e) => console.error('[monitor] scheduler failed to start:', e?.message));
     }
+    // Scheduled workflows (trigger='schedule'). Same guards as monitors.
+    if (!process.env.DISABLE_WORKFLOWS && !process.env.OPENPOST_EMBEDDED) {
+      import('./server/src/services/workflow.service').then(({ startWorkflowScheduler }) => {
+        startWorkflowScheduler();
+        console.log('[workflow] scheduler started (60s tick)');
+      }).catch((e) => console.error('[workflow] scheduler failed to start:', e?.message));
+    }
   });
 }
 

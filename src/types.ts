@@ -427,6 +427,7 @@ export interface Workflow {
   scheduleCron?: string | null;
   intervalMinutes?: number | null;
   webhookToken?: string | null;
+  environmentId?: string | null;
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
   variables: KeyValue[];

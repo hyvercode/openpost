@@ -80,7 +80,7 @@ function WorkflowCanvas({ nodes, edges, selectedId, onSelect, onMove, onConnect 
 }
 
 export const WorkflowsPanel: React.FC = () => {
-  const { currentWorkspace, addToast } = useStore();
+  const { currentWorkspace, addToast, collections, environments } = useStore();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -93,6 +93,8 @@ export const WorkflowsPanel: React.FC = () => {
   const [selectedId, setSelectedId] = useState<string|null>(null);
   const [expandedRun, setExpandedRun] = useState<string|null>(null);
   const [runs, setRuns] = useState<Record<string,any[]>>({});
+  const [runningIds, setRunningIds] = useState<Set<string>>(new Set());
+  const [runModal, setRunModal] = useState<{wf: Workflow, vars: {key:string,value:string}[]} | null>(null);
 
   const load = useCallback(async()=>{
     if(!currentWorkspace) return;
@@ -147,8 +149,41 @@ export const WorkflowsPanel: React.FC = () => {
   const updateNode = (id:string, patch: Partial<WorkflowNode>)=> setNodes(nodes.map(n=>n.id===id?{...n,...patch}:n));
   const updateNodeData = (id:string, dataPatch: Record<string,any>)=> setNodes(nodes.map(n=>n.id===id?{...n, data:{...n.data, ...dataPatch}}:n));
   const deleteNode = (id:string)=>{ setNodes(nodes.filter(n=>n.id!==id)); setEdges(edges.filter(e=>e.source!==id&&e.target!==id)); if(selectedId===id) setSelectedId(null); };
-  const runNow = async(w: Workflow)=>{
-    try{ addToast(`Running "${w.name}"…`,'info'); const r=await apiService.runWorkflow(w.id); addToast(`Workflow ${r.status}: ${r.durationMs}ms` , r.status==='success'?'success':'error'); load(); if(builderWf?.id===w.id){ const rr=await apiService.getWorkflowRuns(w.id); setRuns(prev=>({...prev,[w.id]:rr})); } }catch(err:any){ addToast(err.response?.data?.error||'Run failed','error'); }
+  const lookupRunVar = (wf: Workflow, key: string): string => {
+    const fromWf = (wf.variables||[]).find((v:any)=>v.key===key)?.value;
+    if (fromWf !== undefined && fromWf !== '') return String(fromWf);
+    const envs = wf.environmentId ? [environments.find(e=>e.id===(wf as any).environmentId)] : environments;
+    for (const env of envs) {
+      const hit = env?.variables?.find((v:any)=>String(v.key||'').trim()===key && v.enabled!==false);
+      if (hit) return String(hit.value ?? '');
+    }
+    return '';
+  };
+  const collectRunVars = (wf: Workflow): {key:string,value:string}[] => {
+    const found = new Map<string, boolean>();
+    const scan = (s: string) => {
+      if (!s) return;
+      for (const m of s.matchAll(/\{\{([^}]+)\}\}/g)) { const k=(m[1]||'').trim(); if(k) found.set(k,true); }
+      for (const m of s.matchAll(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g)) { if(m[1]) found.set(m[1],true); }
+    };
+    for (const nd of (wf.nodes||[])) scan(JSON.stringify(nd.data||{}));
+    return [...found.keys()].map(k=>({ key:k, value: lookupRunVar(wf,k) }));
+  };
+  const openRunModal = (w: Workflow)=> setRunModal({ wf: w, vars: collectRunVars(w) });
+  const runNow = async(w: Workflow, variables?: Record<string,string>)=>{
+    if (runningIds.has(w.id)) return;
+    setRunningIds(prev=>new Set(prev).add(w.id));
+    try{
+      addToast(`Running "${w.name}"…`,'info');
+      const r=await apiService.runWorkflow(w.id, variables);
+      if (r.status==='success') addToast(`Workflow success: ${r.durationMs}ms`,'success');
+      else addToast(`Workflow failed: ${r.detail||r.durationMs+'ms'}`,'error',5000);
+      load();
+      if (expandedRun===w.id || builderWf?.id===w.id) {
+        try{ const rr=await apiService.getWorkflowRuns(w.id); setRuns(prev=>({...prev,[w.id]:rr})); }catch{}
+      }
+    }catch(err:any){ addToast(err.response?.data?.error||'Run failed','error'); }
+    finally{ setRunningIds(prev=>{ const n=new Set(prev); n.delete(w.id); return n; }); }
   };
   const loadRuns = async(id:string)=>{
     try{ const r=await apiService.getWorkflowRuns(id); setRuns(prev=>({...prev,[id]:r})); }catch{}
@@ -158,10 +193,35 @@ export const WorkflowsPanel: React.FC = () => {
   };
   const duplicate = async(w: Workflow)=>{
     if(!currentWorkspace) return;
-    try{ await apiService.createWorkflow(currentWorkspace.id, { name: w.name+' (copy)', description: w.description||undefined, trigger: w.trigger, nodes: w.nodes, edges: w.edges, variables: w.variables }); addToast('Workflow duplicated','success'); load(); }catch(err:any){ addToast(err.response?.data?.error||'Duplicate failed','error'); }
+    try{ await apiService.createWorkflow(currentWorkspace.id, { name: w.name+' (copy)', description: w.description||undefined, trigger: w.trigger, intervalMinutes: (w as any).intervalMinutes||undefined, scheduleCron: (w as any).scheduleCron||undefined, environmentId: (w as any).environmentId||undefined, enabled: w.enabled, nodes: w.nodes, edges: w.edges, variables: w.variables }); addToast('Workflow duplicated','success'); load(); }catch(err:any){ addToast(err.response?.data?.error||'Duplicate failed','error'); }
   };
 
   const selected = nodes.find(n=>n.id===selectedId) || null;
+  const wfEnv = (builderWf as any)?.environmentId ? environments.find(e=>e.id===(builderWf as any).environmentId) : null;
+  const runModalJsx = runModal && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60" onClick={()=>setRunModal(null)}>
+      <div className="bg-[var(--bg-panel)] border border-[var(--border-strong)] rounded w-full max-w-md overflow-hidden" onClick={e=>e.stopPropagation()}>
+        <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
+          <h3 className="text-sm font-bold text-[var(--text-primary)]">Run "{runModal.wf.name}"</h3>
+          <button onClick={()=>setRunModal(null)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><X className="w-4 h-4"/></button>
+        </div>
+        <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
+          <p className="text-[11px] text-[var(--text-secondary)]">Template variables found in nodes (prefilled from workflow variables + environment). Empty values stay empty — single-brace path params left blank keep their literal form.</p>
+          {runModal.vars.length===0 && <p className="text-xs text-[var(--text-secondary)] border border-dashed rounded p-3 text-center">No template variables detected. Environment + workflow variables will be used.</p>}
+          {runModal.vars.map((v,i)=>(
+            <label key={v.key} className="text-xs text-[var(--text-secondary)] block">
+              <span className="font-mono font-bold text-[var(--text-primary)]">{v.key}</span>
+              <input value={v.value} onChange={e=>{ const nv=[...runModal.vars]; nv[i]={...nv[i], value:e.target.value}; setRunModal({...runModal, vars:nv}); }} placeholder="(empty)" className="mt-1 w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)] font-mono" />
+            </label>
+          ))}
+        </div>
+        <div className="p-4 border-t border-[var(--border-subtle)] flex justify-end gap-2">
+          <button onClick={()=>setRunModal(null)} className="px-4 py-1.5 text-xs font-semibold text-[var(--text-secondary)]">Cancel</button>
+          <button disabled={runningIds.has(runModal.wf.id)} onClick={()=>{ const vars: Record<string,string> = {}; runModal.vars.forEach(x=>{ if(x.key) vars[x.key]=x.value; }); const wf=runModal.wf; setRunModal(null); runNow(wf, vars); }} className="px-4 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold disabled:opacity-50 flex items-center gap-1.5"><Play className="w-3.5 h-3.5"/>Run now</button>
+        </div>
+      </div>
+    </div>
+  );
 
   if(builderWf){
     const webhookUrl = builderWf.webhookToken ? `${window.location.origin}/api/workflows/webhook/${builderWf.webhookToken}` : null;
@@ -175,7 +235,7 @@ export const WorkflowsPanel: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={saveBuilder} className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--primary)] text-white rounded text-xs font-bold"><Save className="w-3.5 h-3.5"/>Save</button>
-            <button onClick={()=>runNow(builderWf)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold"><Play className="w-3.5 h-3.5"/>Run</button>
+            <button onClick={()=>openRunModal(builderWf)} disabled={runningIds.has(builderWf.id)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold disabled:opacity-50"><Play className="w-3.5 h-3.5"/>{runningIds.has(builderWf.id)?'Running…':'Run'}</button>
           </div>
         </div>
         <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-panel)] flex-wrap">
@@ -186,6 +246,14 @@ export const WorkflowsPanel: React.FC = () => {
           <div className="ml-auto flex items-center gap-2 text-xs">
             <span className="text-[var(--text-secondary)]">{nodes.length} nodes · {edges.length} edges {variables.length?`· ${variables.length} vars`:''}</span>
           </div>
+        </div>
+        <div className="px-3 py-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] flex items-center gap-2 text-xs flex-wrap">
+          <span className="font-bold">Environment:</span>
+          <select value={(builderWf as any)?.environmentId||''} onChange={async e=>{ const val=e.target.value; if(!builderWf) return; const updated={...builderWf, environmentId: val||null} as any; setBuilderWf(updated); try{ await apiService.updateWorkflow(builderWf.id, { environmentId: val||null }); }catch{} }} className="bg-[var(--bg-input)] border rounded px-2 py-1 text-xs min-w-[160px]">
+            <option value="">— None (use workflow variables) —</option>
+            {environments.map(env=> <option key={env.id} value={env.id}>{env.name} ({env.variables?.length||0} vars)</option>)}
+          </select>
+          {wfEnv ? (<span className="text-[var(--text-secondary)]">{wfEnv.variables?.filter((v:any)=>v.enabled!==false).length||0} vars injected at run · {"{{var}}"} interpolation</span>) : (<span className="text-[var(--text-secondary)]">No env selected — akan auto-ambil vars dari semua environment di workspace saat run ({"{{baseUrl}}"} tetap ter-resolve).</span>)}
         </div>
         {webhookUrl && <div className="px-3 py-2 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-2 text-xs flex-wrap">
           <Webhook className="w-3.5 h-3.5 text-amber-600"/><span className="font-bold">Webhook:</span>
@@ -247,13 +315,71 @@ export const WorkflowsPanel: React.FC = () => {
                 <label className="text-xs text-[var(--text-secondary)]">Label<input value={selected.label} onChange={e=>updateNode(selected.id!,{label:e.target.value})} className="mt-1 w-full bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs" /></label>
                 {selected.type==='request' && (
                   <div className="mt-3 space-y-2">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <label className="text-[11px] text-[var(--text-secondary)]">Collection
+                        <select value={selected.data.collectionId||''} onChange={e=>{
+                          const cid=e.target.value;
+                          if(!cid){ updateNodeData(selected.id!,{ collectionId: undefined, requestId: undefined }); return; }
+                          const col:any = collections.find(c=>c.id===cid) as any;
+                          const firstReq:any = col?.requests?.[0];
+                          if(firstReq){
+                            const hdrs = firstReq.headers ? JSON.parse(JSON.stringify(firstReq.headers)) : [];
+                            updateNodeData(selected.id!,{ collectionId: cid, requestId: firstReq.id, method: firstReq.method, url: firstReq.url, headers: hdrs, body: firstReq.body?.content ?? '' });
+                          } else {
+                            updateNodeData(selected.id!,{ collectionId: cid, requestId: undefined });
+                          }
+                        }} className="mt-1 w-full bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs">
+                          <option value="">— Manual URL —</option>
+                          {collections.map(c=> <option key={c.id} value={c.id}>{c.name} ({c.requests?.length||0})</option>)}
+                        </select>
+                      </label>
+                      {selected.data.collectionId ? (
+                        <label className="text-[11px] text-[var(--text-secondary)]">Request (API)
+                          <select value={selected.data.requestId||''} onChange={e=>{
+                            const rid=e.target.value;
+                            if(!rid){ updateNodeData(selected.id!,{ requestId: undefined }); return; }
+                            const col:any = collections.find(c=>c.id===selected.data.collectionId) as any;
+                            const r:any = col?.requests?.find((x:any)=> String(x.id)===String(rid));
+                            if(r){
+                              const hdrs = r.headers ? JSON.parse(JSON.stringify(r.headers)) : [];
+                              updateNodeData(selected.id!,{ requestId: rid, method: r.method, url: r.url, headers: hdrs, body: r.body?.content ?? '' });
+                            } else updateNodeData(selected.id!,{ requestId: rid });
+                          }} className="mt-1 w-full bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs">
+                            <option value="">— pick request —</option>
+                            {(collections.find(c=>c.id===selected.data.collectionId)?.requests||[]).map((r:any)=> <option key={r.id} value={r.id}>{r.method} {r.name} — {r.url||'/'}</option>)}
+                          </select>
+                        </label>
+                      ) : <span className="text-[11px] text-[var(--text-secondary)] self-end pb-1">Manual URL mode</span>}
+                    </div>
                     <div className="grid grid-cols-3 gap-1.5">
                       <select value={selected.data.method||'GET'} onChange={e=>updateNodeData(selected.id!,{method:e.target.value})} className="bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs font-bold">
                         {['GET','POST','PUT','PATCH','DELETE','HEAD'].map(m=><option key={m} value={m}>{m}</option>)}
                       </select>
                       <input value={selected.data.url||''} onChange={e=>updateNodeData(selected.id!,{url:e.target.value})} placeholder="https://api.example.com/…" className="col-span-2 bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs" />
                     </div>
-                    <label className="text-xs text-[var(--text-secondary)]">Body (supports {"{{var}}"})<textarea value={selected.data.body||''} onChange={e=>updateNodeData(selected.id!,{body:e.target.value})} rows={3} className="mt-1 w-full bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs font-mono" placeholder='{"key":"{{var}}"}' /></label>
+                    {selected.data.collectionId && selected.data.requestId && <div className="text-[11px] text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-1 flex items-center gap-1.5 flex-wrap">Linked to collection — auto-terisi dari API & environment ({"{{var}}"} dari workflow env). Tetap bisa diedit di bawah.
+                      <button onClick={()=>{
+                        const col:any = collections.find(c=>c.id===selected.data.collectionId) as any;
+                        const r:any = col?.requests?.find((x:any)=> String(x.id)===String(selected.data.requestId));
+                        if(r){ const hdrs = r.headers ? JSON.parse(JSON.stringify(r.headers)) : []; updateNodeData(selected.id!,{ method: r.method, url: r.url, headers: hdrs, body: r.body?.content ?? '' }); }
+                      }} className="ml-auto text-[11px] font-bold border bg-white rounded px-1.5 py-0.5">Reload dari API</button>
+                      <button onClick={()=>updateNodeData(selected.id!,{ collectionId: undefined, requestId: undefined })} className="text-[11px] border bg-white rounded px-1.5 py-0.5">Unlink</button>
+                    </div>}
+                    {/* Headers — auto-terisi, tetap editable */}
+                    <label className="text-xs text-[var(--text-secondary)]">Headers
+                      <div className="mt-1 space-y-1">
+                        {((selected.data.headers as any[])||[]).length===0 && <div className="text-[11px] text-[var(--text-secondary)]">Tidak ada header — otomatis dari API jika linked.</div>}
+                        {((selected.data.headers as any[])||[]).map((h:any, idx:number)=> (
+                          <div key={h.id||idx} className="flex gap-1.5">
+                            <input value={h.key||''} onChange={e=>{ const next=[...((selected.data.headers as any[])||[])]; next[idx]={...next[idx], key:e.target.value}; updateNodeData(selected.id!,{ headers: next }); }} placeholder="key" className="w-28 bg-[var(--bg-surface)] border rounded px-2 py-1 text-xs" />
+                            <input value={h.value||''} onChange={e=>{ const next=[...((selected.data.headers as any[])||[])]; next[idx]={...next[idx], value:e.target.value}; updateNodeData(selected.id!,{ headers: next }); }} placeholder="value ({{var}} ok)" className="flex-1 bg-[var(--bg-surface)] border rounded px-2 py-1 text-xs" />
+                            <button onClick={()=>{ const next=[...((selected.data.headers as any[])||[])]; next.splice(idx,1); updateNodeData(selected.id!,{ headers: next }); }} className="p-1 hover:text-[var(--danger)]"><Trash2 className="w-3 h-3"/></button>
+                          </div>
+                        ))}
+                        <button onClick={()=>{ const next=[...((selected.data.headers as any[])||[])]; next.push({ id: Math.random().toString(36).slice(2,8), key:'', value:'', enabled:true }); updateNodeData(selected.id!,{ headers: next }); }} className="text-[11px] font-bold text-[var(--primary)] flex items-center gap-1"><Plus className="w-3 h-3"/>Add header</button>
+                      </div>
+                    </label>
+                    <label className="text-xs text-[var(--text-secondary)]">Body (supports {"{{var}}"} )<textarea value={selected.data.body||''} onChange={e=>updateNodeData(selected.id!,{body:e.target.value})} rows={3} className="mt-1 w-full bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs font-mono" placeholder='{"key":"{{var}}"}' /></label>
                     <label className="text-xs text-[var(--text-secondary)]">Extract (optional)<div className="grid grid-cols-2 gap-1.5 mt-1"><input value={selected.data.extractVar||''} onChange={e=>updateNodeData(selected.id!,{extractVar:e.target.value})} placeholder="varName" className="bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs" /><input value={selected.data.extractPath||''} onChange={e=>updateNodeData(selected.id!,{extractPath:e.target.value})} placeholder="$.data.token" className="bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs" /></div></label>
                   </div>
                 )}
@@ -268,6 +394,7 @@ export const WorkflowsPanel: React.FC = () => {
             </div>
           </div>
         </div>
+        {runModalJsx}
       </div>
     );
   }
@@ -314,7 +441,7 @@ export const WorkflowsPanel: React.FC = () => {
                 <div className="text-xs text-[var(--text-secondary)] truncate">{w.nodes?.length||0} nodes · {w.edges?.length||0} edges {w.description?`· ${w.description}`:''}</div>
               </button>
               <button onClick={()=>openBuilder(w)} className="px-2 py-1 border rounded text-xs font-bold hover:bg-[var(--bg-panel)] flex items-center gap-1"><GitBranch className="w-3.5 h-3.5"/>Open</button>
-              <button onClick={()=>runNow(w)} className="p-1.5 hover:text-[var(--primary)]"><Play className="w-4 h-4"/></button>
+              <button onClick={()=>openRunModal(w)} disabled={runningIds.has(w.id)} className="p-1.5 hover:text-[var(--primary)] disabled:opacity-40" title={runningIds.has(w.id)?'Running…':'Run workflow'}><Play className="w-4 h-4"/></button>
               <button onClick={()=>setEditing(w)} className="p-1.5 hover:text-[var(--primary)]"><Settings2 className="w-4 h-4"/></button>
               <button onClick={()=>duplicate(w)} className="p-1.5 hover:text-[var(--primary)]"><Copy className="w-4 h-4"/></button>
               <button onClick={()=>remove(w)} className="p-1.5 hover:text-[var(--danger)]"><Trash2 className="w-4 h-4"/></button>
@@ -337,6 +464,7 @@ export const WorkflowsPanel: React.FC = () => {
           </div>
         ))}
       </div>
+      {runModalJsx}
     </div>
   );
 };

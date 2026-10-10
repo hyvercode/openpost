@@ -209,6 +209,7 @@ model Workflow {
   scheduleCron String?
   intervalMinutes Int?
   webhookToken String?  @unique
+  environmentId String?
   nodes        String   @default("[]")
   edges        String   @default("[]")
   variables    String   @default("[]")
