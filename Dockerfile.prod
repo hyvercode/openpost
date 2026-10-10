@@ -16,6 +16,7 @@ RUN npm install
 # Dummy DATABASE_URL khusus build-time agar `prisma generate` tidak error.
 # BUKAN kredensial asli — jangan taruh secret di Dockerfile (masuk layer image).
 # Kredensial runtime disuntik via environment (compose file / secrets manager).
+ARG BUILD_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/openpost?schema=public"
 ENV DATABASE_URL=${BUILD_DATABASE_URL}
 
 # Generate Prisma Client (Sesuaikan jika di package.json Anda namanya 'db:setup')
@@ -24,13 +25,8 @@ RUN npx prisma generate
 # Copy SISA seluruh source code aplikasi (Ditaruh SEBELUM build)
 COPY . .
 
-# Build aplikasi (Vite / Server bundle).
-# Frontend hanya butuh VITE_* saat build (di-bake ke JS) — oper via build-arg
-# agar secret server (.env.production) tidak masuk layer image.
-# .env.production TETAP sumber env saat `npm run build` lokal (lihat vite.config.ts
-# + server/src/env.ts); di Docker, runtime secret datang dari compose env_file.
-ARG VITE_GOOGLE_CLIENT_ID="825376447461-ja64etla2448dh604n0fssmitfl4ca3r.apps.googleusercontent.com"
-ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+# Build aplikasi (Vite / Server bundle)
+ENV VITE_GOOGLE_CLIENT_ID="825376447461-ja64etla2448dh604n0fssmitfl4ca3r.apps.googleusercontent.com"
 
 RUN npm run build
 #RUN npm run build:electron:all
