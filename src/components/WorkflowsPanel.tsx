@@ -85,7 +85,7 @@ export const WorkflowsPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Workflow|null>(null);
-  const [form, setForm] = useState({ name:'', description:'', trigger:'manual' as Workflow['trigger'], intervalMinutes:60 });
+  const [form, setForm] = useState({ name:'', description:'', trigger:'manual' as Workflow['trigger'], intervalMinutes:60, environmentId:'' });
   const [builderWf, setBuilderWf] = useState<Workflow|null>(null);
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [edges, setEdges] = useState<WorkflowEdge[]>([]);
@@ -107,14 +107,14 @@ export const WorkflowsPanel: React.FC = () => {
     e.preventDefault();
     if(!currentWorkspace || !form.name.trim()){ addToast('Name required','error'); return; }
     try{
-      await apiService.createWorkflow(currentWorkspace.id, { name: form.name.trim(), description: form.description.trim()||undefined, trigger: form.trigger, intervalMinutes: form.trigger==='schedule'?Number(form.intervalMinutes):undefined, nodes:[], edges:[], variables:[] });
-      setShowCreate(false); setForm({ name:'', description:'', trigger:'manual', intervalMinutes:60 }); addToast('Workflow created','success'); load();
+      await apiService.createWorkflow(currentWorkspace.id, { name: form.name.trim(), description: form.description.trim()||undefined, trigger: form.trigger, intervalMinutes: form.trigger==='schedule'?Number(form.intervalMinutes):undefined, environmentId: form.environmentId||undefined, nodes:[], edges:[], variables:[] });
+      setShowCreate(false); setForm({ name:'', description:'', trigger:'manual', intervalMinutes:60, environmentId:'' }); addToast('Workflow created','success'); load();
     }catch(err:any){ addToast(err.response?.data?.error||'Create failed','error'); }
   };
   const handleUpdateMeta = async()=>{
     if(!editing) return;
     try{
-      await apiService.updateWorkflow(editing.id, { name: editing.name, description: editing.description||'', trigger: editing.trigger, intervalMinutes: editing.intervalMinutes, enabled: editing.enabled });
+      await apiService.updateWorkflow(editing.id, { name: editing.name, description: editing.description||'', trigger: editing.trigger, intervalMinutes: editing.intervalMinutes, enabled: editing.enabled, environmentId: (editing as any).environmentId||null });
       addToast('Workflow updated','success'); setEditing(null); load();
     }catch(err:any){ addToast(err.response?.data?.error||'Update failed','error'); }
   };
@@ -148,6 +148,17 @@ export const WorkflowsPanel: React.FC = () => {
   };
   const updateNode = (id:string, patch: Partial<WorkflowNode>)=> setNodes(nodes.map(n=>n.id===id?{...n,...patch}:n));
   const updateNodeData = (id:string, dataPatch: Record<string,any>)=> setNodes(nodes.map(n=>n.id===id?{...n, data:{...n.data, ...dataPatch}}:n));
+  // Map a collection request into node fields (method/url/headers/params/body).
+  // Body: raw content as-is; x-www-form-urlencoded formData serialized when content empty.
+  const fillFromRequest = (r: any) => {
+    const hdrs = r.headers ? JSON.parse(JSON.stringify(r.headers)) : [];
+    const prms = (r as any).params ? JSON.parse(JSON.stringify((r as any).params)) : [];
+    let body: string = r.body?.content ?? '';
+    if ((!body || !String(body).trim()) && r.body?.type === 'x-www-form-urlencoded' && Array.isArray(r.body?.formData)) {
+      body = r.body.formData.filter((f:any)=>f?.key).map((f:any)=>encodeURIComponent(f.key)+'='+encodeURIComponent(f.value??'')).join('&');
+    }
+    return { method: r.method, url: r.url, headers: hdrs, params: prms, body };
+  };
   const deleteNode = (id:string)=>{ setNodes(nodes.filter(n=>n.id!==id)); setEdges(edges.filter(e=>e.source!==id&&e.target!==id)); if(selectedId===id) setSelectedId(null); };
   const lookupRunVar = (wf: Workflow, key: string): string => {
     const fromWf = (wf.variables||[]).find((v:any)=>v.key===key)?.value;
@@ -323,8 +334,7 @@ export const WorkflowsPanel: React.FC = () => {
                           const col:any = collections.find(c=>c.id===cid) as any;
                           const firstReq:any = col?.requests?.[0];
                           if(firstReq){
-                            const hdrs = firstReq.headers ? JSON.parse(JSON.stringify(firstReq.headers)) : [];
-                            updateNodeData(selected.id!,{ collectionId: cid, requestId: firstReq.id, method: firstReq.method, url: firstReq.url, headers: hdrs, body: firstReq.body?.content ?? '' });
+                            updateNodeData(selected.id!,{ collectionId: cid, requestId: firstReq.id, ...fillFromRequest(firstReq) });
                           } else {
                             updateNodeData(selected.id!,{ collectionId: cid, requestId: undefined });
                           }
@@ -341,8 +351,7 @@ export const WorkflowsPanel: React.FC = () => {
                             const col:any = collections.find(c=>c.id===selected.data.collectionId) as any;
                             const r:any = col?.requests?.find((x:any)=> String(x.id)===String(rid));
                             if(r){
-                              const hdrs = r.headers ? JSON.parse(JSON.stringify(r.headers)) : [];
-                              updateNodeData(selected.id!,{ requestId: rid, method: r.method, url: r.url, headers: hdrs, body: r.body?.content ?? '' });
+                              updateNodeData(selected.id!,{ requestId: rid, ...fillFromRequest(r) });
                             } else updateNodeData(selected.id!,{ requestId: rid });
                           }} className="mt-1 w-full bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs">
                             <option value="">— pick request —</option>
@@ -361,7 +370,7 @@ export const WorkflowsPanel: React.FC = () => {
                       <button onClick={()=>{
                         const col:any = collections.find(c=>c.id===selected.data.collectionId) as any;
                         const r:any = col?.requests?.find((x:any)=> String(x.id)===String(selected.data.requestId));
-                        if(r){ const hdrs = r.headers ? JSON.parse(JSON.stringify(r.headers)) : []; updateNodeData(selected.id!,{ method: r.method, url: r.url, headers: hdrs, body: r.body?.content ?? '' }); }
+                        if(r){ updateNodeData(selected.id!,{ ...fillFromRequest(r) }); }
                       }} className="ml-auto text-[11px] font-bold border bg-white rounded px-1.5 py-0.5">Reload dari API</button>
                       <button onClick={()=>updateNodeData(selected.id!,{ collectionId: undefined, requestId: undefined })} className="text-[11px] border bg-white rounded px-1.5 py-0.5">Unlink</button>
                     </div>}
@@ -390,7 +399,7 @@ export const WorkflowsPanel: React.FC = () => {
               </div>
             )}
             <div className="text-[11px] text-[var(--text-secondary)] leading-relaxed border border-[var(--border-subtle)] rounded p-2 bg-[var(--bg-panel)]">
-              <strong>How it runs:</strong> DAG level-by-level, parallel within same level. Request nodes use SSRF-safe fetch with {"{{var}}"} interpolation. Branch via condition. Webhook: POST to URL with JSON vars. Schedule via interval.
+              <strong>Chain recipe:</strong> login (request + Extract token=$.data.token) → condition {"{{lastStatus}}"} == 200 → true → profile (header Authorization: Bearer {"{{token}}"}). Gagal = run failed & cabang false jalan; cabang kosong = end.
             </div>
           </div>
         </div>
@@ -415,7 +424,8 @@ export const WorkflowsPanel: React.FC = () => {
           <label className="text-xs text-[var(--text-secondary)]">Name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" required placeholder="Login → Create → Verify" /></label>
           <label className="text-xs text-[var(--text-secondary)]">Trigger<select value={form.trigger} onChange={e=>setForm({...form,trigger:e.target.value as any})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs"><option value="manual">Manual</option><option value="webhook">Webhook</option><option value="schedule">Schedule</option></select></label>
           {form.trigger==='schedule' && <label className="text-xs text-[var(--text-secondary)]">Interval (min, ≥5)<input type="number" min={5} max={1440} value={form.intervalMinutes} onChange={e=>setForm({...form,intervalMinutes:Number(e.target.value)})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" /></label>}
-          <label className="text-xs text-[var(--text-secondary)] md:col-span-3">Description<input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" placeholder="Optional" /></label>
+          <label className="text-xs text-[var(--text-secondary)]">Environment (required for {"{{var}}"} in URLs)<select value={form.environmentId} onChange={e=>setForm({...form,environmentId:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs"><option value="">— Select environment —</option>{environments.map(env=><option key={env.id} value={env.id}>{env.name}</option>)}</select></label>
+          <label className="text-xs text-[var(--text-secondary)] md:col-span-2">Description<input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" placeholder="Optional" /></label>
           <div className="md:col-span-3"><button type="submit" className="px-4 py-1.5 bg-[var(--primary)] text-white rounded text-xs font-bold">Create</button></div>
         </form>
       )}
@@ -425,7 +435,8 @@ export const WorkflowsPanel: React.FC = () => {
           <label className="text-xs">Name<input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" /></label>
           <label className="text-xs">Trigger<select value={editing.trigger} onChange={e=>setEditing({...editing,trigger:e.target.value as any})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs"><option value="manual">Manual</option><option value="webhook">Webhook</option><option value="schedule">Schedule</option></select></label>
           <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={!!editing.enabled} onChange={e=>setEditing({...editing,enabled:e.target.checked})} />Enabled</label>
-          <label className="text-xs md:col-span-3">Description<input value={editing.description||''} onChange={e=>setEditing({...editing,description:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" /></label>
+          <label className="text-xs">Environment<select value={(editing as any).environmentId||''} onChange={e=>setEditing({...editing, environmentId: e.target.value||null} as any)} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs"><option value="">— None —</option>{environments.map(env=><option key={env.id} value={env.id}>{env.name}</option>)}</select></label>
+          <label className="text-xs md:col-span-2">Description<input value={editing.description||''} onChange={e=>setEditing({...editing,description:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" /></label>
           <div className="md:col-span-3 flex gap-2"><button onClick={handleUpdateMeta} className="px-3 py-1.5 bg-[var(--primary)] text-white rounded text-xs font-bold flex items-center gap-1"><Save className="w-3.5 h-3.5"/>Save</button><button onClick={()=>setEditing(null)} className="px-3 py-1.5 border rounded text-xs">Cancel</button></div>
         </div>
       )}

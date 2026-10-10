@@ -128,9 +128,15 @@ async function execRequestNode(node: WfNode, vars: Record<string,string>, logs: 
   const { urlObj, targetIp } = await assertUrlSafe(urlStr);
   const headers: Record<string,string> = {};
   for (const h of (resolved.headers || [])) if (h?.key) headers[h.key] = interpolate(String(h.value ?? ''), vars);
-  delete headers['authorization']; delete headers['cookie'];
+  // NOTE: no Authorization/Cookie stripping here (unlike /api/proxy). Workflow
+  // headers are explicit user configuration (e.g. "Authorization: Bearer {{token}}"
+  // from a login extract) — sending them to the SSRF-checked target is the point.
   let data: any = resolved.body ? interpolate(String(resolved.body), vars) : undefined;
-  if (data) try { data = JSON.parse(data); } catch {}
+  let parsedObj = false;
+  if (data) try { data = JSON.parse(data); parsedObj = typeof data === 'object'; } catch {}
+  if (parsedObj && !Object.keys(headers).some(k => k.toLowerCase() === 'content-type')) {
+    headers['Content-Type'] = 'application/json';
+  }
   const lookup = createPinnedLookup(urlObj.hostname, targetIp);
   const t0 = Date.now();
   const res = await axios({
@@ -142,7 +148,11 @@ async function execRequestNode(node: WfNode, vars: Record<string,string>, logs: 
   });
   const duration = Date.now() - t0;
   const passed = res.status >= 200 && res.status < 400;
-  logs.push({ nodeId: node.id, label: node.label, type: 'request', method, url: urlObj.toString(), status: res.status, duration, passed });
+  // Include truncated response body/headers in logs so users can map
+  // extract paths ($.data.token) for conditions and downstream nodes.
+  let respPreview: string;
+  try { respPreview = (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)); } catch { respPreview = String(res.data ?? ''); }
+  logs.push({ nodeId: node.id, label: node.label, type: 'request', method, url: urlObj.toString(), status: res.status, duration, passed, responseBody: respPreview.slice(0, 4000), responseHeaders: res.headers });
   const cfg = node.data || {};
   if (cfg.extractPath && cfg.extractVar) {
     const val = getByPath(res.data, String(cfg.extractPath));
@@ -231,8 +241,11 @@ export class WorkflowService {
     const varsList: any[] = parseJson(wf.variables,'[]');
     const vars: Record<string,string> = {};
     for (const v of varsList) if (v?.key) vars[v.key]= String(v.value??'');
-    // Workflow environment — inject vars for {{baseUrl}} etc. Trim keys (DB has "core-url\n").
-    // Selected env first, then fallback fill missing keys from all envs (so {{baseUrl}} never empty).
+    // Workflow environment is the ONLY env source (plus workflow vars + trigger).
+    // No cross-env fallback: several envs may define the same key (baseUrl) with
+    // different values — merging them picks the wrong host nondeterministically.
+    // Without a selected env, {{vars}} stay empty and the unresolved-variable
+    // error tells the user exactly which env to select.
     const selectedEnvId = (wf as any).environmentId ? String((wf as any).environmentId) : null;
     if (selectedEnvId) {
       try {
@@ -243,19 +256,6 @@ export class WorkflowService {
         }
       } catch {}
     }
-    // Fallback fill any missing keys from workspace envs (covers workflow without env selection, or selected env missing baseUrl)
-    try {
-      const envs: any[] = await prisma.environment.findMany({ where: { workspaceId: String(wf.workspaceId), deletedAt: null } as any });
-      for (const env of envs) {
-        if (selectedEnvId && String(env.id)===selectedEnvId) continue;
-        const evs = JSON.parse(env.variables || '[]');
-        for (const v of evs) {
-          const k = String(v.key||'').trim();
-          if (!k || v.enabled===false || k in vars) continue;
-          vars[k] = String(v.value ?? '');
-        }
-      }
-    } catch {}
     Object.assign(vars, triggerVars);
     // Check cycles
     if (this.hasCycle(nodes, edges)) throw new Error('Workflow has a cycle');
