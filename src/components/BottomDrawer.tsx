@@ -256,7 +256,7 @@ export function BottomDrawer() {
       }
 
       case 'version':
-        addTerminalHistory('OpenPost Engine: v1.0.0-PRO_STABLE');
+        addTerminalHistory('OpenPost Engine: v2.0.0-PRO_STABLE');
         addTerminalHistory('Environment: Cloud Run Sandbox Container');
         addTerminalHistory('Database: Firestore Persistent Schema');
         addTerminalHistory('Target Port: 3000 Ingress Routing Layer');

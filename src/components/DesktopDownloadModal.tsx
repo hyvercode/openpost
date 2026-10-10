@@ -45,7 +45,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
     // (see .github/workflows/build-desktop.yml) and published as GitHub
     // Release assets. There is no binary bundled in the web app, so we
     // must NOT generate a fake Blob file here — that produces a text file
-    // that fails when executed (e.g. "./OpenPost-1.0.0.AppImage: 1:
+    // that fails when executed (e.g. "./OpenPost-2.0.0.AppImage: 1:
     // OpenPost: not found"). Redirect to the real release assets instead.
     window.open(GITHUB_RELEASES_URL, '_blank', 'noopener,noreferrer');
 
@@ -57,7 +57,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
       id: 'windows' as const,
       name: 'Windows',
       badge: 'Windows 10 / 11 (64-bit)',
-      filename: 'OpenPost-1.0.0.exe',
+      filename: 'OpenPost-2.0.0.exe',
       size: '~150 MB',
       icon: (
         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -65,13 +65,13 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
         </svg>
       ),
       description: 'Portable Windows build — no install needed, just run.',
-      installGuide: 'OpenPost-1.0.0.exe',
+      installGuide: 'OpenPost-2.0.0.exe',
     },
     {
       id: 'mac' as const,
       name: 'macOS',
       badge: 'Apple Silicon (M1/M2/M3) & Intel',
-      filename: 'OpenPost-1.0.0-mac.zip',
+      filename: 'OpenPost-2.0.0-mac.zip',
       size: '~500 MB',
       icon: (
         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -79,13 +79,13 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
         </svg>
       ),
       description: 'macOS zip build. Extract and move to Applications.',
-      installGuide: 'unzip OpenPost-1.0.0-mac.zip',
+      installGuide: 'unzip OpenPost-2.0.0-mac.zip',
     },
     {
       id: 'linux' as const,
       name: 'Linux',
       badge: 'Ubuntu / Debian / Fedora / Arch',
-      filename: 'OpenPost-1.0.0.AppImage',
+      filename: 'OpenPost-2.0.0.AppImage',
       size: '~280 MB',
       icon: (
         <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -93,7 +93,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
         </svg>
       ),
       description: 'Standalone AppImage for Linux distros.',
-      installGuide: 'chmod +x OpenPost-1.0.0.AppImage && ./OpenPost-1.0.0.AppImage',
+      installGuide: 'chmod +x OpenPost-2.0.0.AppImage && ./OpenPost-2.0.0.AppImage',
     },
   ];
 
@@ -119,7 +119,7 @@ export const DesktopDownloadModal: React.FC<DesktopDownloadModalProps> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">Download OpenPost Desktop</h2>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--primary)] bg-[var(--primary)]/15 px-2 py-0.5 rounded-md border border-[var(--primary)]/30">
-                  v1.0.0
+                  v2.0.0
                 </span>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">Native, offline-first client with embedded backend &amp; local database</p>

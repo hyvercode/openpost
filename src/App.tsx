@@ -1318,7 +1318,7 @@ export default function App() {
               </div>
             </div>
             <div className="w-px h-3 bg-[var(--border-subtle)]" />
-            <span>v1.0.0 Desktop</span>
+            <span>v2.0.0 Desktop</span>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">

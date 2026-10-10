@@ -1,10 +1,34 @@
-# Release Notes - API Tester Pro v1.0.0
+# Release Notes - API Tester Pro
 
-Selamat datang di perilisan perdana **API Tester Pro v1.0.0**! Aplikasi API Testing & Client tingkat lanjut (Postman alternative) ini telah dilengkapi dengan beragam fitur mutakhir untuk mempermudah alur kerja pengembangan API, pengujian otomatis, simulasi server, hingga kolaborasi tim.
+## 🚀 v2.0.0 (10 Oktober 2026)
+
+### 1. Automation Workflows (Full DAG)
+- **Visual Workflow Builder**: Susun alur pengujian API sebagai graf (drag node, connect edge) dengan node Request, Condition, Delay, Extract, dan Set Variable.
+- **Branch & Parallel**: Kondisi true/false (`{{lastStatus}} == 200`), eksekusi paralel dalam satu level, dan deteksi cycle otomatis.
+- **Chaining Variabel**: Extract value dari response (`$.data.token`), rangkai via Set Variable (`Bearer {{token}}`), pakai di node berikutnya — mis. login → condition → get profile.
+- **Trigger Manual / Webhook / Schedule**: Jalankan manual (dengan modal pengisian variabel), via webhook URL bertoken, atau terjadwal per interval dengan scheduler + overlap guard.
+- **Terhubung Koleksi & Environment**: Node request bisa dipilih langsung dari collection/API, auto-fill method/URL/headers/params/body (tetap bisa diedit), dan environment workflow meng-inject `{{var}}` saat run.
+- **Run History & Rate Limit**: Riwayat eksekusi per workflow, anti-spam run, dan batasan laju eksekusi.
+
+### 2. Provider AI Lebih Lengkap + Pengaturan di UI
+- **4 Provider**: Gemini, OpenAI, Ollama (lokal), dan Custom OpenAI-compatible — diatur lewat **Settings → AI** (provider, model, API key, base URL) tanpa edit file env.
+- **Hardening AI**: Validasi SSRF untuk base URL kustom, API key tidak pernah bocor ke log/error, validasi input zod, dan kuota bulanan.
+
+### 3. Perbaikan Collection & Sidebar
+- **Drag-and-drop reorder** collection/environment kini benar-benar tersimpan (persist ke database).
+- **Pindah folder antar collection** (termasuk subtree + request di dalamnya).
+
+### 4. Deploy & Operasional
+- **Sumber env produksi tunggal**: `npm run build` / `npm start` selalu memakai `.env.production` (dev tetap `.env`); secret runtime tidak tertanam di image Docker.
+- **CORS multi-origin**: `CORS_ORIGINS` koma-separated untuk deploy multi-DNS, plus log origin yang diblokir agar mudah diagnosa.
 
 ---
 
 ## 🚀 Ringkasan Fitur v1.0.0
+
+Selamat datang di perilisan perdana **API Tester Pro v1.0.0**! Aplikasi API Testing & Client tingkat lanjut (Postman alternative) ini telah dilengkapi dengan beragam fitur mutakhir untuk mempermudah alur kerja pengembangan API, pengujian otomatis, simulasi server, hingga kolaborasi tim.
+
+---
 
 ### 1. Manajemen Workspace & Kolaborasi Tim
 - **Role-Based Workspaces**: Kelola workspace pribadi maupun tim dengan pembagian peran (Owner / Admin / Editor / Viewer) yang ditegakkan di sisi server, lengkap dengan undangan terverifikasi email dan deteksi konflik edit bersamaan.

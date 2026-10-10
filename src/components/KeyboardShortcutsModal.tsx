@@ -85,7 +85,7 @@ export function KeyboardShortcutsModal() {
               <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
                 Keyboard Shortcuts & Hotkeys
                 <span className="text-[10px] font-mono bg-[var(--primary)]/10 text-[var(--primary)] px-2 py-0.5 rounded-full border border-[var(--primary)]/20 font-semibold">
-                  v1.0.0
+                  v2.0.0
                 </span>
               </h3>
               <p className="text-[11px] text-[var(--text-secondary)]">

@@ -1,7 +1,7 @@
 {
   "name": "openpost",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "OpenPost Desktop - offline-first API testing client with embedded backend and local database",
   "author": "hyvercode",
   "type": "module",

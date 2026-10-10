@@ -367,11 +367,11 @@ export function AuthScreen() {
   const getOSDownloadInfo = () => {
     switch (detectedOS) {
       case 'mac':
-        return { name: 'macOS', file: 'OpenPost-1.0.0-mac.zip', ext: '.zip' };
+        return { name: 'macOS', file: 'OpenPost-2.0.0-mac.zip', ext: '.zip' };
       case 'linux':
-        return { name: 'Linux', file: 'OpenPost-1.0.0.AppImage', ext: '.AppImage' };
+        return { name: 'Linux', file: 'OpenPost-2.0.0.AppImage', ext: '.AppImage' };
       default:
-        return { name: 'Windows', file: 'OpenPost-1.0.0.exe', ext: '.exe' };
+        return { name: 'Windows', file: 'OpenPost-2.0.0.exe', ext: '.exe' };
     }
   };
 
@@ -732,7 +732,7 @@ export function AuthScreen() {
               <div className="flex items-baseline gap-2">
                 <span className="font-bold text-base tracking-tight text-[var(--text-primary)]">OpenPost</span>
                 <span className="text-[10px] font-semibold text-[var(--success)] bg-[var(--success)]/10 px-1.5 py-0.5 rounded border border-[var(--success)]/20">
-                  Desktop v1.0.0
+                  Desktop v2.0.0
                 </span>
               </div>
             </div>

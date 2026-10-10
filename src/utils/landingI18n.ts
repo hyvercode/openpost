@@ -95,7 +95,7 @@ export const LANDING_I18N: Record<Language, LandingTranslation> = {
     },
     hero: {
       kicker: 'Platform API Open Source',
-      version: 'Versi 1.0.0',
+      version: 'Versi 2.0.0',
       offlineFirst: 'Offline First',
       title: 'Ruang kerja API yang ringan dan offline-first untuk developer.',
       subtitle: 'Desain, uji coba, dan otomatisasi endpoint REST, GraphQL, WebSocket, dan SSE tanpa hambatan cloud. Berjalan mandiri di desktop Anda dengan backend tersemat dan database SQLite, atau berkolaborasi langsung bersama tim.',
@@ -176,7 +176,7 @@ export const LANDING_I18N: Record<Language, LandingTranslation> = {
     },
     hero: {
       kicker: 'Open Source API Client',
-      version: 'Version 1.0.0',
+      version: 'Version 2.0.0',
       offlineFirst: 'Offline First',
       title: 'The lightweight, offline-first API workspace for engineers.',
       subtitle: 'Design, debug, and automate REST, GraphQL, WebSocket, and SSE endpoints with zero cloud friction. Run standalone on your desktop with an embedded offline backend and SQLite database, or collaborate with your team in real time.',
