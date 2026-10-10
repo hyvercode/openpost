@@ -107,16 +107,29 @@ async function startServer() {
   app.disable('x-powered-by');
 
   // Restrict CORS instead of reflecting any origin.
+  // Set CORS_ORIGINS (comma-separated, e.g. "https://app.example.com,https://admin.example.com")
+  // when the public DNS differs from APP_URL; APP_URL alone is the default.
+  const normalizeOrigin = (s: string): string => {
+    const t = s.trim().replace(/\/+$/, '');
+    try {
+      const u = new URL(t);
+      return `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}`;
+    } catch {
+      return t;
+    }
+  };
   const allowedOrigins = (process.env.CORS_ORIGINS || process.env.APP_URL || 'http://localhost:3000')
     .split(',')
-    .map((s) => s.trim())
+    .map(normalizeOrigin)
     .filter(Boolean);
+  console.log(`[cors] allowed origins: ${allowedOrigins.join(', ') || '(none)'}`);
   app.use(
     cors({
       origin: (origin, cb) => {
         // Same-origin / non-browser (curl, Electron) have no Origin header.
         if (!origin) return cb(null, true);
-        if (allowedOrigins.includes(origin)) return cb(null, true);
+        if (allowedOrigins.includes(normalizeOrigin(origin))) return cb(null, true);
+        console.warn(`[cors] blocked origin: ${origin} (set CORS_ORIGINS or APP_URL to allow it)`);
         return cb(new Error('CORS: origin not allowed'));
       },
       credentials: true,
