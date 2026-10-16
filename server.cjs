@@ -10780,10 +10780,10 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         break;
       }
     }
-    if (!filePath && (filename.includes("js") || filename.includes("node"))) {
+    if (!filePath && (filename.includes("js") || filename.includes("cjs") || filename.includes("node"))) {
       const fallbackCandidates2 = [
-        import_path2.default.join(APP_ROOT, "agent", "desktop-agent.js"),
-        import_path2.default.join(process.cwd(), "agent", "desktop-agent.js")
+        import_path2.default.join(APP_ROOT, "agent", "desktop-agent.cjs"),
+        import_path2.default.join(process.cwd(), "agent", "desktop-agent.cjs")
       ];
       filePath = fallbackCandidates2.find((c) => import_fs2.default.existsSync(c)) || "";
     }
@@ -10791,7 +10791,7 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
       if (filename.endsWith(".exe")) {
         res.setHeader("Content-Type", "application/vnd.microsoft.portable-executable");
-      } else if (filename.endsWith(".js")) {
+      } else if (filename.endsWith(".js") || filename.endsWith(".cjs")) {
         res.setHeader("Content-Type", "application/javascript");
       } else {
         res.setHeader("Content-Type", "application/octet-stream");
@@ -10799,12 +10799,12 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       return res.sendFile(filePath);
     }
     const fallbackCandidates = [
-      import_path2.default.join(APP_ROOT, "agent", "desktop-agent.js"),
-      import_path2.default.join(process.cwd(), "agent", "desktop-agent.js")
+      import_path2.default.join(APP_ROOT, "agent", "desktop-agent.cjs"),
+      import_path2.default.join(process.cwd(), "agent", "desktop-agent.cjs")
     ];
     const fallbackScript = fallbackCandidates.find((c) => import_fs2.default.existsSync(c)) || fallbackCandidates[0];
     if (import_fs2.default.existsSync(fallbackScript)) {
-      res.setHeader("Content-Disposition", `attachment; filename="desktop-agent.js"`);
+      res.setHeader("Content-Disposition", `attachment; filename="desktop-agent.cjs"`);
       res.setHeader("Content-Type", "application/javascript");
       return res.sendFile(fallbackScript);
     }

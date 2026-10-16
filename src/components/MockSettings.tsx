@@ -4,6 +4,7 @@ import { ApiCollection, MockConfig, RequestItem } from '../types';
 import { Server, Shield, Zap, Copy, Check, Globe, AlertCircle, Save, ToggleLeft, ToggleRight, Info, Lock, Key, Clock, ChevronDown, ChevronUp, Trash2, Edit } from 'lucide-react';
 import { cn } from '../utils';
 import { apiService } from '../lib/api';
+import { persistCollectionRequests } from '../lib/collectionSync';
 
 interface MockSettingsProps {
   collection: ApiCollection;
@@ -265,15 +266,22 @@ export function MockSettings({ collection }: MockSettingsProps) {
 
   const handleSaveRequestMock = async (updatedReq: RequestItem) => {
     try {
-      const updatedRequests = collection.requests.map(r => r.id === updatedReq.id ? updatedReq : r);
-      await apiService.updateCollection(collection.id, {
-        requests: updatedRequests
-      });
-      
-      const { collections, setCollections } = useStore.getState();
-      setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
-      
-      addToast('Mock response updated', 'success', 2000);
+      // Only the edited mockResponse is taken from the child; everything
+      // else is merged onto the freshest stored copy so a concurrent
+      // request save is never overwritten with stale fields.
+      const res = await persistCollectionRequests(collection.id, updatedReq.id, (fresh) => ({
+        ...fresh,
+        mockResponse: updatedReq.mockResponse,
+      }));
+      if (!res) {
+        addToast('Parent collection not found', 'error');
+        return;
+      }
+      addToast(
+        res.keptLocal ? 'Mock response updated' : 'Cloud version kept — mock not applied',
+        res.keptLocal ? 'success' : 'warning',
+        2000
+      );
     } catch (error) {
       console.error("Failed to save request mock:", error);
       addToast('Failed to update mock response', 'error');

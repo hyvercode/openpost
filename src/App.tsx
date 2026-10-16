@@ -675,7 +675,7 @@ export default function App() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.745 3.745 0 011.043 3.296A3.745 3.745 0 0121 12z" />
             </svg>
           </div>
-          <h2 className="text-sm font-semibold text-white mb-1">Authorization Successful!</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-1">Authorization Successful!</h2>
           <p className="text-xs text-[var(--text-tertiary)] mb-4">You have successfully authenticated with the provider.</p>
           <p className="text-[10px] text-[var(--text-tertiary)] animate-pulse">This window will close automatically in a moment...</p>
         </div>

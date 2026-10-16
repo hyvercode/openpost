@@ -5,6 +5,9 @@
   --font-mono: "Ubuntu Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+/* `dark:` variant follows `.theme-dark` class (default is prefers-color-scheme). */
+@custom-variant dark (&:where(.theme-dark, .theme-dark *));
+
 /* ============================================================
    OpenPost ERP Theme — Ubuntu professional (flat, no gradients)
    Two themes only: Ubuntu Light (white) and Ubuntu Dark.
@@ -16,15 +19,16 @@
   --font-sans: "Ubuntu", "Ubuntu Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "Ubuntu Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --radius: 4px;
-}
-
-/* ---------- Ubuntu Light (white) ---------- */
-.theme-light {
+  /* Default tokens (Ubuntu Light) so pre-mount UI has valid vars. */
   --bg-base: #ffffff;
   --bg-surface: #f7f7f7;
   --bg-panel: #efefef;
   --bg-input: #ffffff;
   --bg-hover: #e8e8e8;
+  --bg-hover-strong: #dcdcdc;
+  --bg-active: #e8e8e8;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f7f7;
   --border-subtle: #d9d9d9;
   --border-strong: #b5b5b5;
   --border-focus: #e95420;
@@ -38,6 +42,42 @@
   --text-delete: #c7162b;
   --primary: #e95420;
   --primary-hover: #d34615;
+  --primary-dark: #b53a12;
+  --primary-contrast: #ffffff;
+  --icon-color: #5d5d5d;
+  --success: #0e8420;
+  --warning: #7d5a00;
+  --danger: #c7162b;
+  --info: #0d4fc2;
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* ---------- Ubuntu Light (white) ---------- */
+.theme-light {
+  --bg-base: #ffffff;
+  --bg-surface: #f7f7f7;
+  --bg-panel: #efefef;
+  --bg-input: #ffffff;
+  --bg-hover: #e8e8e8;
+  --bg-hover-strong: #dcdcdc;
+  --bg-active: #e8e8e8;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f7f7;
+  --border-subtle: #d9d9d9;
+  --border-strong: #b5b5b5;
+  --border-focus: #e95420;
+  --text-primary: #111111;
+  --text-secondary: #5d5d5d;
+  --text-tertiary: #8a8a8a;
+  --text-code: #77216f;
+  --text-get: #0e8420;
+  --text-post: #7d5a00;
+  --text-put: #0d4fc2;
+  --text-delete: #c7162b;
+  --primary: #e95420;
+  --primary-hover: #d34615;
+  --primary-dark: #b53a12;
   --primary-contrast: #ffffff;
   --icon-color: #5d5d5d;
   --success: #0e8420;
@@ -55,6 +95,10 @@
   --bg-panel: #2c2826;
   --bg-input: #121110;
   --bg-hover: #37322f;
+  --bg-hover-strong: #48403c;
+  --bg-active: #37322f;
+  --bg-primary: #211e1c;
+  --bg-secondary: #2c2826;
   --border-subtle: #3a3633;
   --border-strong: #54504c;
   --border-focus: #e95420;
@@ -68,6 +112,7 @@
   --text-delete: #f46a6a;
   --primary: #e95420;
   --primary-hover: #f0662f;
+  --primary-dark: #b53a12;
   --primary-contrast: #ffffff;
   --icon-color: #a89f9a;
   --success: #38b44a;
@@ -85,6 +130,10 @@
   --bg-panel: #2c2826;
   --bg-input: #121110;
   --bg-hover: #37322f;
+  --bg-hover-strong: #48403c;
+  --bg-active: #37322f;
+  --bg-primary: #211e1c;
+  --bg-secondary: #2c2826;
   --border-subtle: #3a3633;
   --border-strong: #54504c;
   --border-focus: #e95420;
@@ -98,6 +147,7 @@
   --text-delete: #f46a6a;
   --primary: #e95420;
   --primary-hover: #f0662f;
+  --primary-dark: #b53a12;
   --primary-contrast: #ffffff;
   --icon-color: #a89f9a;
   --success: #38b44a;

@@ -1,5 +1,7 @@
 // Desktop Agent Bridge — hardened.
-// Run locally with: node desktop-agent.js
+// Run locally with: node desktop-agent.cjs
+// (.cjs extension is intentional: the file uses require() so it runs under
+// any package type, including "type": "module" projects.)
 //
 // SECURITY model: this bridge intentionally forwards requests to
 // localhost/private networks (that is its job), so it must ONLY accept
@@ -63,6 +65,10 @@ const server = http.createServer((req, res) => {
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-target-url, x-agent-token');
+  // Private Network Access (Chrome 130+): a public https page (e.g. the
+  // hosted web app) must receive this on the preflight or the browser
+  // blocks every request to this loopback bridge.
+  res.setHeader('Access-Control-Allow-Private-Network', 'true');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(200);
@@ -70,18 +76,20 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.method === 'GET' && req.url === '/ping') {
+  const pathname = (req.url || '/').split('?')[0];
+
+  if (req.method === 'GET' && pathname === '/ping') {
     send(res, 200, { status: 'ok', agent: 'DesktopAgentBridge', pairingRequired: true });
     return;
   }
 
-  if (req.method === 'POST' && req.url === '/api/proxy') {
+  if (req.method === 'POST' && pathname === '/api/proxy') {
     // Pairing-token gate.
     const token = req.headers['x-agent-token'];
     if (token !== PAIRING_TOKEN) {
       send(res, 403, {
         error: 'Invalid or missing agent pairing token.',
-        hint: 'Copy the pairing token printed by desktop-agent.js into the app settings.',
+        hint: 'Copy the pairing token printed by desktop-agent.cjs into the app settings.',
       });
       return;
     }

@@ -572,13 +572,13 @@ export function BottomDrawer() {
         {bottomDrawerActiveTab === 'terminal' && (
           <div 
             onClick={focusTerminalInput}
-            className="flex-1 overflow-y-auto p-4 font-mono text-xs text-[var(--success)] bg-gray-950 flex flex-col cursor-text select-text"
+            className="flex-1 overflow-y-auto p-4 font-mono text-xs text-[var(--success)] bg-[var(--bg-input)] flex flex-col cursor-text select-text"
           >
             <div className="space-y-1 flex-1">
               {terminalHistory.map((line, idx) => {
                 if (line.startsWith('visitor@api-tester:~$')) {
                   return (
-                    <div key={idx} className="text-white font-medium flex items-center gap-1">
+                    <div key={idx} className="text-[var(--text-primary)] font-medium flex items-center gap-1">
                       <span className="text-[var(--icon-color)]">visitor@api-tester</span>
                       <span className="text-[var(--text-tertiary)]">:~$</span>
                       <span>{line.replace('visitor@api-tester:~$', '')}</span>
@@ -605,7 +605,7 @@ export function BottomDrawer() {
                 type="text"
                 value={terminalInput}
                 onChange={(e) => setTerminalInput(e.target.value)}
-                className="flex-1 bg-transparent border-none outline-none text-white font-medium font-mono focus:ring-0 p-0 m-0"
+                className="flex-1 bg-transparent border-none outline-none text-[var(--text-primary)] font-medium font-mono focus:ring-0 p-0 m-0"
                 autoComplete="off"
                 autoFocus
                 placeholder="Type 'help'..."

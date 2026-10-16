@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { X, Folder, FolderPlus, Plus, Save, Check, FileCode, Layers } from 'lucide-react';
-import { apiService } from '../lib/api';
+import { apiService, takeLastConflictResolution } from '../lib/api';
+import { adoptCollectionResult } from '../lib/collectionSync';
 import { RequestItem, ApiCollection, ApiFolder } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '../utils';
@@ -78,7 +79,10 @@ export function SaveToCollectionModal() {
 
     setIsSaving(true);
     try {
-      const targetCol = collections.find(c => c.id === selectedCollectionId);
+      // Read the freshest collections: an autosave may have updated the
+      // store while this modal was open.
+      const freshCollections = useStore.getState().collections;
+      const targetCol = freshCollections.find(c => c.id === selectedCollectionId);
       if (!targetCol) throw new Error('Target collection not found');
 
       const isMoveFromOtherCol = requestToSaveModal.collectionId && requestToSaveModal.collectionId !== selectedCollectionId;
@@ -95,7 +99,7 @@ export function SaveToCollectionModal() {
       };
 
       // 1. If moved from another collection, remove from old collection
-      let updatedCollections = [...collections];
+      let updatedCollections = [...freshCollections];
       if (isMoveFromOtherCol) {
         updatedCollections = updatedCollections.map(c => {
           if (c.id === oldColId) {
@@ -123,26 +127,35 @@ export function SaveToCollectionModal() {
         return c;
       });
 
-      // Update state in store
-      setCollections(updatedCollections);
+      // Optimistic update so the UI responds instantly.
+      useStore.getState().setCollections(updatedCollections);
 
-      // Persist to backend database
+      // Persist to backend database, then adopt the server truth (the
+      // response may be the cloud version after a conflict resolution).
       const finalTargetCol = updatedCollections.find(c => c.id === selectedCollectionId)!;
-      await apiService.updateCollection(selectedCollectionId, finalTargetCol);
+      const serverTarget = await apiService.updateCollection(selectedCollectionId, finalTargetCol);
+      const targetResolution = takeLastConflictResolution();
+      adoptCollectionResult(selectedCollectionId, serverTarget, () => finalTargetCol);
 
       if (isMoveFromOtherCol) {
         const finalOldCol = updatedCollections.find(c => c.id === oldColId);
         if (finalOldCol) {
-          await apiService.updateCollection(oldColId, finalOldCol);
+          const serverOld = await apiService.updateCollection(oldColId, finalOldCol);
+          takeLastConflictResolution();
+          adoptCollectionResult(oldColId, serverOld, () => finalOldCol);
         }
       }
 
       // 3. If was in draft requests, remove from drafts
       removeDraftRequest(updatedReq.id);
 
-      // 4. Update activeRequest if current
+      // 4. Update activeRequest from the freshest stored copy.
+      const afterSave = useStore.getState();
+      const savedReq = afterSave.collections
+        .find(c => c.id === selectedCollectionId)?.requests
+        .find(r => r.id === updatedReq.id);
       if (activeRequest?.id === updatedReq.id) {
-        setActiveRequest(updatedReq);
+        setActiveRequest(savedReq ?? updatedReq);
       }
 
       // 5. Update openTab name & method if open
@@ -157,7 +170,11 @@ export function SaveToCollectionModal() {
         return tab;
       }));
 
-      addToast(`Request "${updatedReq.name}" saved to collection "${targetCol.name}"`, 'success', 2500);
+      if (targetResolution === 'cloud') {
+        addToast(`Server had a newer version of "${targetCol.name}" — kept the cloud copy`, 'warning', 3000);
+      } else {
+        addToast(`Request "${updatedReq.name}" saved to collection "${targetCol.name}"`, 'success', 2500);
+      }
       setIsSaveToCollectionModalOpen(false);
       setRequestToSaveModal(null);
     } catch (err) {

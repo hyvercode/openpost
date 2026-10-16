@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 import { User, Workspace, ApiCollection, Environment, RequestItem, LogEntry, IssueItem, Deployment, Toast, Theme, HistoryItem, TestSuite, WsMessage, ProxyConfig, CookieItem, CollectionRunReport, AiConfig } from "../types";
-import { FontScale, readFontScale, applyFontScale, readReduceMotion, applyReduceMotion } from "../utils/appearance";
+import { FontScale, readFontScale, applyFontScale, readReduceMotion, applyReduceMotion, readTheme, applyTheme } from "../utils/appearance";
 
 interface AppState {
   user: User | null;
@@ -303,13 +303,23 @@ export const useStore = create<AppState>((set) => ({
   setActiveView: (activeView) => set({ activeView }),
 
   theme: (() => {
-    const stored = localStorage.getItem('theme');
+    const initial = readTheme();
     // ERP has two themes only; legacy 'default' (aubergine) maps to dark.
-    return stored === 'dark' ? 'dark' : 'light';
+    try {
+      applyTheme(initial);
+    } catch {
+      // ignore (SSR/tests without DOM)
+    }
+    return initial;
   })() as Theme,
   setTheme: (theme) => {
     localStorage.setItem('theme', theme);
     localStorage.removeItem('primaryColor');
+    try {
+      applyTheme(theme);
+    } catch {
+      // ignore (SSR/tests without DOM)
+    }
     set({ theme });
   },
 

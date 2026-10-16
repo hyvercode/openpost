@@ -482,20 +482,24 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       }
     }
 
-    // Fallback to agent/desktop-agent.js source if requesting a script
-    if (!filePath && (filename.includes("js") || filename.includes("node"))) {
+    // Fallback to agent/desktop-agent.cjs source if requesting the script
+    let downloadName = filename;
+    if (!filePath && filename.includes("desktop-agent")) {
       const fallbackCandidates = [
-        path.join(APP_ROOT, "agent", "desktop-agent.js"),
-        path.join(process.cwd(), "agent", "desktop-agent.js"),
+        path.join(APP_ROOT, "agent", "desktop-agent.cjs"),
+        path.join(process.cwd(), "agent", "desktop-agent.cjs"),
       ];
       filePath = fallbackCandidates.find((c) => fs.existsSync(c)) || "";
+      if (filePath) {
+        downloadName = "desktop-agent.cjs";
+      }
     }
 
     if (fs.existsSync(filePath)) {
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      if (filename.endsWith('.exe')) {
+      res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+      if (downloadName.endsWith('.exe')) {
         res.setHeader('Content-Type', 'application/vnd.microsoft.portable-executable');
-      } else if (filename.endsWith('.js')) {
+      } else if (downloadName.endsWith('.js') || downloadName.endsWith('.cjs')) {
         res.setHeader('Content-Type', 'application/javascript');
       } else {
         res.setHeader('Content-Type', 'application/octet-stream');
@@ -505,12 +509,12 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
     
     // Fallback script if binary not found
     const fallbackCandidates = [
-      path.join(APP_ROOT, "agent", "desktop-agent.js"),
-      path.join(process.cwd(), "agent", "desktop-agent.js"),
+      path.join(APP_ROOT, "agent", "desktop-agent.cjs"),
+      path.join(process.cwd(), "agent", "desktop-agent.cjs"),
     ];
     const fallbackScript = fallbackCandidates.find((c) => fs.existsSync(c)) || fallbackCandidates[0];
     if (fs.existsSync(fallbackScript)) {
-      res.setHeader('Content-Disposition', `attachment; filename="desktop-agent.js"`);
+      res.setHeader('Content-Disposition', `attachment; filename="desktop-agent.cjs"`);
       res.setHeader('Content-Type', 'application/javascript');
       return res.sendFile(fallbackScript);
     }

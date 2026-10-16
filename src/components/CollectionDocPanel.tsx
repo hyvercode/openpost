@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore';
 import { BookOpen, Edit3, Eye, Check, X, FileCode, Play, Terminal, HelpCircle, Folder, ChevronRight, Hash, ArrowRight, Table, Server, Globe, Download, Copy, FileJson, Share2, Printer, Trash2, FileText, AlignLeft, History, GitCommit, GitBranch } from 'lucide-react';
 import { cn } from '../utils';
 import { apiService } from '../lib/api';
+import { adoptCollectionResult, persistCollectionRequests } from '../lib/collectionSync';
 import { MockSettings } from './MockSettings';
 import { ConfirmModal } from './ConfirmModal';
 import { CollectionVersionModal } from './CollectionVersionModal';
@@ -276,24 +277,26 @@ export function CollectionDocPanel() {
   });
 
   const updateTargetDescription = async (newMarkdown: string) => {
+    // Always work from the freshest stored collection: a request autosave
+    // may have updated the store since this panel rendered.
+    const freshCol = useStore.getState().collections.find(c => c.id === collectionItem.id);
+    if (!freshCol) return;
     if (targetType === 'collection') {
-      await apiService.updateCollection(collectionItem.id, { description: newMarkdown });
-      const { collections, setCollections } = useStore.getState();
-      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, description: newMarkdown } : c));
+      const serverCol = await apiService.updateCollection(collectionItem.id, { description: newMarkdown });
+      adoptCollectionResult(collectionItem.id, serverCol, (c) => ({ ...c, description: newMarkdown }));
     } else if (targetType === 'folder') {
-      const updatedFolders = (collectionItem.folders || []).map((f: any) => 
+      const updatedFolders = (freshCol.folders || []).map((f: any) =>
         f.id === targetEntity.id ? { ...f, description: newMarkdown } : f
       );
-      await apiService.updateCollection(collectionItem.id, { folders: updatedFolders });
-      const { collections, setCollections } = useStore.getState();
-      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, folders: updatedFolders } : c));
+      const serverCol = await apiService.updateCollection(collectionItem.id, { folders: updatedFolders });
+      adoptCollectionResult(collectionItem.id, serverCol, (c) => ({ ...c, folders: updatedFolders }));
     } else if (targetType === 'request') {
-      const updatedRequests = (collectionItem.requests || []).map((r: any) => 
-        r.id === targetEntity.id ? { ...r, description: newMarkdown } : r
-      );
-      await apiService.updateCollection(collectionItem.id, { requests: updatedRequests });
-      const { collections, setCollections } = useStore.getState();
-      setCollections(collections.map(c => c.id === collectionItem.id ? { ...c, requests: updatedRequests } : c));
+      // Serialized + merged onto the freshest request: never overwrites a
+      // concurrent request save with this panel's stale snapshot.
+      await persistCollectionRequests(collectionItem.id, targetEntity.id, (fresh) => ({
+        ...fresh,
+        description: newMarkdown,
+      }));
     }
   };
 
@@ -1097,7 +1100,7 @@ You can write step-by-step startup instructions.
                     </div>
 
                     <div className="flex-1 min-h-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded overflow-hidden flex flex-col shadow-inner">
-                      <div className="flex-1 overflow-y-auto p-8 prose prose-invert prose-slate max-w-none markdown-body select-text custom-scrollbar">
+                      <div className="flex-1 overflow-y-auto p-8 max-w-none markdown-body select-text custom-scrollbar">
                         <ReactMarkdown>{generatedMarkdown}</ReactMarkdown>
                       </div>
                     </div>
@@ -1136,7 +1139,7 @@ You can write step-by-step startup instructions.
                           }
                         }}
                         disabled={isGeneratingPdf}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--primary)] hover:bg-indigo-700 disabled:opacity-75 disabled:cursor-wait text-white rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--primary)] hover:opacity-90 disabled:opacity-75 disabled:cursor-wait text-white rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
                       >
                         {isGeneratingPdf ? (
                           <>
@@ -1269,14 +1272,14 @@ You can write step-by-step startup instructions.
                           downloadWordDocument(collectionItem, selectedEndpoints, docVersion);
                           addToast("Word documentation compiled and downloaded!", "success", 2500);
                         }}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--info)] hover:bg-blue-700 text-white rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--info)] hover:opacity-90 text-white rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
                       >
                         <Download className="w-4 h-4" />
                         Export Word Document
                       </button>
                     </div>
-                    <div className="flex-1 min-h-0 bg-white border border-[var(--border-subtle)] rounded overflow-hidden flex flex-col shadow-inner text-gray-900">
-                      <div className="flex-1 overflow-y-auto p-8 prose prose-slate max-w-none select-text custom-scrollbar">
+                    <div className="flex-1 min-h-0 bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded overflow-hidden flex flex-col shadow-inner text-[var(--text-primary)]">
+                      <div className="flex-1 overflow-y-auto p-8 max-w-none select-text custom-scrollbar">
                          <div className="flex flex-col items-center justify-center h-full text-[var(--text-tertiary)] space-y-4">
                            <FileText className="w-16 h-16 opacity-20" />
                            <p className="text-sm">Click "Export Word Document" to generate a complete .doc file.</p>
@@ -1296,7 +1299,7 @@ You can write step-by-step startup instructions.
                            navigator.clipboard.writeText(generatedConfluence);
                            addToast("Confluence markup copied!", "success", 2000);
                         }}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--info)] hover:bg-[#0047B3] text-white rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-[var(--info)] hover:opacity-90 text-white rounded shadow-[var(--shadow-subtle)] transition-colors cursor-pointer"
                       >
                         <Copy className="w-4 h-4" />
                         Copy Markup

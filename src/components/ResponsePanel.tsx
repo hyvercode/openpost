@@ -11,6 +11,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { motion, AnimatePresence } from 'motion/react';
 import { PromptModal } from './PromptModal';
 import { sanitizeHtml } from '../utils/sanitize';
+import { persistCollectionRequests } from '../lib/collectionSync';
 
 function LatencyChart({ data }: { data: number[] }) {
   const chartData = data.map((ms, index) => ({
@@ -547,15 +548,15 @@ export function ResponsePanel() {
   const [saveInitialName, setSaveInitialName] = useState('');
 
   const handleSaveBaseline = async () => {
-    if (!response || !activeRequest) return;
+    const store = useStore.getState();
+    const current = store.activeRequest;
+    if (!response || !current) return;
+    if (!current.collectionId) {
+      addToast('No parent collection found for this request', 'error');
+      return;
+    }
     setIsSavingBaseline(true);
     try {
-      const collection = collections.find(c => c.id === activeRequest.collectionId);
-      if (!collection) {
-        addToast('No parent collection found for this request', 'error');
-        return;
-      }
-
       const savedResponse = {
         status: response.status,
         headers: response.headers,
@@ -563,18 +564,20 @@ export function ResponsePanel() {
         timestamp: new Date().toISOString(),
       };
 
-      const updatedRequest = {
-        ...activeRequest,
+      // Serialized + merged onto the freshest copy: never clobbers a
+      // concurrent request save.
+      const res = await persistCollectionRequests(current.collectionId, current.id, (fresh) => ({
+        ...fresh,
         savedResponse,
-      };
-
-      const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
-      
-      const { apiService } = await import('../lib/api');
-      await apiService.updateCollection(collection.id, { requests: updatedRequests });
-      
-      setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
-      setActiveRequest(updatedRequest);
+      }));
+      if (!res) {
+        addToast('No parent collection found for this request', 'error');
+        return;
+      }
+      if (!res.keptLocal) {
+        addToast('Cloud version kept — baseline not applied', 'warning');
+        return;
+      }
       addToast('Saved current response as baseline', 'success');
     } catch (err) {
       console.error(err);
@@ -585,23 +588,21 @@ export function ResponsePanel() {
   };
 
   const handleClearBaseline = async () => {
-    if (!activeRequest) return;
+    const store = useStore.getState();
+    const current = store.activeRequest;
+    if (!current) return;
+    if (!current.collectionId) return;
     try {
-      const collection = collections.find(c => c.id === activeRequest.collectionId);
-      if (!collection) return;
-
-      const updatedRequest = {
-        ...activeRequest,
-      };
-      delete updatedRequest.savedResponse;
-
-      const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
-      
-      const { apiService } = await import('../lib/api');
-      await apiService.updateCollection(collection.id, { requests: updatedRequests });
-      
-      setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
-      setActiveRequest(updatedRequest);
+      const res = await persistCollectionRequests(current.collectionId, current.id, (fresh) => {
+        const next = { ...fresh };
+        delete next.savedResponse;
+        return next;
+      });
+      if (!res) return;
+      if (!res.keptLocal) {
+        addToast('Cloud version kept — baseline not cleared', 'warning');
+        return;
+      }
       addToast('Cleared saved response baseline', 'success');
     } catch (err) {
       console.error(err);
@@ -713,21 +714,29 @@ export function ResponsePanel() {
         addToast('AI returned an empty script', 'error');
         return;
       }
-      const collection = collections.find(c => c.id === activeRequest.collectionId);
-      if (!collection) {
+      const store = useStore.getState();
+      const current = store.activeRequest;
+      if (!current?.collectionId) {
         addToast('No parent collection found for this request', 'error');
         return;
       }
-      const existing = activeRequest.postResponseScript || '';
-      const updatedRequest = {
-        ...activeRequest,
-        postResponseScript: existing ? `${existing}\n\n${script}` : script,
-      };
-      const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
-      const { apiService } = await import('../lib/api');
-      await apiService.updateCollection(collection.id, { requests: updatedRequests });
-      setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
-      setActiveRequest(updatedRequest);
+      // Serialized + merged onto the freshest copy: preserves concurrent
+      // request saves instead of overwriting them with a stale snapshot.
+      const persistRes = await persistCollectionRequests(current.collectionId, current.id, (fresh) => {
+        const existing = fresh.postResponseScript || '';
+        return {
+          ...fresh,
+          postResponseScript: existing ? `${existing}\n\n${script}` : script,
+        };
+      });
+      if (!persistRes) {
+        addToast('No parent collection found for this request', 'error');
+        return;
+      }
+      if (!persistRes.keptLocal) {
+        addToast('Cloud version kept — script not applied', 'warning');
+        return;
+      }
       addToast('AI test assertions added to post-response script', 'success');
     } catch (err: any) {
       addToast(err.response?.data?.error || 'Failed to generate tests', 'error');
@@ -1197,7 +1206,7 @@ export function ResponsePanel() {
                 {isHtml ? (
                   <iframe 
                     srcDoc={response.data} 
-                    className="w-full h-full bg-white rounded border border-[var(--border-subtle)]"
+                    className="w-full h-full bg-[var(--bg-input)] rounded border border-[var(--border-subtle)]"
                     sandbox="allow-same-origin"
                     title="Response Preview"
                   />
@@ -1531,14 +1540,14 @@ export function ResponsePanel() {
                                           {/* Left Column (Baseline) */}
                                           <td className={cn(
                                             "w-12 text-right pr-2 text-[9px] select-none font-mono border-r border-[var(--border-subtle)]/60 font-bold",
-                                            row.left.type === 'removed' ? "bg-[var(--danger)]/15 text-[var(--danger)] dark:bg-red-950/30" :
+                                            row.left.type === 'removed' ? "bg-[var(--danger)]/15 text-[var(--danger)]" :
                                             row.left.type === 'empty' ? "bg-[var(--bg-hover)]/10 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
                                           )}>
                                             {row.left.num ?? ''}
                                           </td>
                                           <td className={cn(
                                             "font-mono text-[11px] px-3 whitespace-pre border-r border-[var(--border-subtle)]",
-                                            row.left.type === 'removed' ? "bg-[var(--danger)]/10 text-red-700 dark:bg-red-950/20 dark:text-[var(--danger)] font-semibold" :
+                                            row.left.type === 'removed' ? "bg-[var(--danger)]/10 text-[var(--danger)] font-semibold" :
                                             row.left.type === 'empty' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-primary)]"
                                           )}>
                                             {row.left.type === 'removed' ? '-' : row.left.type === 'empty' ? '' : ' '} {row.left.text ?? ''}
@@ -1547,14 +1556,14 @@ export function ResponsePanel() {
                                           {/* Right Column (Current) */}
                                           <td className={cn(
                                             "w-12 text-right pr-2 text-[9px] select-none font-mono border-r border-[var(--border-subtle)]/60 font-bold",
-                                            row.right.type === 'added' ? "bg-[var(--success)]/15 text-[var(--success)] dark:bg-green-950/30" :
+                                            row.right.type === 'added' ? "bg-[var(--success)]/15 text-[var(--success)]" :
                                             row.right.type === 'empty' ? "bg-[var(--bg-hover)]/10 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
                                           )}>
                                             {row.right.num ?? ''}
                                           </td>
                                           <td className={cn(
                                             "font-mono text-[11px] px-3 whitespace-pre",
-                                            row.right.type === 'added' ? "bg-[var(--success)]/10 text-green-700 dark:bg-green-950/20 dark:text-[var(--success)] font-semibold" :
+                                            row.right.type === 'added' ? "bg-[var(--success)]/10 text-[var(--success)] font-semibold" :
                                             row.right.type === 'empty' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-primary)]"
                                           )}>
                                             {row.right.type === 'added' ? '+' : row.right.type === 'empty' ? '' : ' '} {row.right.text ?? ''}
@@ -1596,22 +1605,22 @@ export function ResponsePanel() {
                                         <tr key={idx} className="hover:bg-[var(--bg-hover)]/25 leading-normal">
                                           <td className={cn(
                                             "w-10 text-right pr-2 text-[9px] select-none font-mono font-bold",
-                                            row.type === 'removed' ? "bg-[var(--danger)]/15 text-[var(--danger)] dark:bg-red-950/30" :
+                                            row.type === 'removed' ? "bg-[var(--danger)]/15 text-[var(--danger)]" :
                                             row.type === 'added' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
                                           )}>
                                             {row.leftNum ?? ''}
                                           </td>
                                           <td className={cn(
                                             "w-10 text-right pr-2 text-[9px] select-none font-mono border-r border-[var(--border-subtle)]/60 font-bold",
-                                            row.type === 'added' ? "bg-[var(--success)]/15 text-[var(--success)] dark:bg-green-950/30" :
+                                            row.type === 'added' ? "bg-[var(--success)]/15 text-[var(--success)]" :
                                             row.type === 'removed' ? "bg-[var(--bg-hover)]/5 text-transparent" : "text-[var(--text-secondary)] bg-[var(--bg-hover)]/30"
                                           )}>
                                             {row.rightNum ?? ''}
                                           </td>
                                           <td className={cn(
                                             "font-mono text-[11px] px-3 whitespace-pre",
-                                            row.type === 'removed' ? "bg-[var(--danger)]/10 text-red-700 dark:bg-red-950/20 dark:text-[var(--danger)] font-semibold" :
-                                            row.type === 'added' ? "bg-[var(--success)]/10 text-green-700 dark:bg-green-950/20 dark:text-[var(--success)] font-semibold" : "text-[var(--text-primary)]"
+                                            row.type === 'removed' ? "bg-[var(--danger)]/10 text-[var(--danger)] font-semibold" :
+                                            row.type === 'added' ? "bg-[var(--success)]/10 text-[var(--success)] font-semibold" : "text-[var(--text-primary)]"
                                           )}>
                                             {row.type === 'removed' ? '-' : row.type === 'added' ? '+' : ' '} {row.text}
                                           </td>

@@ -22,8 +22,8 @@ export const COLORS = [
   { name: 'Green', hex: '#22c55e', class: 'bg-[var(--success)] hover:bg-[var(--success)]' },
   { name: 'Blue', hex: '#3b82f6', class: 'bg-[var(--info)] hover:bg-[var(--info)]' },
   { name: 'Indigo', hex: '#6366f1', class: 'bg-[var(--primary)] hover:bg-[var(--primary)]' },
-  { name: 'Purple', hex: '#a855f7', class: 'bg-[var(--primary)] hover:bg-purple-600' },
-  { name: 'Pink', hex: 'var(--primary)', class: 'bg-pink-500 hover:bg-pink-600' },
+  { name: 'Purple', hex: '#a855f7', class: 'bg-[var(--primary)] hover:opacity-90' },
+  { name: 'Pink', hex: 'var(--primary)', class: 'bg-pink-500 hover:opacity-90' },
 ];
 
 export const ICONS = [

@@ -266,11 +266,11 @@ export const WorkflowsPanel: React.FC = () => {
           </select>
           {wfEnv ? (<span className="text-[var(--text-secondary)]">{wfEnv.variables?.filter((v:any)=>v.enabled!==false).length||0} vars injected at run · {"{{var}}"} interpolation</span>) : (<span className="text-[var(--text-secondary)]">No env selected — akan auto-ambil vars dari semua environment di workspace saat run ({"{{baseUrl}}"} tetap ter-resolve).</span>)}
         </div>
-        {webhookUrl && <div className="px-3 py-2 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-2 text-xs flex-wrap">
-          <Webhook className="w-3.5 h-3.5 text-amber-600"/><span className="font-bold">Webhook:</span>
-          <code className="bg-white border rounded px-1.5 py-0.5 break-all">{webhookUrl}</code>
-          <button onClick={()=>{navigator.clipboard.writeText(webhookUrl); addToast('Webhook URL copied','success');}} className="px-2 py-1 bg-white border rounded text-xs font-bold flex items-center gap-1"><Copy className="w-3 h-3"/>Copy</button>
-          <a href={webhookUrl} target="_blank" rel="noreferrer" className="text-amber-700 underline flex items-center gap-1">POST example<ExternalLink className="w-3 h-3"/></a>
+        {webhookUrl && <div className="px-3 py-2 bg-[var(--warning)]/10 border-b border-[var(--warning)]/20 flex items-center gap-2 text-xs flex-wrap">
+          <Webhook className="w-3.5 h-3.5 text-[var(--warning)]"/><span className="font-bold">Webhook:</span>
+          <code className="bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded px-1.5 py-0.5 break-all">{webhookUrl}</code>
+          <button onClick={()=>{navigator.clipboard.writeText(webhookUrl); addToast('Webhook URL copied','success');}} className="px-2 py-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded text-xs font-bold flex items-center gap-1"><Copy className="w-3 h-3"/>Copy</button>
+          <a href={webhookUrl} target="_blank" rel="noreferrer" className="text-[var(--warning)] underline flex items-center gap-1">POST example<ExternalLink className="w-3 h-3"/></a>
         </div>}
         <div className="flex-1 flex min-h-0 overflow-hidden">
           <div className="flex-1 p-3 overflow-auto bg-[var(--bg-base)]">
@@ -366,13 +366,13 @@ export const WorkflowsPanel: React.FC = () => {
                       </select>
                       <input value={selected.data.url||''} onChange={e=>updateNodeData(selected.id!,{url:e.target.value})} placeholder="https://api.example.com/…" className="col-span-2 bg-[var(--bg-surface)] border rounded px-2 py-1.5 text-xs" />
                     </div>
-                    {selected.data.collectionId && selected.data.requestId && <div className="text-[11px] text-emerald-600 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-1 flex items-center gap-1.5 flex-wrap">Linked to collection — auto-terisi dari API & environment ({"{{var}}"} dari workflow env). Tetap bisa diedit di bawah.
+                    {selected.data.collectionId && selected.data.requestId && <div className="text-[11px] text-[var(--success)] bg-[var(--success)]/10 border border-[var(--success)]/20 rounded px-2 py-1 flex items-center gap-1.5 flex-wrap">Linked to collection — auto-terisi dari API & environment ({"{{var}}"} dari workflow env). Tetap bisa diedit di bawah.
                       <button onClick={()=>{
                         const col:any = collections.find(c=>c.id===selected.data.collectionId) as any;
                         const r:any = col?.requests?.find((x:any)=> String(x.id)===String(selected.data.requestId));
                         if(r){ updateNodeData(selected.id!,{ ...fillFromRequest(r) }); }
-                      }} className="ml-auto text-[11px] font-bold border bg-white rounded px-1.5 py-0.5">Reload dari API</button>
-                      <button onClick={()=>updateNodeData(selected.id!,{ collectionId: undefined, requestId: undefined })} className="text-[11px] border bg-white rounded px-1.5 py-0.5">Unlink</button>
+                      }} className="ml-auto text-[11px] font-bold border border-[var(--border-subtle)] bg-[var(--bg-input)] rounded px-1.5 py-0.5">Reload dari API</button>
+                      <button onClick={()=>updateNodeData(selected.id!,{ collectionId: undefined, requestId: undefined })} className="text-[11px] border border-[var(--border-subtle)] bg-[var(--bg-input)] rounded px-1.5 py-0.5">Unlink</button>
                     </div>}
                     {/* Headers — auto-terisi, tetap editable */}
                     <label className="text-xs text-[var(--text-secondary)]">Headers
@@ -465,7 +465,7 @@ export const WorkflowsPanel: React.FC = () => {
                 {(runs[w.id]||[]).length===0 && <div className="text-xs text-[var(--text-tertiary)]">No runs.</div>}
                 {(runs[w.id]||[]).map((r:any)=>(
                   <div key={r.id} className="flex items-center gap-2 text-xs py-1 border-b last:border-0">
-                    {r.status==='success'?<Check className="w-3.5 h-3.5 text-emerald-500"/>:r.status==='failed'?<AlertCircle className="w-3.5 h-3.5 text-red-500"/>:<Clock className="w-3.5 h-3.5 text-amber-500"/>}
+                    {r.status==='success'?<Check className="w-3.5 h-3.5 text-[var(--success)]"/>:r.status==='failed'?<AlertCircle className="w-3.5 h-3.5 text-[var(--danger)]"/>:<Clock className="w-3.5 h-3.5 text-[var(--warning)]"/>}
                     <span className="font-semibold">{r.status}</span><span className="text-[var(--text-secondary)]">{r.durationMs}ms · {r.trigger}</span><span className="ml-auto text-[var(--text-tertiary)]">{new Date(r.createdAt).toLocaleString()}</span>
                   </div>
                 ))}

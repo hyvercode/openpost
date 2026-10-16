@@ -135,7 +135,7 @@ export const CodeSnippetModal: React.FC<CodeSnippetModalProps> = ({ isOpen, onCl
             </div>
 
             {/* Code Output */}
-            <div className="flex-1 overflow-auto p-4 bg-slate-950 text-slate-100 font-mono text-xs leading-relaxed select-all">
+            <div className="flex-1 overflow-auto p-4 bg-[var(--bg-input)] text-[var(--text-primary)] font-mono text-xs leading-relaxed select-all">
               <pre className="whitespace-pre-wrap break-all font-mono">{snippetCode}</pre>
             </div>
           </div>

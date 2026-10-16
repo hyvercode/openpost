@@ -1,25 +1,50 @@
 import React, { useState } from 'react';
-import { X, Monitor, MonitorSmartphone, Apple, Download, Terminal, Copy, Check, FileCode } from 'lucide-react';
+import { X, Monitor, MonitorSmartphone, Apple, Download, Terminal, Copy, Check, FileCode, Wifi, Loader2, AlertTriangle } from 'lucide-react';
 import { cn } from '../utils';
 import { useStore } from '../store/useStore';
+import { DESKTOP_AGENT_PING_URL } from '../lib/api';
 
 interface AgentDownloadModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+type AgentTestState = 'idle' | 'testing' | 'ok' | 'unpaired' | 'unreachable';
+
 export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps) {
   const { setAgentMode, addToast } = useStore();
   const [copied, setCopied] = useState(false);
+  const [testState, setTestState] = useState<AgentTestState>('idle');
 
   if (!isOpen) return null;
+
+  const testConnection = async () => {
+    setTestState('testing');
+    try {
+      const res = await fetch(DESKTOP_AGENT_PING_URL, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.agent === 'DesktopAgentBridge') {
+        const hasToken = !!(typeof localStorage !== 'undefined' && localStorage.getItem('openpost_agent_token'));
+        setTestState(hasToken ? 'ok' : 'unpaired');
+      } else {
+        setTestState('unreachable');
+      }
+    } catch {
+      setTestState('unreachable');
+    }
+  };
+
+  const isHttpsPage = typeof window !== 'undefined' && window.location.protocol === 'https:';
 
   const handleDownload = (os: string) => {
     let filename = `desktop-agent-${os}`;
     if (os === 'win' || os === 'win.exe') {
       filename = 'desktop-agent-win.exe';
     } else if (os === 'js' || os === 'script') {
-      filename = 'desktop-agent.js';
+      filename = 'desktop-agent.cjs';
     }
     
     const url = `/downloads/${filename}`;
@@ -37,9 +62,9 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
   };
 
   const copyScriptCommand = () => {
-    navigator.clipboard.writeText('node desktop-agent.js');
+    navigator.clipboard.writeText('node desktop-agent.cjs');
     setCopied(true);
-    addToast('Copied "node desktop-agent.js" to clipboard', 'info', 2000);
+    addToast('Copied "node desktop-agent.cjs" to clipboard', 'info', 2000);
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -147,7 +172,7 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-[var(--text-primary)]">Quick Run with Node.js</h3>
             <div className="flex items-center justify-between p-3 rounded bg-[var(--bg-hover-strong)] border border-[var(--border-subtle)]">
-              <code className="text-xs font-mono text-[var(--primary)]">node desktop-agent.js</code>
+              <code className="text-xs font-mono text-[var(--primary)]">node desktop-agent.cjs</code>
               <button
                 onClick={copyScriptCommand}
                 className="px-3 py-1 bg-[var(--bg-hover)] hover:bg-[var(--border-subtle)] rounded text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -190,11 +215,51 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
           </div>
 
           <div className="space-y-3">
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">Connection Test</h3>
+            <div className="p-4 rounded bg-[var(--bg-hover)] border border-[var(--border-subtle)] space-y-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={testConnection}
+                  disabled={testState === 'testing'}
+                  className="px-4 py-2 rounded text-xs font-bold text-white bg-[var(--primary)] hover:opacity-90 disabled:opacity-50 transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  {testState === 'testing'
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Testing...</>
+                    : <><Wifi className="w-3.5 h-3.5" /> Test Connection</>}
+                </button>
+                {testState === 'ok' && (
+                  <span className="text-xs font-semibold text-[var(--success)] flex items-center gap-1.5">
+                    <Check className="w-4 h-4" /> Connected & paired
+                  </span>
+                )}
+                {testState === 'unpaired' && (
+                  <span className="text-xs font-semibold text-[var(--warning)] flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4" /> Bridge found, token missing — paste it above
+                  </span>
+                )}
+                {testState === 'unreachable' && (
+                  <span className="text-xs font-semibold text-[var(--danger)] flex items-center gap-1.5">
+                    <X className="w-4 h-4" /> Bridge unreachable — start the agent first
+                  </span>
+                )}
+              </div>
+              {isHttpsPage && (
+                <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                  This page is served over HTTPS, so browsers block plain-HTTP calls to{' '}
+                  <code className="font-mono text-[var(--text-primary)]">127.0.0.1:8765</code> (mixed
+                  content). Allow insecure content for this site in the address bar, or use the
+                  OpenPost Electron app instead.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-3">
             <h3 className="text-sm font-bold text-[var(--text-primary)]">How to use</h3>
             <div className="space-y-2 text-sm text-[var(--text-secondary)]">
               <p className="flex items-start gap-2">
                 <span className="font-mono bg-[var(--bg-hover)] px-1.5 py-0.5 rounded text-[10px] border border-[var(--border-subtle)] mt-0.5">1</span>
-                Download the executable or <code className="font-mono text-[var(--text-primary)]">desktop-agent.js</code> script above.
+                Download the executable or <code className="font-mono text-[var(--text-primary)]">desktop-agent.cjs</code> script above.
               </p>
               <p className="flex items-start gap-2">
                 <span className="font-mono bg-[var(--bg-hover)] px-1.5 py-0.5 rounded text-[10px] border border-[var(--border-subtle)] mt-0.5">2</span>
@@ -206,6 +271,10 @@ export function AgentDownloadModal({ isOpen, onClose }: AgentDownloadModalProps)
               </p>
               <p className="flex items-start gap-2">
                 <span className="font-mono bg-[var(--bg-hover)] px-1.5 py-0.5 rounded text-[10px] border border-[var(--border-subtle)] mt-0.5">4</span>
+                Paste the pairing token printed in the agent console into the Pairing Token field above and click Save.
+              </p>
+              <p className="flex items-start gap-2">
+                <span className="font-mono bg-[var(--bg-hover)] px-1.5 py-0.5 rounded text-[10px] border border-[var(--border-subtle)] mt-0.5">5</span>
                 Click the button below to switch this app to Desktop mode.
               </p>
             </div>

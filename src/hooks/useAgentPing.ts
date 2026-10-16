@@ -1,14 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
+import { DESKTOP_AGENT_PING_URL, getAgentToken } from '../lib/api';
 
 export function useAgentPing() {
-  const { setAgentMode, addToast } = useStore();
+  const { setAgentMode, setIsAgentModalOpen, addToast } = useStore();
   const pingInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const pingAgent = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8765/ping', {
+        const res = await fetch(DESKTOP_AGENT_PING_URL, {
           method: 'GET',
           headers: {
             'Accept': 'application/json'
@@ -21,7 +22,19 @@ export function useAgentPing() {
             const currentMode = useStore.getState().agentMode;
             if (currentMode !== 'desktop') {
               setAgentMode('desktop');
-              addToast('Desktop Agent detected. Automatically switched to local mode.', 'success', 3000);
+              if (!getAgentToken()) {
+                // Bridge answers but every /api/proxy call will 403 without
+                // the pairing token — say so now instead of failing silently.
+                addToast('Desktop Agent detected, but no pairing token is saved. Paste it in the Agent settings to use it.', 'warning', 8000, {
+                  title: 'Pairing Required',
+                  action: {
+                    label: 'Open Agent Settings',
+                    onClick: () => setIsAgentModalOpen(true),
+                  },
+                });
+              } else {
+                addToast('Desktop Agent detected. Automatically switched to local mode.', 'success', 3000);
+              }
             }
           }
         }
@@ -46,5 +59,5 @@ export function useAgentPing() {
         clearInterval(pingInterval.current);
       }
     };
-  }, [setAgentMode, addToast]);
+  }, [setAgentMode, setIsAgentModalOpen, addToast]);
 }

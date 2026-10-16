@@ -85,7 +85,8 @@ export function ConflictResolutionModal() {
             <h2 className="font-semibold text-lg text-[var(--text-primary)]">Sync Conflict Detected</h2>
           </div>
           <button 
-            onClick={() => setIsConflictModalOpen(false)}
+            onClick={() => handleResolve('cloud')}
+            title="Close and keep the cloud version"
             className="p-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded"
           >
             <X className="w-5 h-5" />

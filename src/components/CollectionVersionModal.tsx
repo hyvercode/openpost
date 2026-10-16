@@ -9,6 +9,7 @@ import { ApiCollection, CollectionVersion, CollectionDiffResult, EndpointDiffIte
 import { apiService } from '../lib/api';
 import { useStore } from '../store/useStore';
 import { computeCollectionDiff, generateChangelogMarkdown } from '../utils/versionDiff';
+import { exportSingleCollectionToPostman } from '../utils/postmanExport';
 
 interface CollectionVersionModalProps {
   isOpen: boolean;
@@ -234,28 +235,14 @@ export const CollectionVersionModal: React.FC<CollectionVersionModalProps> = ({
     }
   };
 
-  // Export version snapshot as JSON
+  // Export version snapshot as a canonical Postman v2.1 collection
+  // (shared builder, so it stays importable by newer Postman versions).
   const handleExport = (version: CollectionVersion) => {
-    const exportData = {
-      info: {
-        name: `${collection.name} (${version.version})`,
-        description: version.description || `Snapshot version ${version.version}`,
-        version: version.version,
-        schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-      },
-      item: version.requests.map(r => ({
-        name: r.name,
-        request: {
-          method: r.method,
-          url: r.url,
-          header: r.headers.filter(h => h.enabled).map(h => ({ key: h.key, value: h.value })),
-          body: r.body.type !== 'none' ? {
-            mode: r.body.type === 'raw' ? 'raw' : 'formdata',
-            raw: r.body.content
-          } : undefined
-        }
-      }))
-    };
+    const exportData = exportSingleCollectionToPostman(
+      { ...collection, requests: version.requests },
+      `${collection.name} (${version.version})`,
+      version.description || `Snapshot version ${version.version}`
+    );
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

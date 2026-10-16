@@ -555,7 +555,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
                   <button
                     type="button"
                     onClick={handleStartOAuthFlow}
-                    className="w-full py-2 bg-[var(--info)] hover:bg-blue-700 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors "
+                    className="w-full py-2 bg-[var(--info)] hover:opacity-90 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors "
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     Launch Authorization Window
@@ -565,7 +565,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
                     type="button"
                     disabled={isTokenLoading}
                     onClick={handleGetClientCredentialsToken}
-                    className="w-full py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors "
+                    className="w-full py-2 bg-purple-600 hover:opacity-90 disabled:opacity-60 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors "
                   >
                     {isTokenLoading ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -607,7 +607,7 @@ export function AuthModal({ isOpen, auth, onSave, onClose }: AuthModalProps) {
           </button>
           <button
             onClick={handleSave}
-            className="px-5 py-2 text-xs bg-[var(--success)] hover:bg-green-700 text-white font-semibold rounded  transition-colors"
+            className="px-5 py-2 text-xs bg-[var(--success)] hover:opacity-90 text-white font-semibold rounded  transition-colors"
           >
             Save Authentication
           </button>

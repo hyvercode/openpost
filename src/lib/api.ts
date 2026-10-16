@@ -32,6 +32,20 @@ function withExpectedVersion<T extends object>(payload: T): T {
 }
 
 /**
+ * Tracks how the most recent 409 conflict was resolved, so writers that go
+ * through `resolveUpdateConflict` can tell whether the server kept the local
+ * payload ('local') or the cloud version ('cloud'). Read-and-clear via
+ * `takeLastConflictResolution()` right after the awaited update call.
+ */
+let lastConflictResolution: 'local' | 'cloud' | null = null;
+
+export function takeLastConflictResolution(): 'local' | 'cloud' | null {
+  const r = lastConflictResolution;
+  lastConflictResolution = null;
+  return r;
+}
+
+/**
  * Open the existing ConflictResolutionModal on 409. 'Keep Cloud' resolves
  * with the server version; 'Keep Local' force-saves over it.
  */
@@ -54,8 +68,10 @@ function resolveUpdateConflict<T>(
               ...(localPayload as Record<string, unknown>),
               force: true,
             });
+            lastConflictResolution = 'local';
             resolve(result);
           } else {
+            lastConflictResolution = 'cloud';
             resolve(cloud as T);
           }
         } catch (e) {
@@ -131,6 +147,44 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export const DESKTOP_AGENT_URL = 'http://127.0.0.1:8765/api/proxy';
+export const DESKTOP_AGENT_PING_URL = 'http://127.0.0.1:8765/ping';
+const AGENT_TOKEN_KEY = 'openpost_agent_token';
+
+export function getAgentToken(): string {
+  try {
+    return localStorage.getItem(AGENT_TOKEN_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Headers required by the hardened Desktop Agent Bridge. Empty object in
+ * cloud mode so shared call sites behave identically there.
+ */
+export function getDesktopAgentHeaders(targetUrl: string): Record<string, string> {
+  if (useStore.getState().agentMode !== 'desktop') return {};
+  const token = getAgentToken();
+  return {
+    'x-target-url': targetUrl,
+    ...(token ? { 'x-agent-token': token } : {}),
+  };
+}
+
+/** True when the bridge rejected the call due to a missing/wrong pairing token. */
+export function isAgentPairingError(err: any): boolean {
+  return err?.response?.status === 403;
+}
+
+export function agentPairingTroubleshooting(): string[] {
+  return [
+    'Copy the pairing token printed by desktop-agent.cjs and paste it into the Desktop Agent settings (token field).',
+    'Click "Save" on the token, then retry the request.',
+    'If you restarted the agent, the token changed — paste the new one.',
+  ];
+}
 
 export const apiService = {
   // Users
@@ -460,10 +514,10 @@ export const apiService = {
   async executeRequest(req: any, proxyConfig?: any, forceDirect = false, signal?: AbortSignal) {
     const { agentMode } = useStore.getState();
     const isDesktopAgent = agentMode === 'desktop';
-    const proxyBaseUrl = isDesktopAgent ? 'http://127.0.0.1:8765/api/proxy' : '/proxy';
+    const proxyBaseUrl = isDesktopAgent ? DESKTOP_AGENT_URL : '/proxy';
     // Pairing token for the local Desktop Agent Bridge (printed by
-    // desktop-agent.js at startup; stored locally after first pairing).
-    const agentToken = isDesktopAgent ? (localStorage.getItem('openpost_agent_token') || '') : '';
+    // desktop-agent.cjs at startup; stored locally after first pairing).
+    const agentToken = isDesktopAgent ? getAgentToken() : '';
 
     const url = req.url || '';
     const isLocal = !isDesktopAgent && (forceDirect || /localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+/i.test(url));
@@ -564,7 +618,7 @@ export const apiService = {
     }
 
     try {
-      const res = await api.post(isDesktopAgent ? 'http://127.0.0.1:8765/api/proxy' : '/proxy', {
+      const res = await api.post(isDesktopAgent ? DESKTOP_AGENT_URL : '/proxy', {
         method: req.method,
         url: req.url,
         headers: req.headers ? req.headers.reduce((acc: any, h: any) => {
@@ -583,6 +637,23 @@ export const apiService = {
       return res.data;
     } catch (err: any) {
       if (isDesktopAgent) {
+        // The bridge answered 403: it is running, but the pairing token is
+        // missing or wrong. Report that precisely instead of "not found".
+        if (isAgentPairingError(err)) {
+          return {
+            status: 0,
+            statusText: 'Agent Pairing Required',
+            headers: {},
+            data: {
+              error: 'Desktop Agent rejected the request (invalid pairing token)',
+              message: 'The bridge is running, but the pairing token is missing or wrong.',
+              troubleshooting: agentPairingTroubleshooting()
+            },
+            timeMs: 0,
+            size: 0,
+            timings: { dns: 0, connect: 0, ssl: 0, send: 0, wait: 0, receive: 0 }
+          };
+        }
          return {
             status: 0,
             statusText: 'Agent Bridge Not Found',

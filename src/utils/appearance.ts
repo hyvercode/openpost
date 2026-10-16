@@ -1,5 +1,24 @@
 export type FontScale = 'small' | 'medium' | 'large';
 
+export type AppTheme = 'light' | 'dark';
+
+export function readTheme(): AppTheme {
+  try {
+    return localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+}
+
+// Sync theme class to <html> so React portals attached to
+// document.body (autocomplete dropdowns) inherit the same tokens
+// and the `dark:` variant matches outside the app root div.
+export function applyTheme(theme: AppTheme) {
+  const root = document.documentElement;
+  root.classList.toggle('theme-dark', theme === 'dark');
+  root.classList.toggle('theme-light', theme !== 'dark');
+}
+
 const FONT_ROOT_PX: Record<FontScale, number> = {
   small: 14,
   medium: 16,

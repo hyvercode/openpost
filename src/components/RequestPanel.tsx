@@ -4,7 +4,7 @@ import { cn, replaceEnvironmentVariables } from '../utils';
 import { Play, Plus, Trash2, Save, Sliders, TerminalSquare, Check, AlertCircle, Shield, File, Paperclip, Clock, Zap, Info, MoreVertical, Code2, Upload, FolderPlus, Square, Gauge, Timer } from 'lucide-react';
 import { KeyValue, RequestAuth, RequestItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { apiService, api } from '../lib/api';
+import { apiService, api, getDesktopAgentHeaders, isAgentPairingError } from '../lib/api';
 import { CurlImportModal } from './CurlImportModal';
 import { CodeSnippetModal } from './CodeSnippetModal';
 import { RateLimiterModal } from './RateLimiterModal';
@@ -16,6 +16,7 @@ import {
   generate429Response 
 } from '../utils/rateLimiter';
 import { AutocompleteInput, AutocompleteTextarea } from './AutocompleteInput';
+import { persistCollectionRequests } from '../lib/collectionSync';
 import { JsonEditor } from './JsonEditor';
 import { motion, AnimatePresence } from 'motion/react';
 import { AuthModal } from './AuthModal';
@@ -54,9 +55,7 @@ export function RequestPanel() {
     clearWsMessages,
     setIsQuickEnvModalOpen,
     setIsSaveToCollectionModalOpen,
-    setRequestToSaveModal,
-    updateDraftRequest,
-    removeDraftRequest
+    setRequestToSaveModal
   } = useStore();
   
   // Local state for the active request to allow editing without saving immediately
@@ -180,6 +179,23 @@ export function RequestPanel() {
   const activeRequestIdRef = useRef<string | null>(null);
   const skipNextAutosave = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Hash of the last successfully persisted request body — skips no-op
+  // autosaves (also stops auto-snapshot spam on the server).
+  const lastSavedHashRef = useRef<string>('');
+  // Always-fresh snapshot of the editable form so queued saves never use a
+  // stale render closure.
+  const latestFormRef = useRef({
+    url, method, headers, params, bodyContent, gqlVariables, bodyType,
+    bodyFormData, protoFileContent, protoServiceName, protoMethodName,
+    mockStatus, mockHeaders, mockBodyContent, preRequestScript,
+    postResponseScript, authConfig,
+  });
+  latestFormRef.current = {
+    url, method, headers, params, bodyContent, gqlVariables, bodyType,
+    bodyFormData, protoFileContent, protoServiceName, protoMethodName,
+    mockStatus, mockHeaders, mockBodyContent, preRequestScript,
+    postResponseScript, authConfig,
+  };
 
   const handleCurlImport = (curlData: { method: string, url: string, headers: Array<{key: string, value: string}>, body: string }) => {
     setMethod(curlData.method);
@@ -202,42 +218,68 @@ export function RequestPanel() {
     setCurrentRequestConfig({ url, method, headers, params, bodyContent, bodyType, bodyFormData });
   }, [url, method, headers, params, bodyContent, bodyType, bodyFormData, setCurrentRequestConfig]);
 
+  // Push a stored request into the editable form. Reused by the
+  // activeRequest sync effect and by cloud-wins conflict recovery (same id
+  // never re-triggers the effect, so it must be callable explicitly).
+  const applyRequestToForm = (req: RequestItem) => {
+    activeRequestIdRef.current = req.id;
+    skipNextAutosave.current = true;
+    setUrl(req.url || '');
+    setMethod(req.method || 'GET');
+    setHeaders(req.headers?.length ? req.headers : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
+    setParams(req.params?.length ? req.params : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
+    setBodyContent(req.body?.content || '');
+    setGqlVariables(req.body?.variables || '');
+    setBodyType(req.body?.type || (req.body?.content ? 'raw' : 'none'));
+    setBodyFormData(req.body?.formData?.length ? req.body.formData : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
+    setProtoFileContent(req.grpcConfig?.protoFileContent || '');
+    setProtoServiceName(req.grpcConfig?.serviceName || '');
+    setProtoMethodName(req.grpcConfig?.methodName || '');
+    setMockStatus(req.mockResponse?.status ?? 200);
+    setMockHeaders(req.mockResponse?.headers?.length ? req.mockResponse.headers : [{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }]);
+    setMockBodyContent(req.mockResponse?.body ?? '');
+    setPreRequestScript(req.preRequestScript || '');
+    setPostResponseScript(req.postResponseScript || '');
+    setAuthConfig(req.auth || { type: 'none' });
+    setSaveStatus('');
+    setUrlTouched(false);
+    setIntrospectionSchema(null);
+    if (req.method === 'WS') {
+      setActiveTab('ws_messages');
+    } else if (activeTab === 'ws_messages') {
+      setActiveTab('params');
+    }
+
+    if (req.id.endsWith('_rerun')) {
+      setTimeout(() => {
+        handleSend();
+      }, 150);
+    }
+  };
+
+  // Store-only lastRun stamp merged onto the freshest stored copy, so a
+  // Send racing with an in-flight save can't resurrect older fields.
+  // Keyed by the SENT request id: if the user switched tabs mid-flight we
+  // must not stamp (or yank the editor back to) another request.
+  const stampLastRun = (requestId: string, collectionId: string, lastRun: NonNullable<RequestItem['lastRun']>) => {
+    const s = useStore.getState();
+    const col = s.collections.find(c => c.id === collectionId);
+    const freshReq = col?.requests.find(r => r.id === requestId)
+      ?? (s.activeRequest?.id === requestId ? s.activeRequest : undefined);
+    if (!freshReq) return;
+    const updatedRequest = { ...freshReq, lastRun };
+    if (col) {
+      s.setCollections(s.collections.map(c => c.id === col.id ? { ...c, requests: col.requests.map(r => r.id === requestId ? updatedRequest : r) } : c));
+    }
+    if (s.activeRequest?.id === requestId) {
+      s.setActiveRequest(updatedRequest);
+    }
+  };
+
   useEffect(() => {
     if (activeRequest) {
       if (activeRequest.id !== activeRequestIdRef.current) {
-        activeRequestIdRef.current = activeRequest.id;
-        skipNextAutosave.current = true;
-        setUrl(activeRequest.url || '');
-        setMethod(activeRequest.method || 'GET');
-        setHeaders(activeRequest.headers?.length ? activeRequest.headers : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
-        setParams(activeRequest.params?.length ? activeRequest.params : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
-        setBodyContent(activeRequest.body?.content || '');
-        setGqlVariables(activeRequest.body?.variables || '');
-        setBodyType(activeRequest.body?.type || (activeRequest.body?.content ? 'raw' : 'none'));
-        setBodyFormData(activeRequest.body?.formData?.length ? activeRequest.body.formData : [{ id: uuidv4(), key: '', value: '', enabled: true }]);
-        setProtoFileContent(activeRequest.grpcConfig?.protoFileContent || '');
-        setProtoServiceName(activeRequest.grpcConfig?.serviceName || '');
-        setProtoMethodName(activeRequest.grpcConfig?.methodName || '');
-        setMockStatus(activeRequest.mockResponse?.status ?? 200);
-        setMockHeaders(activeRequest.mockResponse?.headers?.length ? activeRequest.mockResponse.headers : [{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }]);
-        setMockBodyContent(activeRequest.mockResponse?.body ?? '');
-        setPreRequestScript(activeRequest.preRequestScript || '');
-        setPostResponseScript(activeRequest.postResponseScript || '');
-        setAuthConfig(activeRequest.auth || { type: 'none' });
-        setSaveStatus('');
-        setUrlTouched(false);
-        setIntrospectionSchema(null);
-        if (activeRequest.method === 'WS') {
-          setActiveTab('ws_messages');
-        } else if (activeTab === 'ws_messages') {
-          setActiveTab('params');
-        }
-
-        if (activeRequest.id.endsWith('_rerun')) {
-          setTimeout(() => {
-            handleSend();
-          }, 150);
-        }
+        applyRequestToForm(activeRequest);
       }
     } else {
       activeRequestIdRef.current = null;
@@ -831,18 +873,10 @@ if (method === 'WS') {
         timeMs: resData.timeMs
       });
 
-      // Update active request with last run info
+      // Update active request with last run info (store-only, merged onto
+      // the freshest copy so it never clobbers an in-flight save).
       if (activeRequest) {
-        const updatedRequest = { ...activeRequest, lastRun };
-        setActiveRequest(updatedRequest);
-        
-        // Also update in collections to persist across tab switches
-        const { collections, setCollections } = useStore.getState();
-        const collection = collections.find(c => c.id === activeRequest.collectionId);
-        if (collection) {
-          const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
-          setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
-        }
+        stampLastRun(activeRequest.id, activeRequest.collectionId, lastRun);
       }
 
       // Process scripts (Post-response)
@@ -987,17 +1021,10 @@ if (method === 'WS') {
         timeMs: 0
       });
 
-      // Update active request with last run info even on error
+      // Update active request with last run info even on error (store-only,
+      // merged onto the freshest copy so it never clobbers a save).
       if (activeRequest) {
-        const updatedRequest = { ...activeRequest, lastRun: lastRunError };
-        setActiveRequest(updatedRequest);
-        
-        const { collections, setCollections } = useStore.getState();
-        const collection = collections.find(c => c.id === activeRequest.collectionId);
-        if (collection) {
-          const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
-          setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
-        }
+        stampLastRun(activeRequest.id, activeRequest.collectionId, lastRunError);
       }
 
       addConsoleLog(
@@ -1082,6 +1109,8 @@ if (method === 'WS') {
         },
         body: { query: introspectionQuery },
         proxyConfig
+      }, {
+        headers: getDesktopAgentHeaders(finalUrl),
       });
 
       setResponse(res.data);
@@ -1094,8 +1123,13 @@ if (method === 'WS') {
         addConsoleLog('warn', 'GraphQL introspection returned empty schema', 'POST', finalUrl);
       }
     } catch (err: any) {
-      addToast('Introspection failed', 'error');
-      addConsoleLog('error', `Introspection error: ${err.message}`, 'POST', finalUrl);
+      if (isAgentPairingError(err)) {
+        addToast('Desktop Agent pairing token missing or wrong — paste it in the Desktop Agent settings', 'error', 5000);
+        addConsoleLog('error', 'Introspection rejected: invalid agent pairing token', 'POST', finalUrl);
+      } else {
+        addToast('Introspection failed', 'error');
+        addConsoleLog('error', `Introspection error: ${err.message}`, 'POST', finalUrl);
+      }
     } finally {
       setIsRequestLoading(false);
     }
@@ -1131,6 +1165,8 @@ if (method === 'WS') {
         },
         body: { query: '{ __typename }' },
         proxyConfig
+      }, {
+        headers: getDesktopAgentHeaders(finalUrl),
       });
 
       if (res.data?.data?.__typename || res.data?.errors) {
@@ -1148,82 +1184,98 @@ if (method === 'WS') {
         addConsoleLog('warn', 'GraphQL check returned response that does not match GraphQL specification.', 'POST', finalUrl);
       }
     } catch (err: any) {
-      addToast('Connection failed or endpoint is not GraphQL', 'error');
-      addConsoleLog('error', `GraphQL verification failed: ${err.message}`, 'POST', finalUrl);
+      if (isAgentPairingError(err)) {
+        addToast('Desktop Agent pairing token missing or wrong — paste it in the Desktop Agent settings', 'error', 5000);
+        addConsoleLog('error', 'GraphQL verification rejected: invalid agent pairing token', 'POST', finalUrl);
+      } else {
+        addToast('Connection failed or endpoint is not GraphQL', 'error');
+        addConsoleLog('error', `GraphQL verification failed: ${err.message}`, 'POST', finalUrl);
+      }
     } finally {
       setIsDetectingGql(false);
     }
   };
 
-  const handleSaveRequest = async () => {
-    if (!activeRequest) return;
+  const handleSaveRequest = async (force = false) => {
+    const st = useStore.getState();
+    const current = st.activeRequest;
+    if (!current) return;
+    const f = latestFormRef.current;
+
+    const buildFromForm = (base: RequestItem): RequestItem => ({
+      ...base,
+      url: f.url,
+      method: f.method,
+      headers: f.headers,
+      params: f.params,
+      body: {
+        ...base.body,
+        content: f.bodyContent,
+        variables: f.gqlVariables,
+        type: f.method === 'GQL' ? 'graphql' : (f.method === 'WS' ? 'none' : f.bodyType),
+        formData: f.bodyFormData
+      },
+      grpcConfig: {
+        protoFileContent: f.protoFileContent,
+        serviceName: f.protoServiceName,
+        methodName: f.protoMethodName,
+      },
+      mockResponse: {
+        status: f.mockStatus,
+        headers: f.mockHeaders,
+        body: f.mockBodyContent
+      },
+      preRequestScript: f.preRequestScript,
+      postResponseScript: f.postResponseScript,
+      auth: f.authConfig
+    });
+
+    if (!current.collectionId || !st.collections.some(c => c.id === current.collectionId)) {
+      // Standalone draft, history-virtual request, or a request whose
+      // collection is gone: persist it through the Save-to-Collection modal
+      // instead of silently doing nothing (which looked like a revert).
+      setSaveStatus('');
+      const draftReq = buildFromForm({ ...current });
+      // Upsert (not update-only): history-virtual requests aren't in drafts yet.
+      st.addDraftRequest(draftReq);
+      // Refresh the modal payload; open it only once.
+      setRequestToSaveModal(draftReq);
+      if (!useStore.getState().isSaveToCollectionModalOpen) {
+        setIsSaveToCollectionModalOpen(true);
+      }
+      return;
+    }
+
     setSaveStatus('Saving...');
     try {
-      if (!activeRequest.collectionId) {
-        setSaveStatus('');
-        const draftReq: RequestItem = {
-          ...activeRequest,
-          url,
-          method,
-          headers,
-          params,
-          body: {
-            type: bodyType,
-            content: bodyContent,
-            variables: gqlVariables,
-            formData: bodyFormData
-          },
-          preRequestScript,
-          postResponseScript,
-          auth: authConfig,
-        };
-        updateDraftRequest(draftReq);
-        setRequestToSaveModal(draftReq);
-        setIsSaveToCollectionModalOpen(true);
-        return;
+      // Skip no-op saves (prevents revert-by-stale-write and snapshot spam).
+      if (!force) {
+        const colNow = useStore.getState().collections.find(c => c.id === current.collectionId);
+        const freshNow = colNow?.requests.find(r => r.id === current.id);
+        if (freshNow && JSON.stringify(buildFromForm({ ...freshNow })) === lastSavedHashRef.current) {
+          setSaveStatus('Saved');
+          return;
+        }
       }
 
-      const collection = useStore.getState().collections.find(c => c.id === activeRequest.collectionId);
-      if (!collection) {
-        setSaveStatus('');
+      // Serialized inside persistCollectionRequests: the mutation runs
+      // against fresh store state at execution time, so overlapping
+      // autosave/manual saves can't clobber each other.
+      const res = await persistCollectionRequests(current.collectionId, current.id, (fresh) => buildFromForm(fresh));
+      if (!res) {
+        setSaveStatus('Changed');
         return;
       }
-
-      const updatedRequest = {
-        ...activeRequest,
-        url,
-        method,
-        headers,
-        params,
-        body: { 
-          ...activeRequest.body, 
-          content: bodyContent, 
-          variables: gqlVariables,
-          type: method === 'GQL' ? 'graphql' : (method === 'WS' ? 'none' : bodyType),
-          formData: bodyFormData
-        },
-        grpcConfig: {
-          protoFileContent,
-          serviceName: protoServiceName,
-          methodName: protoMethodName,
-        },
-        mockResponse: {
-          status: mockStatus,
-          headers: mockHeaders,
-          body: mockBodyContent
-        },
-        preRequestScript,
-        postResponseScript,
-        auth: authConfig
-      };
-
-      const updatedRequests = collection.requests.map(r => r.id === activeRequest.id ? updatedRequest : r);
-      await apiService.updateCollection(collection.id, { requests: updatedRequests });
-      
-      const { collections, setCollections } = useStore.getState();
-      setCollections(collections.map(c => c.id === collection.id ? { ...c, requests: updatedRequests } : c));
-      
-      setActiveRequest(updatedRequest);
+      lastSavedHashRef.current = JSON.stringify(res.request ?? {});
+      if (!res.keptLocal && res.request) {
+        // Conflict resolved with "Keep Cloud": force the form onto the
+        // server version (same id never re-triggers the sync effect).
+        applyRequestToForm(res.request);
+        setSaveStatus('Saved');
+        addToast('Server had a newer version — kept the cloud copy', 'info', 3000);
+        return;
+      }
+      setActiveRequest(res.request ?? buildFromForm({ ...current }));
       setSaveStatus('Saved');
       addToast('Request saved successfully', 'success', 2000);
     } catch (e) {
@@ -1565,7 +1617,7 @@ if (method === 'WS') {
                 className={cn(
                   "text-white px-4 sm:px-6 py-2 sm:py-0 rounded font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none min-h-[36px]",
                   rateLimiterConfig.enabled && rateLimiterConfig.mode === 'block' && rateLimitCooldownSec > 0
-                    ? "bg-[var(--warning)] hover:bg-amber-700 opacity-90"
+                    ? "bg-[var(--warning)] hover:opacity-90 opacity-90"
                     : (method === 'WS' || method === 'SSE') && wsStatus[activeRequest?.id || ''] === 'connected' 
                     ? "bg-[var(--danger)] hover:bg-[var(--danger)]" 
                     : "bg-[var(--primary)] hover:bg-[var(--primary-hover)]",
@@ -1784,7 +1836,7 @@ if (method === 'WS') {
               </button>
               <button
                 onClick={handleResetRateLimitQuota}
-                className="px-2 py-1 bg-[var(--danger)] hover:bg-red-700 text-white rounded text-[11px] font-bold transition-colors cursor-pointer "
+                className="px-2 py-1 bg-[var(--danger)] hover:opacity-90 text-white rounded text-[11px] font-bold transition-colors cursor-pointer "
               >
                 Bypass / Reset
               </button>
