@@ -92,7 +92,11 @@ async function startServer() {
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "https://accounts.google.com"],
             frameSrc: ["https://accounts.google.com"],
-            connectSrc: ["'self'", "https://accounts.google.com", "https://www.googleapis.com", "https://oauth2.googleapis.com"],
+            // Desktop Agent Bridge (local): auto-detect ping + /api/proxy direct
+            // to 127.0.0.1:8765 must not be blocked when the bundle is served
+            // over https in production. In prod Helmet CSP is on, so allow the
+            // loopback hosts explicitly (http + ws for realtime use).
+            connectSrc: ["'self'", "http://127.0.0.1:8765", "http://localhost:8765", "ws://127.0.0.1:8765", "ws://localhost:8765", "https://accounts.google.com", "https://www.googleapis.com", "https://oauth2.googleapis.com"],
             imgSrc: ["'self'", "data:", "https:"],
             styleSrc: ["'self'", "'unsafe-inline'"],
           },
