@@ -29,15 +29,17 @@ const ALLOW_SELF_SIGNED = process.env.AGENT_ALLOW_SELF_SIGNED === '1';
 // Pairing token: explicit env wins, else random per start (printed to console).
 const PAIRING_TOKEN = process.env.AGENT_TOKEN || crypto.randomBytes(24).toString('hex');
 
-const ALLOWED_ORIGIN_PREFIXES = ['http://localhost:', 'http://127.0.0.1:'];
-const ALLOWED_ORIGIN_SUFFIXES = ['.run.app'];
+const ALLOWED_ORIGIN_PREFIXES = ['http://localhost:', 'http://127.0.0.1:', 'https://localhost:', 'https://127.0.0.1:'];
+const ALLOWED_ORIGIN_SUFFIXES = ['.run.app', '.hyvercode.com'];
+const EXTRA_ALLOWED_ORIGINS = (process.env.AGENT_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 
 function isTrustedOrigin(origin) {
   if (!origin) return false;
   if (ALLOWED_ORIGIN_PREFIXES.some((p) => origin.startsWith(p))) return true;
+  if (EXTRA_ALLOWED_ORIGINS.includes(origin)) return true;
   try {
     const host = new URL(origin).hostname;
-    if (ALLOWED_ORIGIN_SUFFIXES.some((s) => host.endsWith(s))) return true;
+    if (ALLOWED_ORIGIN_SUFFIXES.some((s) => host === s.replace(/^\./, '') || host.endsWith(s))) return true;
   } catch {
     return false;
   }
