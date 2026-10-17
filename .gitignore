@@ -73,3 +73,6 @@ Desktop.ini
 *.njsproj
 *.sln
 *.sw?
+.env.production
+docker-compose.prod.yml
+Dockerfile.prod
