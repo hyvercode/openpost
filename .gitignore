@@ -74,5 +74,7 @@ Desktop.ini
 *.sln
 *.sw?
 .env.production
+doc
 docker-compose.prod.yml
 Dockerfile.prod
+release
