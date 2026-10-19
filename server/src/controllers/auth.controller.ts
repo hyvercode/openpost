@@ -1,0 +1,134 @@
+import { Request, Response } from 'express';
+import { AuthService } from '../services/auth.service';
+
+export class AuthController {
+  private authService = new AuthService();
+
+  register = async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+      const data = await this.authService.register(email, password);
+      res.status(201).json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  verifyEmail = async (req: Request, res: Response) => {
+    try {
+      const token = (req.query.token as string) || req.body.token;
+      if (!token) {
+        return res.status(400).json({ error: 'Verification token is required' });
+      }
+      const data = await this.authService.verifyEmail(token);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  resendVerification = async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+      const data = await this.authService.resendVerificationEmail(email);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  login = async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+      const data = await this.authService.login(email, password);
+      res.json(data);
+    } catch (error: any) {
+      res.status(401).json({ error: error.message });
+    }
+  };
+
+  googleAuth = async (req: Request, res: Response) => {
+    try {
+      const { credential, email, displayName, photoURL, googleId } = req.body;
+      const data = await this.authService.googleAuth({
+        credential,
+        email,
+        displayName,
+        photoURL,
+        googleId,
+      });
+      res.json(data);
+    } catch (error: any) {
+      console.error('Google Auth Error:', error);
+      res.status(400).json({ error: error.message, stack: error.stack });
+    }
+  };
+
+  me = async (req: Request, res: Response) => {
+    try {
+      // The auth middleware will set req.user
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      const user = await this.authService.getMe(userId);
+      res.json(user);
+    } catch (error: any) {
+      res.status(401).json({ error: error.message });
+    }
+  };
+
+  forgotPassword = async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+      const data = await this.authService.forgotPassword(email);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  resetPassword = async (req: Request, res: Response) => {
+    try {
+      const { token, password } = req.body;
+      if (!token || !password) {
+        return res.status(400).json({ error: 'Token and password are required' });
+      }
+      const data = await this.authService.resetPassword(token, password);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  changePassword = async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      
+      const { password } = req.body;
+      if (!password) {
+        return res.status(400).json({ error: 'New password is required' });
+      }
+      
+      const data = await this.authService.changePassword(userId, password);
+      res.json(data);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+}
