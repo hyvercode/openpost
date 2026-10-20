@@ -671,8 +671,26 @@ export const SettingsView: React.FC = () => {
                         type="button"
                         onClick={() => {
                           if (currentWorkspace) {
-                            exportWorkspaceJSON(currentWorkspace.id, collections, environments, currentWorkspace.name);
-                            addToast('Workspace backup exported successfully as JSON', 'success', 2500);
+                            const secretCount = environments.reduce(
+                              (n, env) => n + (env.variables || []).filter((v: any) => v?.isSecret).length,
+                              0
+                            );
+                            let includeSecrets = false;
+                            if (secretCount > 0) {
+                              includeSecrets = window.confirm(
+                                `This workspace has ${secretCount} secret variable${secretCount > 1 ? 's' : ''}.\n\n` +
+                                  'OK — include their values in the backup file.\n' +
+                                  'Cancel — export with secret values masked (empty).\n\n' +
+                                'Note: the backup always contains collection request headers and bodies as-is (they are needed to restore requests).'
+                              );
+                            }
+                            exportWorkspaceJSON(currentWorkspace.id, collections, environments, currentWorkspace.name, includeSecrets);
+                            addToast(
+                              secretCount > 0 && !includeSecrets
+                                ? 'Workspace backup exported — secret variable values masked'
+                                : 'Workspace backup exported successfully as JSON',
+                              'success', 2500
+                            );
                           }
                         }}
                         className="flex items-center justify-center gap-2.5 p-3 bg-[var(--primary)] text-white rounded text-xs font-bold hover:opacity-90 transition-colors  cursor-pointer"

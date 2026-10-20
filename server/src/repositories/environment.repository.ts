@@ -1,4 +1,5 @@
 import { prisma } from '../db';
+import { encField, decField } from '../utils/secretCrypto';
 
 export interface EnvironmentData {
   id: string;
@@ -15,7 +16,7 @@ export class EnvironmentRepository {
   private parseEnv(e: any) {
     return {
       ...e,
-      variables: e.variables ? JSON.parse(e.variables) : []
+      variables: e.variables ? JSON.parse(decField(e.variables)) : []
     };
   }
 
@@ -38,7 +39,7 @@ export class EnvironmentRepository {
         id: data.id,
         workspaceId: data.workspaceId,
         name: data.name,
-        variables: data.variables ? JSON.stringify(data.variables) : "[]",
+        variables: encField(data.variables ? JSON.stringify(data.variables) : "[]"),
         position: data.position || 0
       }
     });
@@ -63,7 +64,7 @@ export class EnvironmentRepository {
       where: { id },
       data: {
         ...(rest.name !== undefined && { name: rest.name }),
-        ...(rest.variables !== undefined && { variables: JSON.stringify(rest.variables) }),
+        ...(rest.variables !== undefined && { variables: encField(JSON.stringify(rest.variables)) }),
         ...(rest.position !== undefined && { position: rest.position })
       }
     });

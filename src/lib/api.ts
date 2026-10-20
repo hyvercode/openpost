@@ -87,6 +87,14 @@ export const api = axios.create({
   baseURL: ((import.meta as any).env?.VITE_API_URL || '') + '/api',
 });
 
+/**
+ * Bare axios instance for Desktop Agent bridge calls. Must NOT go through
+ * `api`: the Authorization header added by the interceptor would force a
+ * CORS preflight and the bridge allowlist (Content-Type, x-target-url,
+ * x-agent-token) rejects it — the browser then blocks the request entirely.
+ */
+export const agentApi = axios.create();
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token');
   if (token) {
@@ -715,7 +723,7 @@ export const apiService = {
     }
 
     try {
-      const res = await api.post(isDesktopAgent ? DESKTOP_AGENT_URL : '/proxy', {
+      const payload = {
         method: req.method,
         url: req.url,
         headers: req.headers ? req.headers.reduce((acc: any, h: any) => {
@@ -724,13 +732,20 @@ export const apiService = {
         }, {}) : {},
         body: proxyBody,
         proxyConfig,
-      }, {
-        headers: {
-          'x-target-url': req.url,
-          ...(isDesktopAgent && agentToken ? { 'x-agent-token': agentToken } : {}),
-        },
-        signal,
-      });
+      };
+      // Desktop bridge: bare instance (no Authorization — see agentApi).
+      const res = await (isDesktopAgent
+        ? agentApi.post(DESKTOP_AGENT_URL, payload, {
+            headers: {
+              'x-target-url': req.url,
+              ...(agentToken ? { 'x-agent-token': agentToken } : {}),
+            },
+            signal,
+          })
+        : api.post('/proxy', payload, {
+            headers: { 'x-target-url': req.url },
+            signal,
+          }));
       return res.data;
     } catch (err: any) {
       if (isDesktopAgent) {

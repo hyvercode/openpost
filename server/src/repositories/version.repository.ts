@@ -1,4 +1,5 @@
 import { prisma } from '../db';
+import { encField, decField } from '../utils/secretCrypto';
 
 export interface VersionData {
   id: string;
@@ -23,7 +24,7 @@ export class VersionRepository {
     return {
       ...v,
       folders: v.folders ? JSON.parse(v.folders) : [],
-      requests: v.requests ? JSON.parse(v.requests) : [],
+      requests: v.requests ? JSON.parse(decField(v.requests)) : [],
       mockConfig: v.mockConfig ? JSON.parse(v.mockConfig) : {},
       tags: v.tags ? JSON.parse(v.tags) : [],
       diffSummary: v.diffSummary ? JSON.parse(v.diffSummary) : null,
@@ -65,7 +66,7 @@ export class VersionRepository {
         description: data.description || null,
         author: data.author || null,
         folders: data.folders ? JSON.stringify(data.folders) : "[]",
-        requests: data.requests ? JSON.stringify(data.requests) : "[]",
+        requests: encField(data.requests ? JSON.stringify(data.requests) : "[]"),
         mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : "{}",
         tags: data.tags ? JSON.stringify(data.tags) : "[]",
         diffSummary: data.diffSummary ? JSON.stringify(data.diffSummary) : null,
@@ -82,7 +83,7 @@ export class VersionRepository {
     if (data.author !== undefined) updatePayload.author = data.author;
     if (data.tags !== undefined) updatePayload.tags = JSON.stringify(data.tags);
     if (data.folders !== undefined) updatePayload.folders = JSON.stringify(data.folders);
-    if (data.requests !== undefined) updatePayload.requests = JSON.stringify(data.requests);
+    if (data.requests !== undefined) updatePayload.requests = encField(JSON.stringify(data.requests));
     if (data.mockConfig !== undefined) updatePayload.mockConfig = JSON.stringify(data.mockConfig);
     if (data.diffSummary !== undefined) updatePayload.diffSummary = JSON.stringify(data.diffSummary);
 

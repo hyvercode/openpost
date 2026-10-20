@@ -1,4 +1,5 @@
 import { prisma } from '../db';
+import { encField, decField } from '../utils/secretCrypto';
 
 export interface DeploymentData {
   id: string;
@@ -16,7 +17,7 @@ export class DeploymentRepository {
     if (!d) return d;
     return {
       ...d,
-      requests: d.requests ? JSON.parse(d.requests) : [],
+      requests: d.requests ? JSON.parse(decField(d.requests)) : [],
       mockConfig: d.mockConfig ? JSON.parse(d.mockConfig) : {}
     };
   }
@@ -44,7 +45,7 @@ export class DeploymentRepository {
         collectionId: data.collectionId,
         collectionName: data.collectionName,
         version: data.version || 'v1',
-        requests: data.requests ? JSON.stringify(data.requests) : "[]",
+        requests: encField(data.requests ? JSON.stringify(data.requests) : "[]"),
         mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : "{}"
       }
     });
@@ -56,7 +57,7 @@ export class DeploymentRepository {
       where: { id },
       data: {
         ...(data.mockConfig !== undefined && { mockConfig: data.mockConfig ? JSON.stringify(data.mockConfig) : undefined }),
-        ...(data.requests !== undefined && { requests: data.requests ? JSON.stringify(data.requests) : undefined }),
+        ...(data.requests !== undefined && { requests: data.requests ? encField(JSON.stringify(data.requests)) : undefined }),
         ...(data.collectionName !== undefined && { collectionName: data.collectionName }),
         ...(data.mockVisibility !== undefined && { mockVisibility: data.mockVisibility })
       }

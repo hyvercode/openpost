@@ -32,6 +32,7 @@ import { rateLimiter } from './server/src/middleware/rateLimiter';
 import { meter } from './server/src/services/usage.service';
 import { getUsage } from './server/src/services/usage.service';
 import { decodeUpstreamBody } from './server/src/utils/responseDecode';
+import { decField } from './server/src/utils/secretCrypto';
 
 function meterProxyCall(req: any): void {
   const userId = req?.user?.uid || req?.user?.userId;
@@ -810,7 +811,14 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         }
       }
 
-      const requests = (collection.requests as any) || [];
+      // requests is a stored JSON string (encrypted at rest) — parse it into
+      // an array; the previous raw-string usage crashed on String.find.
+      let requests: any[] = [];
+      try {
+        requests = JSON.parse(decField((collection.requests as string) || '[]')) || [];
+      } catch {
+        requests = [];
+      }
       
       const getPathFromUrl = (urlStr: string) => {
         try {
@@ -927,7 +935,12 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         }
       }
 
-      const requests = (deployment.requests as any) || [];
+      let requests: any[] = [];
+      try {
+        requests = JSON.parse(decField((deployment.requests as string) || '[]')) || [];
+      } catch {
+        requests = [];
+      }
       
       // Clean up helper to extract path
       const getPathFromUrl = (urlStr: string) => {

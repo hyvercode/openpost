@@ -4,7 +4,7 @@ import { cn, replaceEnvironmentVariables } from '../utils';
 import { Play, Plus, Trash2, Save, Sliders, TerminalSquare, Check, AlertCircle, Shield, File, Paperclip, Clock, Zap, Info, MoreVertical, Code2, Upload, FolderPlus, Square, Gauge, Timer } from 'lucide-react';
 import { KeyValue, RequestAuth, RequestItem } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { apiService, api, getDesktopAgentHeaders, isAgentPairingError } from '../lib/api';
+import { apiService, api, agentApi, DESKTOP_AGENT_URL, getDesktopAgentHeaders, isAgentPairingError } from '../lib/api';
 import { CurlImportModal } from './CurlImportModal';
 import { CodeSnippetModal } from './CodeSnippetModal';
 import { RateLimiterModal } from './RateLimiterModal';
@@ -29,6 +29,9 @@ import { runScriptSandboxAsync } from '../utils/sandboxWorker';
 import { saveGraphQLHistoryItem } from '../utils/graphqlHistory';
 import * as protobuf from 'protobufjs';
 import { CommentsTab } from './CommentsTab';
+
+// Throttle for the secret-in-URL warning (avoids toasting on every retry).
+let lastSecretUrlWarnAt = 0;
 
 export function RequestPanel() {
   const { 
@@ -607,6 +610,22 @@ if (method === 'WS') {
       return;
     }
 
+    // Security: secret variable values landing in the URL (query string,
+    // path) end up in server/proxy logs, browser history and Referer headers.
+    if (finalUrl && Date.now() - lastSecretUrlWarnAt > 30000) {
+      const leakedSecret = (processedEnvVars as any[]).find((v) =>
+        v?.isSecret && v?.enabled !== false && String(v?.value ?? '').length >= 4 && finalUrl.includes(String(v.value))
+      );
+      if (leakedSecret) {
+        lastSecretUrlWarnAt = Date.now();
+        addToast(
+          `Secret variable "{{${leakedSecret.key}}}" appears in the request URL — query strings can be logged by servers, proxies, and browser history. Prefer sending it as a header or body value.`,
+          'warning',
+          7000
+        );
+      }
+    }
+
     // Process Headers
     const finalHeaders: Record<string, string> = { ...preRequestHeaders };
     headers.filter(h => h.enabled && h.key).forEach(h => {
@@ -1100,7 +1119,7 @@ if (method === 'WS') {
         }
       });
 
-      const res = await api.post(useStore.getState().agentMode === 'desktop' ? 'http://127.0.0.1:8765/api/proxy' : '/proxy', {
+      const gqlPayload = {
         method: 'POST',
         url: finalUrl,
         headers: {
@@ -1109,9 +1128,10 @@ if (method === 'WS') {
         },
         body: { query: introspectionQuery },
         proxyConfig
-      }, {
-        headers: getDesktopAgentHeaders(finalUrl),
-      });
+      };
+      const res = await (useStore.getState().agentMode === 'desktop'
+        ? agentApi.post(DESKTOP_AGENT_URL, gqlPayload, { headers: getDesktopAgentHeaders(finalUrl) })
+        : api.post('/proxy', gqlPayload, { headers: getDesktopAgentHeaders(finalUrl) }));
 
       setResponse(res.data);
       if (res.data.data?.__schema) {
@@ -1156,7 +1176,7 @@ if (method === 'WS') {
       });
 
       const { proxyConfig } = useStore.getState();
-      const res = await api.post(useStore.getState().agentMode === 'desktop' ? 'http://127.0.0.1:8765/api/proxy' : '/proxy', {
+      const detectPayload = {
         method: 'POST',
         url: finalUrl,
         headers: {
@@ -1165,9 +1185,10 @@ if (method === 'WS') {
         },
         body: { query: '{ __typename }' },
         proxyConfig
-      }, {
-        headers: getDesktopAgentHeaders(finalUrl),
-      });
+      };
+      const res = await (useStore.getState().agentMode === 'desktop'
+        ? agentApi.post(DESKTOP_AGENT_URL, detectPayload, { headers: getDesktopAgentHeaders(finalUrl) })
+        : api.post('/proxy', detectPayload, { headers: getDesktopAgentHeaders(finalUrl) }));
 
       if (res.data?.data?.__typename || res.data?.errors) {
         addToast('GraphQL Endpoint Confirmed!', 'success');

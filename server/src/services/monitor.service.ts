@@ -6,6 +6,7 @@ import { prisma } from '../db';
 import { EmailService } from './email.service';
 import { audit } from './audit.service';
 import { assertUrlSafe, createPinnedLookup } from './ssrf';
+import { encField, decField } from '../utils/secretCrypto';
 
 const TIMEOUT_MS = 20000;
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -64,11 +65,13 @@ export class MonitorService {
   }
 
   async getRuns(monitorId: string, limit = 20) {
-    return (prisma as any).monitorRun.findMany({
+    const rows = await (prisma as any).monitorRun.findMany({
       where: { monitorId },
       orderBy: { createdAt: 'desc' },
       take: Math.min(limit, 100),
     });
+    // detail (assertion failures, may embed response snippets) is encrypted at rest.
+    return rows.map((r: any) => ({ ...r, detail: r.detail ? decField(r.detail) : r.detail }));
   }
 
   async create(data: MonitorInput, actorUserId?: string) {
@@ -131,7 +134,7 @@ export class MonitorService {
 
     let requests: any[] = [];
     try {
-      requests = JSON.parse(collection.requests || '[]');
+      requests = JSON.parse(decField(collection.requests || '[]'));
     } catch {
       requests = [];
     }
@@ -182,7 +185,7 @@ export class MonitorService {
         passed,
         failed,
         timeMs,
-        detail: failures.slice(0, 10).join('\n').slice(0, 2000),
+        detail: encField(failures.slice(0, 10).join('\n').slice(0, 2000)),
       },
     });
     // Keep only the last 100 runs per monitor.

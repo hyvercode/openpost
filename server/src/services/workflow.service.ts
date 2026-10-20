@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../db';
 import { assertUrlSafe, createPinnedLookup } from './ssrf';
 import { audit } from './audit.service';
+import { encField, decField } from '../utils/secretCrypto';
 
 export type WfNodeType = 'request' | 'delay' | 'condition' | 'extract' | 'setVariable';
 export interface WfNode {
@@ -16,7 +17,9 @@ export interface WfNode {
 }
 export interface WfEdge { id: string; source: string; target: string; label?: string }
 
-function parseJson(s: string, fallback: any) { try { return JSON.parse(s); } catch { return fallback; } }
+// decrypt-aware: secret-bearing columns (variables) are stored as enc:v1:...
+// ciphertext; non-encrypted fields (nodes/edges) pass through unchanged.
+function parseJson(s: string, fallback: any) { try { return JSON.parse(decField(s)); } catch { return fallback; } }
 
 // Bound DAG size so one workflow cannot burn unbounded CPU/time on run.
 const MAX_NODES = 100, MAX_EDGES = 300, MAX_VARS = 100;
@@ -77,7 +80,7 @@ async function resolveNodeRequest(node: WfNode, vars: Record<string,string>): Pr
     try {
       const col: any = await prisma.collection.findUnique({ where: { id: String(cfg.collectionId) } });
       if (col) {
-        const reqs = JSON.parse(col.requests || '[]');
+        const reqs = JSON.parse(decField(col.requests || '[]'));
         const found = reqs.find((r:any)=> String(r.id)===String(cfg.requestId));
         if (found) {
           const dbHeaders = Array.isArray(found.headers) ? found.headers : [];
@@ -196,7 +199,7 @@ export class WorkflowService {
       environmentId: data.environmentId ? String(data.environmentId) : null,
       nodes: JSON.stringify(dag.nodes),
       edges: JSON.stringify(dag.edges),
-      variables: JSON.stringify(dag.variables),
+      variables: encField(JSON.stringify(dag.variables)),
     }});
     await audit('workflow.create', { workspaceId: data.workspaceId, userId: actorUserId, entityType:'workflow', entityId: row.id, detail: row.name });
     return { ...row, nodes: parseJson(row.nodes,'[]'), edges: parseJson(row.edges,'[]'), variables: parseJson(row.variables,'[]') };
@@ -215,7 +218,7 @@ export class WorkflowService {
       const dag = sanitizeDag({ nodes: data.nodes ?? parseJson(existing.nodes, []), edges: data.edges ?? parseJson(existing.edges, []), variables: data.variables ?? parseJson(existing.variables, []) });
       upd.nodes = JSON.stringify(dag.nodes);
       upd.edges = JSON.stringify(dag.edges);
-      upd.variables = JSON.stringify(dag.variables);
+      upd.variables = encField(JSON.stringify(dag.variables));
     }
     if (data.environmentId !== undefined) upd.environmentId = data.environmentId ? String(data.environmentId) : null;
     if (data.trigger === 'webhook' && !existing.webhookToken) upd.webhookToken = uuidv4().replace(/-/g,'');
@@ -231,7 +234,14 @@ export class WorkflowService {
     return { success:true };
   }
   async getRuns(workflowId: string, limit=20) {
-    return (prisma as any).workflowRun.findMany({ where:{ workflowId }, orderBy:{ createdAt:'desc' }, take: Math.min(limit,100) });
+    const rows = await (prisma as any).workflowRun.findMany({ where:{ workflowId }, orderBy:{ createdAt:'desc' }, take: Math.min(limit,100) });
+    // logs/detail are encrypted at rest (step logs embed response bodies);
+    // clients have always received them as JSON strings — keep that contract.
+    return rows.map((r: any) => ({
+      ...r,
+      logs: r.logs ? decField(r.logs) : r.logs,
+      detail: r.detail ? decField(r.detail) : r.detail,
+    }));
   }
   async run(workflowId: string, trigger='manual', triggerVars: Record<string,string>={}): Promise<any> {
     const wf = await (prisma as any).workflow.findUnique({ where:{id: workflowId} });
@@ -251,7 +261,7 @@ export class WorkflowService {
       try {
         const env: any = await prisma.environment.findUnique({ where: { id: selectedEnvId } });
         if (env && String(env.workspaceId)===String(wf.workspaceId) && !env.deletedAt) {
-          const evs = JSON.parse(env.variables || '[]');
+          const evs = JSON.parse(decField(env.variables || '[]'));
           for (const v of evs) if (v?.key && String(v.key).trim() && v.enabled !== false) vars[String(v.key).trim()] = String(v.value ?? '');
         }
       } catch {}
@@ -273,7 +283,7 @@ export class WorkflowService {
       stepLogs.push({ error: detail });
     }
     const durationMs = Date.now() - t0;
-    await (prisma as any).workflowRun.update({ where:{id: runId}, data:{ status, finishedAt: new Date(), durationMs, logs: JSON.stringify(stepLogs), detail: detail.slice(0,2000) }});
+    await (prisma as any).workflowRun.update({ where:{id: runId}, data:{ status, finishedAt: new Date(), durationMs, logs: encField(JSON.stringify(stepLogs)), detail: encField(detail.slice(0,2000)) }});
     await audit('workflow.run', { workspaceId: wf.workspaceId, entityType:'workflow', entityId: workflowId, detail: `${trigger} ${status}` });
     return { id: runId, status, durationMs, logs: stepLogs, detail };
   }

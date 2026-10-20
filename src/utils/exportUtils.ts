@@ -16,11 +16,31 @@ export function downloadJson(data: any, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+/**
+ * Returns a copy of the environments with secret variable values removed
+ * (value emptied, masked flag set) unless includeSecrets is true. Backup
+ * files frequently end up in shared drives / chat — secrets stay out by
+ * default and the user opts in explicitly.
+ */
+export function maskSecretEnvVars(
+  environments: Environment[],
+  includeSecrets: boolean
+): Environment[] {
+  if (includeSecrets) return environments;
+  return environments.map((env) => ({
+    ...env,
+    variables: (env.variables || []).map((v: any) =>
+      v?.isSecret ? { ...v, value: '', masked: true } : v
+    ),
+  }));
+}
+
 export function exportWorkspaceJSON(
   workspaceId: string, 
   collections: ApiCollection[], 
   environments: Environment[], 
-  workspaceName?: string
+  workspaceName?: string,
+  includeSecrets: boolean = false
 ) {
   const exportData = {
     type: 'apitester_export',
@@ -29,7 +49,7 @@ export function exportWorkspaceJSON(
     workspaceId,
     workspaceName: workspaceName || 'Workspace',
     collections,
-    environments,
+    environments: maskSecretEnvVars(environments, includeSecrets),
   };
   
   const formattedDate = new Date().toISOString().split('T')[0];

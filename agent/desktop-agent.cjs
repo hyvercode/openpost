@@ -66,7 +66,11 @@ const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-target-url, x-agent-token');
+  // 'authorization' is tolerated so older frontend builds (whose axios
+  // interceptor attached the app JWT to bridge calls) still pass preflight —
+  // the bridge ignores it and authenticates via the pairing token only.
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-target-url, x-agent-token');
+  res.setHeader('Access-Control-Max-Age', '600');
   // Private Network Access (Chrome 130+): a public https page (e.g. the
   // hosted web app) must receive this on the preflight or the browser
   // blocks every request to this loopback bridge.
