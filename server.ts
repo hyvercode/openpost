@@ -31,6 +31,7 @@ import { requireAuth } from './server/src/middleware/auth';
 import { rateLimiter } from './server/src/middleware/rateLimiter';
 import { meter } from './server/src/services/usage.service';
 import { getUsage } from './server/src/services/usage.service';
+import { decodeUpstreamBody } from './server/src/utils/responseDecode';
 
 function meterProxyCall(req: any): void {
   const userId = req?.user?.uid || req?.user?.userId;
@@ -85,13 +86,27 @@ async function startServer() {
   // window.$RefreshReg$ is never set and every transformed module throws
   // "@vitejs/plugin-react can't detect preamble. Something is wrong."
   if (process.env.NODE_ENV === "production") {
+    // Force HTTPS at the edge. Google Sign-In (GSI) refuses to initialize on
+    // non-localhost http origins and the CORS allowlist only carries https
+    // origins — a visitor landing on http:// gets a dead login button plus
+    // [cors] blocked origin errors. Only redirect when the reverse proxy
+    // explicitly reports http via X-Forwarded-Proto: direct container hits
+    // (health checks, no header) and misconfigured proxies never loop.
+    app.use((req, res, next) => {
+      const proto = (req.get("x-forwarded-proto") || "").split(",")[0].trim();
+      if (proto === "http") {
+        const host = req.get("host") || "";
+        return res.redirect(301, `https://${host}${req.originalUrl}`);
+      }
+      next();
+    });
     app.use(
       helmet({
         contentSecurityPolicy: {
           directives: {
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "https://accounts.google.com"],
-            frameSrc: ["https://accounts.google.com"],
+            frameSrc: ["https://accounts.google.com", "data:"],
             // Desktop Agent Bridge (local): auto-detect ping + /api/proxy direct
             // to 127.0.0.1:8765 must not be blocked when the bundle is served
             // over https in production. In prod Helmet CSP is on, so allow the
@@ -636,9 +651,11 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         maxContentLength: 10 * 1024 * 1024,
       };
 
-      if (isGrpcRequest) {
-        config.responseType = 'arraybuffer';
-      }
+      // Always fetch raw bytes: binary payloads (images, PDFs, protobuf, ...)
+      // must survive the trip byte-for-byte. Text content-types are decoded
+      // back to UTF-8 strings below (JSON parsed to objects), the rest is
+      // base64-encoded with isBase64: true for frontend rendering.
+      config.responseType = 'arraybuffer';
 
       // Manual redirect loop: max 3 hops, every Location re-validated with the
       // same SSRF policy (kills redirect-to-internal bypasses).
@@ -693,9 +710,16 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       });
 
       const responseData = response.data;
-      const isBufferResponse = Buffer.isBuffer(responseData) || responseData instanceof ArrayBuffer;
-      const dataToSend = isBufferResponse ? Buffer.from(responseData).toString("base64") : responseData;
-      const size = isBufferResponse ? Buffer.from(responseData).length : (typeof responseData === 'string' ? Buffer.byteLength(responseData) : JSON.stringify(responseData).length);
+      const rawBuf = responseData == null
+        ? Buffer.alloc(0)
+        : Buffer.isBuffer(responseData)
+          ? responseData
+          : Buffer.from(responseData as any);
+      const decoded = decodeUpstreamBody(
+        rawBuf,
+        String((response.headers || {})['content-type'] || '')
+      );
+      const size = rawBuf.length;
 
       // Usage metering (PRD #58): fire-and-forget, never blocks the response.
       meterProxyCall(req);
@@ -704,8 +728,8 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
-        data: dataToSend,
-        isBase64: isBufferResponse,
+        data: decoded.data,
+        isBase64: decoded.isBase64,
         timeMs: Math.round(totalTime),
         size: size,
         timings: {

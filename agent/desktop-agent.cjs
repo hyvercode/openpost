@@ -181,17 +181,57 @@ const server = http.createServer((req, res) => {
         });
         proxyRes.on('end', () => {
           const buffer = Buffer.concat(chunks);
-          const isJson = (proxyRes.headers['content-type'] || '').includes('application/json');
-          let data = buffer.toString('utf8');
-          try {
-            if (isJson) data = JSON.parse(data);
-          } catch (e) { /* keep raw */ }
+          const contentType = proxyRes.headers['content-type'] || '';
+          const ct = String(contentType).toLowerCase();
+          let textual =
+            !ct || // no header: verified by strict UTF-8 round-trip below
+            ct.includes('text/') ||
+            ct.includes('application/json') ||
+            ct.includes('application/ld+json') ||
+            ct.includes('application/xml') ||
+            ct.includes('application/xhtml+xml') ||
+            ct.includes('application/javascript') ||
+            ct.includes('application/x-javascript') ||
+            ct.includes('application/x-www-form-urlencoded') ||
+            ct.includes('application/graphql') ||
+            ct.includes('image/svg+xml') ||
+            ct.includes('+json') ||
+            ct.includes('+xml');
+
+          let data;
+          let isBase64 = false;
+          if (!ct) {
+            // No content-type: trust the bytes — a lossy UTF-8 decode (invalid
+            // sequences replaced by U+FFFD) means the payload is binary.
+            const text = buffer.toString('utf8');
+            if (Buffer.from(text, 'utf8').equals(buffer)) {
+              data = text;
+            } else {
+              data = buffer.toString('base64');
+              isBase64 = true;
+            }
+          } else if (!textual) {
+            // Binary payload (image, PDF, wasm, ...): base64 so the web app
+            // can render it instead of receiving mojibake.
+            data = buffer.toString('base64');
+            isBase64 = true;
+          } else {
+            data = buffer.toString('utf8');
+            if (ct.includes('application/json')) {
+              try {
+                data = JSON.parse(data);
+              } catch (e) {
+                /* malformed JSON: keep raw text instead of failing */
+              }
+            }
+          }
 
           send(res, 200, {
             status: proxyRes.statusCode,
             statusText: proxyRes.statusMessage,
             headers: proxyRes.headers,
             data,
+            isBase64,
             timeMs: Date.now() - startTime,
             size: buffer.length,
             timings: { total: Date.now() - startTime },

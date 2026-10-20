@@ -186,6 +186,98 @@ export function agentPairingTroubleshooting(): string[] {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// Direct-mode (browser → target, no proxy) response decoding.
+//
+// Mirrors server/src/utils/responseDecode.ts: fetch as ArrayBuffer so binary
+// payloads survive, decode text content-types back to UTF-8 (JSON parsed for
+// a nicer tree), base64-encode the rest with isBase64: true so the response
+// panel can render images/PDFs instead of showing mojibake.
+// ---------------------------------------------------------------------------
+
+const TEXTUAL_CT_PREFIXES = ['text/'];
+const TEXTUAL_CT_SUBSTRINGS = [
+  'application/json',
+  'application/ld+json',
+  'application/graphql',
+  'application/x-www-form-urlencoded',
+  'application/javascript',
+  'application/x-javascript',
+  'application/ecmascript',
+  'application/xml',
+  'application/xhtml+xml',
+  'application/manifest+json',
+  'application/problem+json',
+  'image/svg+xml',
+  '+json',
+  '+xml',
+];
+
+function isTextualContentType(raw: string | null | undefined): boolean {
+  const ct = String(raw || '').toLowerCase();
+  if (!ct) return false;
+  if (TEXTUAL_CT_PREFIXES.some((p) => ct.includes(p))) return true;
+  return TEXTUAL_CT_SUBSTRINGS.some((s) => ct.includes(s));
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(
+      null,
+      bytes.subarray(i, i + CHUNK) as unknown as number[]
+    );
+  }
+  return btoa(binary);
+}
+
+function tryJsonParse(text: string): any {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return undefined;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch {
+    /* malformed JSON: fall through to raw text */
+  }
+  return undefined;
+}
+
+export function decodeDirectResponseBody(
+  buf: ArrayBuffer,
+  contentType: string | null | undefined
+): { data: any; isBase64: boolean } {
+  const bytes = new Uint8Array(buf);
+  if (bytes.length === 0) return { data: '', isBase64: false };
+
+  const ct = String(contentType || '').toLowerCase();
+
+  if (!ct) {
+    // No content-type: trust the bytes — strict UTF-8 decode decides.
+    try {
+      const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      const parsed = tryJsonParse(text);
+      return { data: parsed !== undefined ? parsed : text, isBase64: false };
+    } catch {
+      return { data: bytesToBase64(bytes), isBase64: true };
+    }
+  }
+
+  if (!isTextualContentType(ct)) {
+    return { data: bytesToBase64(bytes), isBase64: true };
+  }
+
+  const text = new TextDecoder('utf-8').decode(bytes);
+  if (ct.includes('json')) {
+    const parsed = tryJsonParse(text);
+    if (parsed !== undefined) return { data: parsed, isBase64: false };
+    // Malformed JSON with a json content-type must NOT fail the request.
+    return { data: text, isBase64: false };
+  }
+  return { data: text, isBase64: false };
+}
+
 export const apiService = {
   // Users
   async saveUser(user: { uid: string; email: string | null; displayName: string | null; photoURL: string | null }) {
@@ -553,19 +645,24 @@ export const apiService = {
           url,
           headers,
           data: bodyData,
+          responseType: 'arraybuffer',
           validateStatus: () => true,
           signal,
         });
         const endTime = performance.now();
         const totalTime = endTime - startTime;
-        const responseData = response.data;
-        const size = typeof responseData === 'string' ? responseData.length : JSON.stringify(responseData || '').length;
+        const decoded = decodeDirectResponseBody(
+          response.data,
+          (response.headers as any)?.['content-type']
+        );
+        const size = response.data instanceof ArrayBuffer ? response.data.byteLength : 0;
 
         return {
           status: response.status,
           statusText: response.statusText,
           headers: response.headers,
-          data: responseData,
+          data: decoded.data,
+          isBase64: decoded.isBase64,
           timeMs: Math.round(totalTime),
           size,
           timings: {

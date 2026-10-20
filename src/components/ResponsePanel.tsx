@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { cn } from '../utils';
 import { api } from '../lib/api';
 import { JsonTree } from './JsonTree';
-import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download, Cpu, Gauge, Zap, X, Server, Info, GitCompare, RefreshCw, Trash2, ChevronRight, FlaskConical } from 'lucide-react';
+import { Clock, Database, Activity, CheckCircle2, AlertCircle, Wifi, Copy, Check, TrendingUp, Download, Cpu, Gauge, Zap, X, Server, Info, GitCompare, RefreshCw, Trash2, ChevronRight, FlaskConical, FileImage, FileText, Eye, ExternalLink } from 'lucide-react';
 import { diffLines } from 'diff';
 import { generateCurl, generateFetch, generateAxios, generatePythonRequests, generateGo, generateJavaOkHttp, generatePhpCurl, generateRubyNetHttp, generateCsharpHttpClient, generateSwiftUrlSession } from '../utils/snippetGenerator';
 import { replaceEnvironmentVariables } from '../utils';
@@ -245,6 +245,49 @@ function detectLanguage(response: any): 'json' | 'xml' | 'html' | 'text' {
   }
   
   return 'text';
+}
+
+function getContentType(response: any): string {
+  const headers = response?.headers || {};
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === 'content-type') {
+      return String(headers[key] || '').toLowerCase();
+    }
+  }
+  return '';
+}
+
+/**
+ * Classifies a base64-encoded response payload: images and PDFs are rendered
+ * live in the Preview tab; anything else binary gets an info card (never
+ * mojibake). Returns null for text-like responses.
+ */
+function getBinaryKind(response: any): 'image' | 'pdf' | 'binary' | null {
+  if (!response?.isBase64 || typeof response.data !== 'string') return null;
+  const ct = getContentType(response);
+  if (ct.includes('image/')) return 'image';
+  if (ct.includes('application/pdf')) return 'pdf';
+  return 'binary';
+}
+
+/** base64 of a %PDF- document starts with JVBERi0 — guards against a spoofed
+ *  content-type serving non-PDF bytes into the preview iframe. */
+function looksLikePdf(base64: string): boolean {
+  return base64.startsWith('JVBERi');
+}
+
+function formatBytes(n?: number): string {
+  if (!n || n < 0) return '0 B';
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function base64ToBlobUrl(base64: string, mimeType: string): string {
+  const bin = atob(base64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: mimeType || 'application/octet-stream' }));
 }
 
 function getFormattedContent(data: any, lang: 'json' | 'xml' | 'html' | 'text'): string {
@@ -610,9 +653,44 @@ export function ResponsePanel() {
     }
   };
 
+  // Mirror of activeTab readable inside the response effect without re-running
+  // it when the user clicks a tab (manual choices must survive until the next
+  // response arrives).
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  // Blob URL for live image/PDF previews + "open in new tab" links (top-level
+  // navigation to data: URLs is blocked by Chrome; blob: works). Recreated
+  // per response and revoked when replaced.
+  const previewBlobUrl = useMemo(() => {
+    const kind = getBinaryKind(response);
+    if ((kind === 'image' || kind === 'pdf') && typeof response?.data === 'string') {
+      try {
+        return base64ToBlobUrl(response.data, getContentType(response));
+      } catch {
+        return '';
+      }
+    }
+    return '';
+  }, [response]);
+  useEffect(() => () => {
+    if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl);
+  }, [previewBlobUrl]);
+
   useEffect(() => {
     if (response && !response.error) {
-      setDetectedLang(detectLanguage(response));
+      const lang = detectLanguage(response);
+      setDetectedLang(lang);
+
+      // Auto-render: rich payloads (rendered HTML, images, PDFs) jump to the
+      // Preview tab. Never steals tabs the user chose deliberately
+      // (headers/code/stats) and never kicks them out of Preview.
+      const kind = getBinaryKind(response);
+      const wantsPreview = kind === 'image' || kind === 'pdf' || lang === 'html';
+      const tab = activeTabRef.current;
+      if (wantsPreview && (tab === 'body' || tab === 'preview')) {
+        setActiveTab('preview');
+      }
     }
   }, [response]);
 
@@ -747,8 +825,23 @@ export function ResponsePanel() {
 
   const handleSave = (fileName: string) => {
     if (!response) return;
-    const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
-    const blob = new Blob([text], { type: 'text/plain' });
+    let blob: Blob;
+    if (response.isBase64 && typeof response.data === 'string') {
+      // Binary payloads arrive base64-encoded — decode to the original bytes
+      // so files (images/PDFs/archives) reopen correctly.
+      try {
+        const ct = getContentType(response) || 'application/octet-stream';
+        const bin = atob(response.data);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        blob = new Blob([bytes], { type: ct });
+      } catch {
+        blob = new Blob([response.data], { type: 'application/octet-stream' });
+      }
+    } else {
+      const text = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : String(response.data ?? '');
+      blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -762,7 +855,17 @@ export function ResponsePanel() {
     setTimeout(() => setDownloadCopied(false), 2000);
   };
 
-  const isHtml = typeof response?.data === 'string' && response.data.trim().startsWith('<');
+  const isHtml = (() => {
+    if (typeof response?.data !== 'string') return false;
+    if (detectLanguage(response) === 'html') return true;
+    // No html content-type: still render tag soup live, but leave true XML
+    // (xml content-type / <?xml declaration) to the formatted-text view.
+    const ct = getContentType(response);
+    const trimmed = response.data.trim();
+    if (!trimmed.startsWith('<')) return false;
+    if (ct.includes('xml') || trimmed.startsWith('<?xml')) return false;
+    return true;
+  })();
 
   if (activeRequest?.method === 'WS') {
     const status = wsStatus[activeRequest.id] || 'disconnected';
@@ -1203,22 +1306,185 @@ export function ResponsePanel() {
               </div>
             ) : activeTab === 'preview' && response && !response.error ? (
               <div className="flex-1 overflow-auto bg-[var(--bg-base)] p-4">
-                {isHtml ? (
-                  <iframe 
-                    srcDoc={response.data} 
-                    className="w-full h-full bg-[var(--bg-input)] rounded border border-[var(--border-subtle)]"
-                    sandbox="allow-same-origin"
-                    title="Response Preview"
-                  />
-                ) : typeof response.data === 'object' ? (
-                  <div className="pl-4">
-                    <JsonTree data={response.data} initiallyExpanded={true} />
-                  </div>
-                ) : (
-                  <div className="text-[var(--text-secondary)] text-sm font-mono whitespace-pre-wrap">
-                    {response.data}
-                  </div>
-                )}
+                {(() => {
+                  const kind = getBinaryKind(response);
+                  const ct = getContentType(response);
+
+                  // Live image preview (bytes arrive base64 from the proxy).
+                  if (kind === 'image' && typeof response.data === 'string') {
+                    const dataUrl = `data:${ct || 'image/png'};base64,${response.data}`;
+                    return (
+                      <div className="flex flex-col gap-3 h-full min-h-[340px]">
+                        <div className="flex items-center justify-between gap-2 text-[10px] font-mono text-[var(--text-secondary)] shrink-0">
+                          <span className="uppercase tracking-wider font-bold">{ct || 'image'}</span>
+                          <span>{formatBytes(response.size)}</span>
+                        </div>
+                        <div
+                          className="flex-1 min-h-[280px] flex items-center justify-center rounded border border-[var(--border-subtle)] p-4 overflow-auto"
+                          style={{
+                            backgroundColor: 'var(--bg-panel)',
+                            backgroundImage: 'repeating-conic-gradient(var(--bg-input) 0% 25%, transparent 0% 50%)',
+                            backgroundSize: '20px 20px',
+                          }}
+                        >
+                          <img
+                            src={dataUrl}
+                            alt="Response preview"
+                            className="max-w-full max-h-[70vh] object-contain"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {previewBlobUrl && (
+                            <a
+                              href={previewBlobUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-xs font-medium text-[var(--text-primary)]"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              Open in new tab
+                            </a>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSaveInitialName(`response_${new Date().getTime()}.${(ct.split('/')[1] || 'png').split(';')[0]}`);
+                              setIsSaveModalOpen(true);
+                            }}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-xs font-medium text-[var(--text-primary)]"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Live PDF preview — only for real PDF bytes (%PDF magic),
+                  // so a spoofed content-type can never feed HTML into the frame.
+                  if (kind === 'pdf' && typeof response.data === 'string' && looksLikePdf(response.data)) {
+                    const dataUrl = `data:application/pdf;base64,${response.data}`;
+                    return (
+                      <div className="flex flex-col gap-3 h-full min-h-[480px]">
+                        <div className="flex items-center justify-between gap-2 text-[10px] font-mono text-[var(--text-secondary)] shrink-0">
+                          <span className="uppercase tracking-wider font-bold">application/pdf</span>
+                          <span>{formatBytes(response.size)}</span>
+                        </div>
+                        <iframe
+                          src={dataUrl}
+                          title="PDF preview"
+                          className="flex-1 min-h-[420px] w-full rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)]"
+                        />
+                        <div className="flex items-center gap-2 shrink-0">
+                          {previewBlobUrl && (
+                            <a
+                              href={previewBlobUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-xs font-medium text-[var(--text-primary)]"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              Open PDF in new tab
+                            </a>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSaveInitialName(`response_${new Date().getTime()}.pdf`);
+                              setIsSaveModalOpen(true);
+                            }}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-hover)] text-xs font-medium text-[var(--text-primary)]"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Any other binary payload: informative card, never mojibake.
+                  if (kind) {
+                    const isPdfSpoof = kind === 'pdf' && typeof response.data === 'string' && !looksLikePdf(response.data);
+                    return (
+                      <div className="h-full min-h-[280px] flex items-center justify-center">
+                        <div className="max-w-sm text-center space-y-3 p-6 rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)]">
+                          <div className="w-12 h-12 mx-auto rounded-full bg-[var(--primary)]/10 flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-[var(--primary)]" />
+                          </div>
+                          <h4 className="text-xs font-bold text-[var(--text-primary)]">Binary Response</h4>
+                          <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed font-mono">
+                            {ct || 'application/octet-stream'} · {formatBytes(response.size)} · base64
+                            {isPdfSpoof && ' — content does not match the declared PDF type'}
+                          </p>
+                          <div className="flex items-center justify-center gap-2 pt-1">
+                            <button
+                              onClick={() => {
+                                setSaveInitialName(`response_${new Date().getTime()}.bin`);
+                                setIsSaveModalOpen(true);
+                              }}
+                              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] text-xs font-medium text-[var(--text-primary)]"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              Save file
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Rendered HTML (content-type driven, scripts stay blocked
+                  // by the sandbox attribute).
+                  if (isHtml) {
+                    return (
+                      <iframe
+                        srcDoc={response.data}
+                        className="w-full h-full min-h-[360px] bg-[var(--bg-input)] rounded border border-[var(--border-subtle)]"
+                        sandbox="allow-same-origin"
+                        title="Response Preview"
+                      />
+                    );
+                  }
+
+                  // JSON delivered as a string still gets the tree view.
+                  if (typeof response.data === 'string' && detectLanguage(response) === 'json') {
+                    try {
+                      const parsed = JSON.parse(response.data);
+                      if (parsed && typeof parsed === 'object') {
+                        return (
+                          <div className="pl-4">
+                            <JsonTree data={parsed} initiallyExpanded={true} />
+                          </div>
+                        );
+                      }
+                    } catch {
+                      /* fall through to plain text */
+                    }
+                  }
+
+                  if (typeof response.data === 'object' && response.data !== null) {
+                    return (
+                      <div className="pl-4">
+                        <JsonTree data={response.data} initiallyExpanded={true} />
+                      </div>
+                    );
+                  }
+
+                  // XML: pretty-printed instead of raw one-liner.
+                  if (typeof response.data === 'string' && detectLanguage(response) === 'xml') {
+                    return (
+                      <pre className="text-[var(--text-code)] text-sm font-mono leading-relaxed whitespace-pre-wrap break-all">
+                        {getFormattedContent(response.data, 'xml')}
+                      </pre>
+                    );
+                  }
+
+                  return (
+                    <div className="text-[var(--text-secondary)] text-sm font-mono whitespace-pre-wrap">
+                      {response.data}
+                    </div>
+                  );
+                })()}
               </div>
             ) : !response ? (
               <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-xs">
@@ -1297,7 +1563,13 @@ export function ResponsePanel() {
                       <button
                         onClick={() => {
                           if (!response) return;
-                          const ext = typeof response.data === 'object' ? 'json' : (detectedLang === 'html' ? 'html' : detectedLang === 'xml' ? 'xml' : 'txt');
+                          let ext: string;
+                          if (response.isBase64 && typeof response.data === 'string') {
+                            const sub = (getContentType(response).split('/')[1] || 'bin').split(';')[0];
+                            ext = /[^a-z0-9]/.test(sub) ? 'bin' : sub;
+                          } else {
+                            ext = typeof response.data === 'object' ? 'json' : (detectedLang === 'html' ? 'html' : detectedLang === 'xml' ? 'xml' : 'txt');
+                          }
                           setSaveInitialName(`response_${new Date().getTime()}.${ext}`);
                           setIsSaveModalOpen(true);
                         }}
@@ -1349,7 +1621,45 @@ export function ResponsePanel() {
                 )}>
                   {(() => {
                     const rawContent = typeof response.data === 'object' ? JSON.stringify(response.data, null, 2) : response.data;
-                    
+
+                    // Binary payloads: show an info card instead of base64
+                    // mojibake (the Diff view still diffs the encoded text).
+                    if (viewMode !== 'diff' && getBinaryKind(response)) {
+                      const ct = getContentType(response);
+                      return (
+                        <div className="h-full flex items-center justify-center p-6">
+                          <div className="max-w-sm text-center space-y-3 p-6 rounded border border-[var(--border-subtle)] bg-[var(--bg-panel)]">
+                            <div className="w-12 h-12 mx-auto rounded-full bg-[var(--primary)]/10 flex items-center justify-center">
+                              <FileText className="w-6 h-6 text-[var(--primary)]" />
+                            </div>
+                            <h4 className="text-xs font-bold text-[var(--text-primary)]">Binary Response</h4>
+                            <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed font-mono">
+                              {ct || 'application/octet-stream'} · {formatBytes(response.size)} · base64
+                            </p>
+                            <div className="flex items-center justify-center gap-2 pt-1">
+                              <button
+                                onClick={() => setActiveTab('preview')}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] text-xs font-medium text-[var(--text-primary)]"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                Open Preview
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSaveInitialName(`response_${new Date().getTime()}.bin`);
+                                  setIsSaveModalOpen(true);
+                                }}
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-input)] hover:bg-[var(--bg-hover)] text-xs font-medium text-[var(--text-primary)]"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     if (viewMode === 'raw') {
                       return (
                         <pre className="text-[var(--text-code)] leading-relaxed whitespace-pre-wrap break-all">
