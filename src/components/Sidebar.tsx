@@ -26,7 +26,7 @@ function interpolateString(str: string, vars: any[]): string {
   let result = str;
   vars.forEach(v => {
     if (v.key && v.enabled !== false) {
-      const regex = new RegExp(`\\{\\{${v.key.replace(/[.*+?^${}()|[\]\\]/g, '\\export function Sidebar() {')}\\}\\}`, 'g');
+      const regex = new RegExp(`\\{\\{${v.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`, 'g');
       result = result.replace(regex, v.value || '');
     }
   });
