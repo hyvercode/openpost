@@ -11,9 +11,10 @@ export function replaceEnvironmentVariables(text: string, variables: { key: stri
   variables.filter(v => v && v.enabled !== false && v.key).forEach(v => {
     const key = String(v.key).trim();
     if (!key) return;
+    if (v.value === undefined || v.value === null) return;
     const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`{{\\s*${escapedKey}\\s*}}`, 'g');
-    result = result.replace(regex, v.value ?? '');
+    result = result.replace(regex, String(v.value));
   });
   return result;
 }
