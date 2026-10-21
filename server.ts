@@ -107,6 +107,11 @@ async function startServer() {
           directives: {
             defaultSrc: ["'self'"],
             scriptSrc: ["'self'", "https://accounts.google.com"],
+            // Pre/Post-response scripts run in a Web Worker created from a
+            // blob URL (src/utils/sandboxWorker.ts). Without blob: here the
+            // worker is CSP-blocked in production and pm.environment.set
+            // silently never applies.
+            workerSrc: ["'self'", "blob:"],
             frameSrc: ["https://accounts.google.com", "data:"],
             // Desktop Agent Bridge (local): auto-detect ping + /api/proxy direct
             // to 127.0.0.1:8765 must not be blocked when the bundle is served
