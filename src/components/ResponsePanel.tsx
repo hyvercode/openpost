@@ -590,6 +590,15 @@ export function ResponsePanel() {
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveInitialName, setSaveInitialName] = useState('');
 
+  // Reset response panel UI when switching to a different request
+  useEffect(() => {
+    setActiveTab('body');
+    setViewMode('pretty');
+    setSelectedLang('auto');
+    setIsPerfPanelOpen(false);
+    setIsSaveModalOpen(false);
+  }, [activeRequest?.id]);
+
   const handleSaveBaseline = async () => {
     const store = useStore.getState();
     const current = store.activeRequest;
