@@ -172,7 +172,28 @@ interface AppState {
   setAiConfig: (config: AiConfig) => void;
 }
 
-export const useStore = create<AppState>((set) => ({
+const activeEnvStorageKey = (workspaceId: string) => `activeEnvironmentId:${workspaceId}`;
+
+function readActiveEnvId(workspaceId: string | undefined): string | null {
+  if (!workspaceId) return null;
+  try {
+    return localStorage.getItem(activeEnvStorageKey(workspaceId));
+  } catch {
+    return null;
+  }
+}
+
+function writeActiveEnvId(workspaceId: string | undefined, envId: string | null) {
+  if (!workspaceId) return;
+  try {
+    if (envId) localStorage.setItem(activeEnvStorageKey(workspaceId), envId);
+    else localStorage.removeItem(activeEnvStorageKey(workspaceId));
+  } catch {
+    // ignore storage failures (private mode/quota)
+  }
+}
+
+export const useStore = create<AppState>((set, get) => ({
   bulkRunReport: null,
   setBulkRunReport: (report) => set({ bulkRunReport: report }),
   isBulkRunning: false,
@@ -285,16 +306,41 @@ export const useStore = create<AppState>((set) => ({
     if (currentWorkspace) {
       localStorage.setItem('lastWorkspaceId', currentWorkspace.id);
     }
-    set({ currentWorkspace });
+    // Never keep an environment from another workspace active: it would
+    // silently resolve {{variables}} with the wrong values. The persisted
+    // environment (if any) is restored once the workspace data loads.
+    const savedEnvId = readActiveEnvId(currentWorkspace?.id);
+    const environments = currentWorkspace ? get().environments : [];
+    const nextEnvironment = savedEnvId
+      ? environments.find((env) => env.id === savedEnvId) || null
+      : null;
+    set({ currentWorkspace, currentEnvironment: nextEnvironment });
   },
 
   collections: [],
   setCollections: (collections) => set({ collections }),
 
   environments: [],
-  setEnvironments: (environments) => set({ environments }),
+  setEnvironments: (environments) => set((state) => {
+    const current = state.currentEnvironment;
+    // Keep the active environment pointing at the freshest copy and restore
+    // the last selection after a reload/workspace switch.
+    let nextEnvironment = current
+      ? environments.find((env) => env.id === current.id) || null
+      : null;
+    if (!nextEnvironment) {
+      const savedEnvId = readActiveEnvId(state.currentWorkspace?.id);
+      if (savedEnvId) {
+        nextEnvironment = environments.find((env) => env.id === savedEnvId) || null;
+      }
+    }
+    return { environments, currentEnvironment: nextEnvironment };
+  }),
   currentEnvironment: null,
-  setCurrentEnvironment: (currentEnvironment) => set({ currentEnvironment }),
+  setCurrentEnvironment: (currentEnvironment) => {
+    writeActiveEnvId(get().currentWorkspace?.id, currentEnvironment?.id || null);
+    set({ currentEnvironment });
+  },
 
   deployments: [],
   setDeployments: (deployments) => set({ deployments }),
