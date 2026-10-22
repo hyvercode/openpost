@@ -208,8 +208,9 @@ const customConsole = {
 };
 
 try {
-  const runner = new Function('pm', 'console', __SCRIPT__);
-  runner(pmObject, customConsole);
+  (function (pm, console) {
+__SCRIPT__
+  })(pmObject, customConsole);
   self.postMessage({ ok: true, envVars: currentVars, globals, testResults, logs, requestHeaders: modifiedHeaders });
 } catch (e) {
   addLog('error', 'Script Execution Error: ' + String((e && e.message) || e).slice(0, 500));
@@ -293,8 +294,14 @@ export function runScriptSandboxAsync(
   };
 
   let source = buildWorkerSource();
-  source = source.replace('__SNAPSHOT__', JSON.stringify(snapshot));
-  source = source.replace('__SCRIPT__', JSON.stringify(script));
+  // Use replacer callbacks so `$&`, `$'`, `$`` inside user scripts or token
+  // values are not interpreted as replacement patterns.
+  source = source.replace('__SNAPSHOT__', () => JSON.stringify(snapshot));
+  // The script is embedded as the body of the sandbox wrapper instead of
+  // being passed to `new Function`: production CSP has no 'unsafe-eval', and
+  // blob workers inherit the document CSP, so eval-based runners are blocked
+  // everywhere except localhost (where CSP is disabled).
+  source = source.replace('__SCRIPT__', () => `\n${script}\n`);
 
   return new Promise<SandboxResult>((resolve) => {
     let settled = false;
