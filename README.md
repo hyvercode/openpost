@@ -1,4 +1,4 @@
-# API Tester Pro
+# OpenPost
 
 A powerful, Postman-like API testing application with team collaboration, collections, and environment variable support.
 
