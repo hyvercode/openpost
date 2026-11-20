@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Theme } from '../types';
-import { api } from '../lib/api';
+import { api, consumeSessionExpiredNotice, hasSessionExpiredNotice } from '../lib/api';
 import { GoogleAuthModal } from './GoogleAuthModal';
 import { DesktopDownloadModal } from './DesktopDownloadModal';
 import { DeveloperDocsPage } from './DeveloperDocsPage';
@@ -113,7 +113,17 @@ export function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    consumeSessionExpiredNotice();
+  }, []);
+
+  const [error, setError] = useState<string | null>(() =>
+    hasSessionExpiredNotice()
+      ? language === 'id'
+        ? 'Sesi Anda telah berakhir. Silakan masuk kembali.'
+        : 'Your session has expired. Please log in again.'
+      : null
+  );
   const [success, setSuccess] = useState<string | null>(null);
 
   // Verification states

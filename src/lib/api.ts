@@ -3,6 +3,37 @@ import { useStore } from '../store/useStore';
 import { Workspace, ApiCollection, Environment, Deployment, CollectionVersion } from '../types';
 import { syncEngine } from './syncEngine';
 
+const AUTH_TOKEN_KEY = 'auth_token';
+const SESSION_EXPIRED_KEY = 'auth_session_expired';
+
+export function clearSession(opts?: { expired?: boolean }) {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  useStore.getState().setUser(null);
+  if (opts?.expired) {
+    localStorage.setItem(SESSION_EXPIRED_KEY, '1');
+  } else {
+    localStorage.removeItem(SESSION_EXPIRED_KEY);
+  }
+}
+
+export function hasSessionExpiredNotice(): boolean {
+  try {
+    return localStorage.getItem(SESSION_EXPIRED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function consumeSessionExpiredNotice(): boolean {
+  const expired = hasSessionExpiredNotice();
+  if (expired) {
+    try {
+      localStorage.removeItem(SESSION_EXPIRED_KEY);
+    } catch {}
+  }
+  return expired;
+}
+
 function getAiConfig(): Record<string,string> | undefined {
   try {
     const raw = localStorage.getItem('ai_config');
@@ -96,7 +127,7 @@ export const api = axios.create({
 export const agentApi = axios.create();
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -114,6 +145,15 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    const status = error.response?.status;
+    const requestUrl: string = error.config?.url || '';
+    const isCredentialCheck = ['/auth/login', '/auth/google', '/auth/register', '/auth/logout']
+      .some((path) => requestUrl.includes(path));
+
+    if (status === 401 && !isCredentialCheck) {
+      clearSession({ expired: true });
+    }
+
     const isNetworkError = error.message === 'Network Error' || error.code === 'ERR_NETWORK';
     
     // If it's a sync task itself that failed, just throw so processQueue handles it

@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useRef } from 'react';
-import { api } from './lib/api';
+import { api, clearSession } from './lib/api';
 import { apiService } from './lib/api';
 import { useStore } from './store/useStore';
 import { useAgentPing } from './hooks/useAgentPing';
@@ -496,8 +496,7 @@ export default function App() {
     } catch {
       // proceed with local logout even if the server call fails
     }
-    localStorage.removeItem('auth_token');
-    setUser(null);
+    clearSession();
   };
 
   useEffect(() => {
@@ -532,8 +531,7 @@ export default function App() {
         setUser(res.data);
       } catch (err) {
         console.error("Failed to authenticate user", err);
-        localStorage.removeItem('auth_token');
-        setUser(null);
+        clearSession({ expired: true });
       } finally {
         setLoading(false);
       }
