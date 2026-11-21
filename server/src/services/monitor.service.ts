@@ -6,10 +6,17 @@ import { prisma } from '../db';
 import { EmailService } from './email.service';
 import { audit } from './audit.service';
 import { assertUrlSafe, createPinnedLookup } from './ssrf';
+import { validateCron, validateHhMm, shouldRunMonitor } from './schedule';
 import { encField, decField } from '../utils/secretCrypto';
 
 const TIMEOUT_MS = 20000;
 const MAX_BYTES = 5 * 1024 * 1024;
+// Retry transient network failures (timeouts, DNS, refused) — not HTTP
+// statuses, which are deterministic results, not flakes.
+const MAX_ATTEMPTS = 3;
+const RETRY_BACKOFF_MS = [500, 1500];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function safeGet(urlStr: string, headers: Record<string, string>): Promise<{ status: number; timeMs: number; bytes: number }> {
   const { urlObj, targetIp } = await assertUrlSafe(urlStr);
@@ -40,6 +47,41 @@ export interface MonitorInput {
   alertEmail?: string | null;
   slackWebhookUrl?: string | null;
   failThreshold?: number;
+  scheduleMode?: string | null;
+  cronExpr?: string | null;
+  timezone?: string | null;
+  activeStart?: string | null;
+  activeEnd?: string | null;
+  pausedUntil?: string | Date | null;
+}
+
+function sanitizeSchedule(data: Partial<MonitorInput>) {
+  const scheduleMode = data.scheduleMode === 'cron' ? 'cron' : 'interval';
+  let cronExpr: string | null = null;
+  if (scheduleMode === 'cron') {
+    cronExpr = String(data.cronExpr || '').trim();
+    if (!cronExpr) throw new Error('cronExpr is required in cron schedule mode');
+    const err = validateCron(cronExpr);
+    if (err) throw new Error(`Invalid cronExpr: ${err}`);
+  }
+  for (const [key, val] of [['activeStart', data.activeStart], ['activeEnd', data.activeEnd]] as const) {
+    if (val !== undefined && val !== null && val !== '' && !validateHhMm(String(val))) {
+      throw new Error(`${key} must be HH:MM (24h)`);
+    }
+  }
+  let pausedUntil: Date | null = null;
+  if (data.pausedUntil !== undefined && data.pausedUntil !== null && data.pausedUntil !== '') {
+    pausedUntil = new Date(data.pausedUntil);
+    if (Number.isNaN(pausedUntil.getTime())) throw new Error('Invalid pausedUntil datetime');
+  }
+  return {
+    scheduleMode,
+    cronExpr,
+    timezone: data.timezone ? String(data.timezone).slice(0, 64) : null,
+    activeStart: data.activeStart ? String(data.activeStart) : null,
+    activeEnd: data.activeEnd ? String(data.activeEnd) : null,
+    pausedUntil,
+  };
 }
 
 function sanitizeMonitorInput(data: Partial<MonitorInput>) {
@@ -51,7 +93,7 @@ function sanitizeMonitorInput(data: Partial<MonitorInput>) {
   if (data.slackWebhookUrl && !/^https:\/\/(hooks\.slack\.com|discord\.com)\//.test(data.slackWebhookUrl)) {
     throw new Error('slackWebhookUrl must be an https hooks URL');
   }
-  return { intervalMinutes: interval, failThreshold };
+  return { intervalMinutes: interval, failThreshold, ...sanitizeSchedule(data) };
 }
 
 export class MonitorService {
@@ -82,7 +124,7 @@ export class MonitorService {
     if (!collection || (collection as any).deletedAt || (collection as any).workspaceId !== data.workspaceId) {
       throw new Error('Collection not found in this workspace');
     }
-    const { intervalMinutes, failThreshold } = sanitizeMonitorInput(data);
+    const sched = sanitizeMonitorInput(data);
     const created = await (prisma as any).monitor.create({
       data: {
         id: data.id || uuidv4(),
@@ -90,10 +132,16 @@ export class MonitorService {
         collectionId: data.collectionId,
         name: data.name.trim().slice(0, 120),
         enabled: data.enabled !== false,
-        intervalMinutes,
+        intervalMinutes: sched.intervalMinutes,
         alertEmail: data.alertEmail || null,
         slackWebhookUrl: data.slackWebhookUrl || null,
-        failThreshold,
+        failThreshold: sched.failThreshold,
+        scheduleMode: sched.scheduleMode,
+        cronExpr: sched.cronExpr,
+        timezone: sched.timezone,
+        activeStart: sched.activeStart,
+        activeEnd: sched.activeEnd,
+        pausedUntil: sched.pausedUntil,
       },
     });
     await audit('monitor.create', { workspaceId: data.workspaceId, userId: actorUserId, entityType: 'monitor', entityId: created.id, detail: created.name });
@@ -101,16 +149,38 @@ export class MonitorService {
   }
 
   async update(id: string, data: Partial<MonitorInput>, actorUserId?: string) {
-    const { intervalMinutes, failThreshold } = sanitizeMonitorInput({ ...data, intervalMinutes: data.intervalMinutes, failThreshold: data.failThreshold });
+    const existing = await (prisma as any).monitor.findUnique({ where: { id } });
+    // Merge schedule fields with stored values so partial updates can't
+    // silently drop the cron expression or active window.
+    // Explicit null clears a field; undefined means "leave stored value".
+    const mergedSchedule = {
+      scheduleMode: data.scheduleMode ?? existing?.scheduleMode ?? 'interval',
+      cronExpr: data.cronExpr !== undefined ? data.cronExpr : (existing?.cronExpr ?? null),
+      timezone: data.timezone !== undefined ? data.timezone : (existing?.timezone ?? null),
+      activeStart: data.activeStart !== undefined ? data.activeStart : (existing?.activeStart ?? null),
+      activeEnd: data.activeEnd !== undefined ? data.activeEnd : (existing?.activeEnd ?? null),
+      pausedUntil: data.pausedUntil !== undefined ? data.pausedUntil : (existing?.pausedUntil ?? null),
+    };
+    const sched = sanitizeMonitorInput({ ...data, ...mergedSchedule, intervalMinutes: data.intervalMinutes, failThreshold: data.failThreshold });
     const updated = await (prisma as any).monitor.update({
       where: { id },
       data: {
         ...(data.name !== undefined && { name: String(data.name).trim().slice(0, 120) }),
         ...(data.enabled !== undefined && { enabled: !!data.enabled }),
-        ...(data.intervalMinutes !== undefined && { intervalMinutes }),
-        ...(data.failThreshold !== undefined && { failThreshold }),
+        ...(data.intervalMinutes !== undefined && { intervalMinutes: sched.intervalMinutes }),
+        ...(data.failThreshold !== undefined && { failThreshold: sched.failThreshold }),
         ...(data.alertEmail !== undefined && { alertEmail: data.alertEmail || null }),
         ...(data.slackWebhookUrl !== undefined && { slackWebhookUrl: data.slackWebhookUrl || null }),
+        ...((data.scheduleMode !== undefined || data.cronExpr !== undefined) && {
+          scheduleMode: sched.scheduleMode,
+          cronExpr: sched.cronExpr,
+        }),
+        ...(data.timezone !== undefined && { timezone: sched.timezone }),
+        ...((data.activeStart !== undefined || data.activeEnd !== undefined) && {
+          activeStart: sched.activeStart,
+          activeEnd: sched.activeEnd,
+        }),
+        ...(data.pausedUntil !== undefined && { pausedUntil: sched.pausedUntil }),
       },
     });
     await audit('monitor.update', { workspaceId: updated.workspaceId, userId: actorUserId, entityType: 'monitor', entityId: id });
@@ -149,24 +219,37 @@ export class MonitorService {
     for (const r of checks) {
       const url = this.interpolate(String(r.url || ''), {});
       if (!url) continue;
-      try {
-        const headers: Record<string, string> = {};
-        for (const h of r.headers || []) {
-          if (h?.enabled !== false && h?.key) headers[h.key] = String(h.value ?? '');
+      const headers: Record<string, string> = {};
+      for (const h of r.headers || []) {
+        if (h?.enabled !== false && h?.key) headers[h.key] = String(h.value ?? '');
+      }
+      delete headers['authorization'];
+      delete headers['cookie'];
+      const target = url.startsWith('http') ? url : `http://${url}`;
+      let attempt = 0;
+      let done = false;
+      while (!done && attempt < MAX_ATTEMPTS) {
+        attempt++;
+        try {
+          const t0 = Date.now();
+          const res = await safeGet(target, headers);
+          timeMs += Date.now() - t0;
+          if (res.status >= 200 && res.status < 400) passed++;
+          else {
+            failed++;
+            failures.push(`${r.method} ${url} -> ${res.status}`);
+          }
+          done = true;
+        } catch (e: any) {
+          if (attempt >= MAX_ATTEMPTS) {
+            failed++;
+            const note = attempt > 1 ? ` (after ${attempt} attempts)` : '';
+            failures.push(`${r.method} ${url} -> ${String(e?.message || e).slice(0, 120)}${note}`);
+            done = true;
+          } else {
+            await sleep(RETRY_BACKOFF_MS[attempt - 1] ?? 2000);
+          }
         }
-        delete headers['authorization'];
-        delete headers['cookie'];
-        const t0 = Date.now();
-        const res = await safeGet(url.startsWith('http') ? url : `http://${url}`, headers);
-        timeMs += Date.now() - t0;
-        if (res.status >= 200 && res.status < 400) passed++;
-        else {
-          failed++;
-          failures.push(`${r.method} ${url} -> ${res.status}`);
-        }
-      } catch (e: any) {
-        failed++;
-        failures.push(`${r.method} ${url} -> ${String(e?.message || e).slice(0, 120)}`);
       }
     }
 
@@ -199,9 +282,12 @@ export class MonitorService {
       await (prisma as any).monitorRun.deleteMany({ where: { id: { in: oldRuns.map((r: any) => r.id) } } });
     }
 
-    // Alert on transition into failing-at-threshold (not on every run).
+    // Alert on transition into failing-at-threshold (not on every run),
+    // and once on recovery after an alerted outage.
     if (failed > 0 && prevFailures < monitor.failThreshold && consecutiveFailures >= monitor.failThreshold) {
-      await this.sendAlert(monitor, failures);
+      await this.sendDownAlert(monitor, failures);
+    } else if (failed === 0 && prevFailures >= monitor.failThreshold) {
+      await this.sendRecoveryAlert(monitor);
     }
     await audit('monitor.run', { workspaceId: monitor.workspaceId, entityType: 'monitor', entityId: monitorId, detail: `${status} passed=${passed} failed=${failed}` });
     return { status, passed, failed, timeMs };
@@ -211,9 +297,19 @@ export class MonitorService {
     return url.replace(/\{\{[^}]+\}\}/g, '').trim();
   }
 
-  private async sendAlert(monitor: any, failures: string[]): Promise<void> {
+  private async sendDownAlert(monitor: any, failures: string[]): Promise<void> {
     const subject = `[OpenPost] Monitor DOWN: ${monitor.name}`;
     const text = `Monitor "${monitor.name}" failed ${monitor.failThreshold}+ consecutive checks.\n\n${failures.slice(0, 10).join('\n')}`;
+    await this.dispatchAlert(monitor, subject, text);
+  }
+
+  private async sendRecoveryAlert(monitor: any): Promise<void> {
+    const subject = `[OpenPost] Monitor RECOVERED: ${monitor.name}`;
+    const text = `Monitor "${monitor.name}" is passing checks again.`;
+    await this.dispatchAlert(monitor, subject, text);
+  }
+
+  private async dispatchAlert(monitor: any, subject: string, text: string): Promise<void> {
     const jobs: Promise<unknown>[] = [];
     if (monitor.alertEmail) {
       jobs.push(
@@ -238,11 +334,10 @@ export function startMonitorScheduler(intervalMs = 60000): void {
   setInterval(async () => {
     try {
       const due = await (prisma as any).monitor.findMany({ where: { enabled: true } });
-      const now = Date.now();
+      const now = new Date();
       const svc = new MonitorService();
       for (const m of due) {
-        const last = m.lastRunAt ? new Date(m.lastRunAt).getTime() : 0;
-        if (now - last < m.intervalMinutes * 60000) continue;
+        if (!shouldRunMonitor(m, now)) continue;
         if (running.has(m.id)) continue;
         running.add(m.id);
         // Mark run start first so a crash doesn't spin tight loops.

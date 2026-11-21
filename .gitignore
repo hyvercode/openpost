@@ -14,6 +14,9 @@ dist-electron/
 build/
 out/
 release/
+release
+server.cjs
+dist/server.cjs
 *.local
 
 # Desktop Agent & Binary Artifacts
@@ -74,7 +77,5 @@ Desktop.ini
 *.sln
 *.sw?
 .env.production
-doc
-docker-compose.prod.yml
-Dockerfile.prod
-release
+.opencode
+docs

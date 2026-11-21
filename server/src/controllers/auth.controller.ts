@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
+import { sendError } from '../utils/errors';
 
 export class AuthController {
   private authService = new AuthService();
@@ -8,7 +9,7 @@ export class AuthController {
     try {
       const { email, password } = req.body;
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+        return sendError(res, 400, 'Email and password are required');
       }
       const data = await this.authService.register(email, password);
       res.status(201).json(data);
@@ -21,7 +22,7 @@ export class AuthController {
     try {
       const token = (req.query.token as string) || req.body.token;
       if (!token) {
-        return res.status(400).json({ error: 'Verification token is required' });
+        return sendError(res, 400, 'Verification token is required');
       }
       const data = await this.authService.verifyEmail(token);
       res.json(data);
@@ -34,7 +35,7 @@ export class AuthController {
     try {
       const { email } = req.body;
       if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
+        return sendError(res, 400, 'Email is required');
       }
       const data = await this.authService.resendVerificationEmail(email);
       res.json(data);
@@ -47,7 +48,7 @@ export class AuthController {
     try {
       const { email, password } = req.body;
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+        return sendError(res, 400, 'Email and password are required');
       }
       const data = await this.authService.login(email, password);
       res.json(data);
@@ -78,7 +79,7 @@ export class AuthController {
       // The auth middleware will set req.user
       const userId = (req as any).user?.userId;
       if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
       const user = await this.authService.getMe(userId);
       res.json(user);
@@ -91,7 +92,7 @@ export class AuthController {
     try {
       const { email } = req.body;
       if (!email) {
-        return res.status(400).json({ error: 'Email is required' });
+        return sendError(res, 400, 'Email is required');
       }
       const data = await this.authService.forgotPassword(email);
       res.json(data);
@@ -104,7 +105,7 @@ export class AuthController {
     try {
       const { token, password } = req.body;
       if (!token || !password) {
-        return res.status(400).json({ error: 'Token and password are required' });
+        return sendError(res, 400, 'Token and password are required');
       }
       const data = await this.authService.resetPassword(token, password);
       res.json(data);
@@ -117,7 +118,7 @@ export class AuthController {
     try {
       const userId = (req as any).user?.userId;
       if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
 
       // Validated by changePasswordSchema (currentPassword + password).
@@ -133,7 +134,7 @@ export class AuthController {
     try {
       const userId = (req as any).user?.userId;
       if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
       const data = await this.authService.logout(userId);
       res.json(data);
@@ -146,7 +147,7 @@ export class AuthController {
     try {
       const userId = (req as any).user?.userId;
       if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
       const data = await this.authService.deleteAccount(userId);
       res.json(data);

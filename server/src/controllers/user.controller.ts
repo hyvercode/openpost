@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { UserService } from '../services/user.service';
+import { sendError } from '../utils/errors';
 
 export class UserController {
   private userService = new UserService();
@@ -9,11 +10,11 @@ export class UserController {
       const { uid } = req.params;
       const user = await this.userService.getUser(uid);
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return sendError(res, 404, 'User not found');
       }
       res.json(user);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch user', details: error.message });
+      sendError(res, 500, 'Failed to fetch user', error);
     }
   };
 
@@ -23,11 +24,11 @@ export class UserController {
       const authUserId = (req as any).user?.uid || (req as any).user?.userId;
 
       if (!uid) {
-        return res.status(400).json({ error: 'UID is required' });
+        return sendError(res, 400, 'UID is required');
       }
 
       if (authUserId !== uid) {
-        return res.status(403).json({ error: 'Forbidden to update another user profile' });
+        return sendError(res, 403, 'Forbidden to update another user profile');
       }
 
       // Guard: photoURL may carry a base64 avatar — enforce the same
@@ -43,7 +44,7 @@ export class UserController {
       const user = await this.userService.upsertUser(uid, { email, displayName, photoURL: avatarValue });
       res.json(user);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to upsert user', details: error.message });
+      sendError(res, 500, 'Failed to upsert user', error);
     }
   };
 
@@ -51,7 +52,7 @@ export class UserController {
     try {
       const authUserId = (req as any).user?.uid || (req as any).user?.userId;
       if (!authUserId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
       const { image } = req.body || {};
       const err = validateAvatarDataUrl(image);
@@ -60,7 +61,7 @@ export class UserController {
       const user = await this.userService.upsertUser(authUserId, { photoURL: image });
       res.json(user);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to update avatar', details: error.message });
+      sendError(res, 500, 'Failed to update avatar', error);
     }
   };
 
@@ -68,12 +69,12 @@ export class UserController {
     try {
       const authUserId = (req as any).user?.uid || (req as any).user?.userId;
       if (!authUserId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
       const user = await this.userService.upsertUser(authUserId, { photoURL: null });
       res.json(user);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to remove avatar', details: error.message });
+      sendError(res, 500, 'Failed to remove avatar', error);
     }
   };
 }

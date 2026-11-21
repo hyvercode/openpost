@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore';
 import { 
   Play, Plus, Trash2, CheckCircle2, XCircle, AlertCircle, RefreshCw, Activity, BarChart2,
   Folder, Settings2, Download, Printer, Filter, Clock, ChevronDown, ChevronRight, CheckSquare,
-  Square, Zap, RotateCcw, Sliders, Search, StopCircle, Eye, EyeOff, FileText, Check, Layers
+  Square, Zap, RotateCcw, Sliders, Search, StopCircle, Eye, EyeOff, FileText, Check, Layers, X
 } from 'lucide-react';
 import { TestSuite, TestCase, TestAssertion, RequestItem, ApiCollection, KeyValue, ExecutedTestStep, CollectionRunReport } from '../types';
 import { apiService } from '../lib/api';
@@ -28,6 +28,8 @@ function interpolateString(str: string, vars: KeyValue[]): string {
   });
   return result;
 }
+
+import { evaluateAssertion } from '../utils/assertions';
 
 export function TestRunnerPanel() {
   const { 
@@ -81,6 +83,7 @@ export function TestRunnerPanel() {
   // Execution State
   const [isRunning, setIsRunning] = useState(false);
   const stopRequestedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const [currentProgress, setCurrentProgress] = useState<{ current: number; total: number; iteration: number } | null>(null);
   const [runReport, setRunReport] = useState<CollectionRunReport | null>(null);
   const [filterStatus, setFilterStatus] = useState<'all' | 'passed' | 'failed'>('all');
@@ -90,6 +93,8 @@ export function TestRunnerPanel() {
   // Custom Test Suite State (for custom_suites mode)
   const [customSuiteResults, setCustomSuiteResults] = useState<Record<string, { success: boolean; log: string[] }>>({});
   const [customSuiteView, setCustomSuiteView] = useState<'tests' | 'dashboard'>('tests');
+  const [isRunningCustom, setIsRunningCustom] = useState(false);
+  const customAbortRef = useRef<AbortController | null>(null);
 
   const selectedCollection = useMemo(() => {
     return collections.find(c => c.id === selectedCollectionId) || collections[0];
@@ -182,8 +187,10 @@ export function TestRunnerPanel() {
 
     setIsRunning(true);
     stopRequestedRef.current = false;
+    abortRef.current = new AbortController();
     const totalSteps = selectedRequestsToRun.length * iterations;
     let completedSteps = 0;
+    let haltedOnError = false;
 
     const startTime = new Date().toISOString();
     const executedSteps: ExecutedTestStep[] = [];
@@ -210,7 +217,7 @@ export function TestRunnerPanel() {
     });
 
     for (let iter = 1; iter <= iterations; iter++) {
-      if (stopRequestedRef.current) break;
+      if (stopRequestedRef.current || haltedOnError) break;
 
       // Inject data file variables for this iteration
       if (dataFileRows && dataFileRows.length > 0) {
@@ -288,20 +295,24 @@ export function TestRunnerPanel() {
 
         const reqStartTime = Date.now();
         try {
-          const res = await apiService.executeRequest(prepReq, proxyConfig);
+          const res = await apiService.executeRequest(prepReq, proxyConfig, false, abortRef.current?.signal);
           durationMs = Date.now() - reqStartTime;
           responseStatus = res.status;
           responseStatusText = res.statusText || (res.status >= 200 && res.status < 300 ? 'OK' : 'Response');
           responseData = res.data;
           responseHeaders = res.headers || {};
-          
+
           const rawBodyStr = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
           sizeBytes = rawBodyStr ? new Blob([rawBodyStr]).size : 0;
         } catch (err: any) {
           durationMs = Date.now() - reqStartTime;
-          responseStatus = 500;
-          responseStatusText = err.message || 'Network Error';
-          responseData = { error: err.message };
+          // Never masquerade transport failures as HTTP 500: status 0 marks
+          // "no response" so reports and assertions stay truthful.
+          responseStatus = 0;
+          responseStatusText = err?.name === 'AbortError' || err?.name === 'CanceledError' || stopRequestedRef.current
+            ? 'Aborted by user'
+            : (err.message || 'Network Error');
+          responseData = { error: responseStatusText };
         }
 
         // 4. Post-response test script execution
@@ -336,9 +347,9 @@ export function TestRunnerPanel() {
           // Default status assertion if no script exists
           const defaultPassed = responseStatus >= 200 && responseStatus < 400;
           testResults.push({
-            name: `Status code is HTTP ${responseStatus}`,
+            name: responseStatus === 0 ? 'No response (network error/aborted)' : `Status code is HTTP ${responseStatus}`,
             passed: defaultPassed,
-            error: defaultPassed ? undefined : `Received HTTP ${responseStatus}`
+            error: defaultPassed ? undefined : `Received ${responseStatus === 0 ? responseStatusText : `HTTP ${responseStatus}`}`
           });
         }
 
@@ -401,6 +412,7 @@ export function TestRunnerPanel() {
 
         if (stopOnError && !stepPassed) {
           addToast(`Collection runner stopped on error: ${prepReq.name}`, 'warning');
+          haltedOnError = true;
           break;
         }
       }
@@ -413,6 +425,7 @@ export function TestRunnerPanel() {
 
   const handleStopRun = () => {
     stopRequestedRef.current = true;
+    abortRef.current?.abort();
     setIsRunning(false);
   };
 
@@ -438,6 +451,82 @@ export function TestRunnerPanel() {
   // Custom Test Suite logic
   const customSuite = testSuites.find(s => s.id === activeTabId);
   const workspaceRequests = collections.flatMap(c => c.requests).filter(r => r.workspaceId === currentWorkspace?.id);
+
+  const handleRunCustomSuite = async () => {
+    if (!customSuite || isRunningCustom) return;
+    setIsRunningCustom(true);
+    customAbortRef.current = new AbortController();
+    try {
+      const { proxyConfig } = useStore.getState();
+      const newResults: Record<string, { success: boolean; log: string[] }> = {};
+      const updatedTestCases = [...customSuite.testCases];
+
+      for (let i = 0; i < updatedTestCases.length; i++) {
+        if (customAbortRef.current?.signal.aborted) {
+          newResults[updatedTestCases[i].id] = { success: false, log: ['Aborted by user'] };
+          continue;
+        }
+        const tc = updatedTestCases[i];
+        const req = collections.flatMap(c => c.requests).find(r => r.id === tc.requestId);
+        if (!req) continue;
+
+        const logs: string[] = [];
+        let passedAll = true;
+        let duration = 0;
+        try {
+          const startTime = Date.now();
+          const res = await apiService.executeRequest(req, proxyConfig, false, customAbortRef.current?.signal);
+          duration = Date.now() - startTime;
+
+          for (const assertion of tc.assertions) {
+            const outcome = evaluateAssertion(assertion, { status: res.status, data: res.data, headers: res.headers }, duration);
+            logs.push(`${outcome.pass ? '✓' : '✗'} ${assertion.type}: ${outcome.message}`);
+            if (!outcome.pass) passedAll = false;
+          }
+        } catch (err: any) {
+          logs.push(`Error: ${err?.name === 'AbortError' || err?.name === 'CanceledError' ? 'Aborted by user' : err.message}`);
+          passedAll = false;
+        }
+
+        const newHistory = [...(tc.history || []), { timestamp: Date.now(), durationMs: duration, success: passedAll }].slice(-50);
+        updatedTestCases[i] = { ...tc, history: newHistory };
+        newResults[tc.id] = { success: passedAll, log: logs };
+      }
+
+      updateTestSuite(customSuite.id, { testCases: updatedTestCases });
+      setCustomSuiteResults(newResults);
+    } finally {
+      setIsRunningCustom(false);
+    }
+  };
+
+  const handleStopCustomSuite = () => {
+    customAbortRef.current?.abort();
+    setIsRunningCustom(false);
+  };
+
+  const updateCustomTestCase = (tcId: string, patch: Partial<TestCase>) => {
+    if (!customSuite) return;
+    updateTestSuite(customSuite.id, {
+      testCases: customSuite.testCases.map(c => c.id === tcId ? { ...c, ...patch } : c),
+    });
+  };
+
+  const handleAddAssertion = (tc: TestCase) => {
+    updateCustomTestCase(tc.id, {
+      assertions: [...tc.assertions, { id: Math.random().toString(36).substring(2, 9), type: 'status_code', expectedValue: '200' }],
+    });
+  };
+
+  const handleUpdateAssertion = (tc: TestCase, assertionId: string, patch: Partial<TestAssertion>) => {
+    updateCustomTestCase(tc.id, {
+      assertions: tc.assertions.map(a => a.id === assertionId ? { ...a, ...patch } : a),
+    });
+  };
+
+  const handleRemoveAssertion = (tc: TestCase, assertionId: string) => {
+    updateCustomTestCase(tc.id, { assertions: tc.assertions.filter(a => a.id !== assertionId) });
+  };
 
   const handleAddCustomTestCase = () => {
     if (!customSuite) return;
@@ -991,53 +1080,23 @@ export function TestRunnerPanel() {
                   <h3 className="text-sm font-bold text-[var(--text-primary)]">Custom Suite: {customSuite.name}</h3>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={async () => {
-                      // Run tests for custom suite
-                      const { proxyConfig } = useStore.getState();
-                      const newResults: Record<string, { success: boolean; log: string[] }> = {};
-                      const updatedTestCases = [...customSuite.testCases];
-
-                      for (let i = 0; i < updatedTestCases.length; i++) {
-                        const tc = updatedTestCases[i];
-                        const req = collections.flatMap(c => c.requests).find(r => r.id === tc.requestId);
-                        if (!req) continue;
-
-                        const logs: string[] = [];
-                        let passedAll = true;
-                        let duration = 0;
-                        try {
-                          const startTime = Date.now();
-                          const res = await apiService.executeRequest(req, proxyConfig);
-                          duration = Date.now() - startTime;
-
-                          for (const assertion of tc.assertions) {
-                            let pass = false;
-                            if (assertion.type === 'status_code') pass = res.status === parseInt(assertion.expectedValue);
-                            else if (assertion.type === 'response_time_less_than') pass = duration < parseInt(assertion.expectedValue);
-                            else pass = true;
-
-                            if (pass) logs.push(`✓ Assertion passed: ${assertion.type}`);
-                            else { logs.push(`✗ Assertion failed: ${assertion.type}`); passedAll = false; }
-                          }
-                        } catch (err: any) {
-                          logs.push(`Error: ${err.message}`);
-                          passedAll = false;
-                        }
-
-                        const newHistory = [...(tc.history || []), { timestamp: Date.now(), durationMs: duration, success: passedAll }].slice(-50);
-                        updatedTestCases[i] = { ...tc, history: newHistory };
-                        newResults[tc.id] = { success: passedAll, log: logs };
-                      }
-
-                      updateTestSuite(customSuite.id, { testCases: updatedTestCases });
-                      setCustomSuiteResults(newResults);
-                    }}
-                    className="flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-1.5 rounded text-xs font-semibold hover:opacity-90 transition-colors"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    Run Custom Suite
-                  </button>
+                  {isRunningCustom ? (
+                    <button
+                      onClick={handleStopCustomSuite}
+                      className="flex items-center gap-2 bg-[var(--danger)] text-white px-4 py-1.5 rounded text-xs font-semibold hover:opacity-90 transition-colors"
+                    >
+                      <StopCircle className="w-3.5 h-3.5" />
+                      Stop Suite
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleRunCustomSuite}
+                      className="flex items-center gap-2 bg-[var(--primary)] text-white px-4 py-1.5 rounded text-xs font-semibold hover:opacity-90 transition-colors"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      Run Custom Suite
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1064,6 +1123,44 @@ export function TestRunnerPanel() {
                         className="text-[var(--text-secondary)] hover:text-[var(--danger)]"
                       >
                         <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Assertions</div>
+                      {tc.assertions.map(a => (
+                        <div key={a.id} className="flex items-center gap-2">
+                          <select
+                            value={a.type}
+                            onChange={e => handleUpdateAssertion(tc, a.id, { type: e.target.value as TestAssertion['type'] })}
+                            className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded px-2 py-1 text-xs text-[var(--text-primary)]"
+                          >
+                            <option value="status_code">Status code</option>
+                            <option value="response_time_less_than">Response time &lt; ms</option>
+                            <option value="body_contains">Body contains</option>
+                            <option value="body_equals">Body equals</option>
+                            <option value="header_exists">Header exists</option>
+                          </select>
+                          <input
+                            value={a.expectedValue}
+                            onChange={e => handleUpdateAssertion(tc, a.id, { expectedValue: e.target.value })}
+                            placeholder={a.type === 'status_code' ? '200' : a.type === 'response_time_less_than' ? '500' : a.type === 'header_exists' ? 'content-type' : 'expected value'}
+                            className="flex-1 min-w-0 bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded px-2 py-1 text-xs font-mono text-[var(--text-primary)]"
+                          />
+                          <button
+                            onClick={() => handleRemoveAssertion(tc, a.id)}
+                            className="text-[var(--text-secondary)] hover:text-[var(--danger)] shrink-0"
+                            title="Remove assertion"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => handleAddAssertion(tc)}
+                        className="self-start flex items-center gap-1 text-[11px] text-[var(--primary)] font-semibold hover:underline"
+                      >
+                        <Plus className="w-3 h-3" /> Add assertion
                       </button>
                     </div>
 

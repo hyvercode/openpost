@@ -40,9 +40,10 @@ export function RequestPanel() {
     currentWorkspace,
     activeRequest, 
     setActiveRequest, 
-    activeTab, 
-    setActiveTab, 
-    setResponse, 
+    activeTab,
+    setActiveTab,
+    setResponse,
+    setRequestResponse,
     currentEnvironment, 
     setCurrentRequestConfig,
     addConsoleLog,
@@ -182,6 +183,14 @@ export function RequestPanel() {
   const activeRequestIdRef = useRef<string | null>(null);
   const skipNextAutosave = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Route every response through the per-request cache so the response
+  // panel follows the active tab. Falls back to the global when no tab
+  // is active (the store keeps `response` mirrored for compat).
+  const emitResponse = (res: any) => {
+    const id = useStore.getState().activeRequest?.id;
+    if (id) setRequestResponse(id, res);
+    else setResponse(res);
+  };
   // Hash of the last successfully persisted request body — skips no-op
   // autosaves (also stops auto-snapshot spam on the server).
   const lastSavedHashRef = useRef<string>('');
@@ -459,6 +468,13 @@ export function RequestPanel() {
   })();
 
   const handleSend = async () => {
+    // Capture the originating tab: a completion landing after the user
+    // switched tabs must still attribute to the request that was sent.
+    const sendRequestId = activeRequest?.id ?? null;
+    const emitSendResponse = (res: any) => {
+      if (sendRequestId) setRequestResponse(sendRequestId, res);
+      else setResponse(res);
+    };
     setUrlTouched(true);
     const { addToast, currentWorkspace, addHistoryItem } = useStore.getState();
 if (method === 'WS') {
@@ -534,7 +550,7 @@ if (method === 'WS') {
           // Record attempt in sliding window
           setRequestTimestamps(prev => [...prev.slice(-40), now]);
           const sim429 = generate429Response(rateLimiterConfig, check.resetInSeconds, url, method);
-          setResponse(sim429);
+          emitSendResponse(sim429);
           setIsRequestLoading(false);
           addToast(`429 Too Many Requests: Rate limit exceeded (${check.currentCount}/${rateLimiterConfig.maxRequests} in ${rateLimiterConfig.windowSeconds}s)`, 'warning', 4000);
           addConsoleLog('warn', `Simulated 429 Too Many Requests: Rate limit reached (${check.currentCount}/${rateLimiterConfig.maxRequests} req in ${rateLimiterConfig.windowSeconds}s). Retry-After: ${check.resetInSeconds}s`);
@@ -557,7 +573,7 @@ if (method === 'WS') {
     abortControllerRef.current = new AbortController();
     
     setIsRequestLoading(true);
-    setResponse(null);
+    emitSendResponse(null);
     addToast(`${method} request sent`, 'info', 2000);
 
     const envVars = currentEnvironment ? currentEnvironment.variables : [];
@@ -849,7 +865,7 @@ if (method === 'WS') {
       
       const res = { data: resData };
 
-      setResponse(resData);
+      emitSendResponse(resData);
       if (resData.status > 0) {
         addToast(`Request successful (${resData.status})`, 'success');
       } else {
@@ -995,7 +1011,7 @@ if (method === 'WS') {
     } catch (error: any) {
       if (error.name === 'CanceledError' || error.message?.toLowerCase().includes('canceled') || error.code === 'ERR_CANCELED') {
         addToast(`Request canceled`, 'info');
-        setResponse({
+        emitSendResponse({
           error: true,
           status: 0,
           statusText: 'Canceled',
@@ -1011,7 +1027,7 @@ if (method === 'WS') {
         data: error.response?.data || error.message,
         status: error.response?.status || 0,
       };
-      setResponse(errRes);
+      emitSendResponse(errRes);
       addToast(`Request failed: ${error.message}`, 'error');
 
       // Save to Request History
@@ -1133,7 +1149,7 @@ if (method === 'WS') {
         ? agentApi.post(DESKTOP_AGENT_URL, gqlPayload, { headers: getDesktopAgentHeaders(finalUrl) })
         : api.post('/proxy', gqlPayload, { headers: getDesktopAgentHeaders(finalUrl) }));
 
-      setResponse(res.data);
+      emitResponse(res.data);
       if (res.data.data?.__schema) {
         setIntrospectionSchema(res.data.data.__schema);
         addToast('Introspection successful', 'success');

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db';
+import { sendError } from '../utils/errors';
 
 function tokenUserId(req: Request): string | null {
   const u = (req as any).user;
@@ -21,7 +22,7 @@ export class CommentController {
       });
       res.json(comments);
     } catch (err: any) {
-      res.status(500).json({ error: 'Failed to fetch comments' });
+      sendError(res, 500, 'Failed to fetch comments', err);
     }
   };
 
@@ -32,11 +33,11 @@ export class CommentController {
       // SECURITY: author is always the token subject, never a body field.
       const userId = tokenUserId(req);
       if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
 
       if (!content) {
-        return res.status(400).json({ error: 'Missing content' });
+        return sendError(res, 400, 'Missing content');
       }
 
       const comment = await prisma.comment.create({
@@ -53,7 +54,7 @@ export class CommentController {
       });
       res.json(comment);
     } catch (err: any) {
-      res.status(500).json({ error: 'Failed to create comment' });
+      sendError(res, 500, 'Failed to create comment', err);
     }
   };
 
@@ -62,17 +63,17 @@ export class CommentController {
       const { id } = req.params;
       const userId = tokenUserId(req);
       if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
       // Only the comment author may delete it (no existence oracle).
       const existing = await prisma.comment.findUnique({ where: { id } });
       if (!existing || existing.userId !== userId) {
-        return res.status(404).json({ error: 'Not found' });
+        return sendError(res, 404, 'Not found');
       }
       await prisma.comment.delete({ where: { id } });
       res.json({ success: true });
     } catch (err: any) {
-      res.status(500).json({ error: 'Failed to delete comment' });
+      sendError(res, 500, 'Failed to delete comment', err);
     }
   };
 }

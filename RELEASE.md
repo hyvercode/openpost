@@ -1,4 +1,8 @@
-# Release Notes - API Tester Pro
+# Release Notes - OpenPost (API Tester Pro)
+
+> Skrip alur baku: `npm run dev` → `npm run build` → `npm start`.
+> Detail: [docs/SETUP.md](docs/SETUP.md). Env: `.env.example` (dev),
+> `.env.prod.example` → `.env.production` (prod, tidak di-commit).
 
 ## 🚀 v2.0.0 (10 Oktober 2026)
 

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../db';
+import { sendError } from '../utils/errors';
 
 export class AdminController {
   stats = async (_req: Request, res: Response) => {
@@ -16,7 +17,7 @@ export class AdminController {
       ]);
       res.json({ users, workspaces, collections, monitors, runs24h, audit24h });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch admin stats' });
+      sendError(res, 500, 'Failed to fetch admin stats', error);
     }
   };
 
@@ -30,7 +31,7 @@ export class AdminController {
       if (req.query.action) where.action = String(req.query.action);
       res.json(await db.auditLog.findMany({ where, orderBy: { createdAt: 'desc' }, take: limit }));
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch audit log' });
+      sendError(res, 500, 'Failed to fetch audit log', error);
     }
   };
 
@@ -53,7 +54,7 @@ export class AdminController {
         .map(([userId, total]) => ({ userId, total }));
       res.json({ yearMonth, byAction, topUsers, meteredUsers: Object.keys(byUser).length });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch usage stats' });
+      sendError(res, 500, 'Failed to fetch usage stats', error);
     }
   };
 }

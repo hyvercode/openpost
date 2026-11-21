@@ -6,6 +6,7 @@ import { prisma } from '../db';
 import { assertUrlSafe, createPinnedLookup } from './ssrf';
 import { audit } from './audit.service';
 import { encField, decField } from '../utils/secretCrypto';
+import { matchesCron, validateCron } from './schedule';
 
 export type WfNodeType = 'request' | 'delay' | 'condition' | 'extract' | 'setVariable';
 export interface WfNode {
@@ -21,9 +22,11 @@ export interface WfEdge { id: string; source: string; target: string; label?: st
 // ciphertext; non-encrypted fields (nodes/edges) pass through unchanged.
 function parseJson(s: string, fallback: any) { try { return JSON.parse(decField(s)); } catch { return fallback; } }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 // Bound DAG size so one workflow cannot burn unbounded CPU/time on run.
 const MAX_NODES = 100, MAX_EDGES = 300, MAX_VARS = 100;
-function sanitizeDag(data: any) {
+export function sanitizeDag(data: any) {
   const nodes = Array.isArray(data.nodes) ? data.nodes.slice(0, MAX_NODES) : [];
   const edges = Array.isArray(data.edges) ? data.edges.slice(0, MAX_EDGES) : [];
   const variables = Array.isArray(data.variables) ? data.variables.slice(0, MAX_VARS) : [];
@@ -33,7 +36,7 @@ function sanitizeDag(data: any) {
   return { nodes, edges, variables };
 }
 
-function interpolate(str: string, vars: Record<string,string>) {
+export function interpolate(str: string, vars: Record<string,string>) {
   if (!str) return str;
   // {{var}} from environment / workflow variables / extracts
   let out = str.replace(/\{\{([^}]+)\}\}/g, (_, k) => vars[k.trim()] ?? '');
@@ -42,7 +45,7 @@ function interpolate(str: string, vars: Record<string,string>) {
   out = out.replace(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (m, k) => (k in vars ? vars[k] : m));
   return out;
 }
-function getByPath(obj: any, path: string) {
+export function getByPath(obj: any, path: string) {
   if (!path) return obj;
   const clean = path.replace(/^\$\.?/, '');
   const parts = clean.split('.').filter(Boolean);
@@ -55,7 +58,7 @@ function getByPath(obj: any, path: string) {
   }
   return cur;
 }
-function evalCondition(expr: string, ctx: Record<string,any>): boolean {
+export function evalCondition(expr: string, ctx: Record<string,any>): boolean {
   // expr like "{{status}} == 200" — interpolate first, then eval the literal expression.
   const interpolated = interpolate(expr, ctx as any);
   // Allow only chars: alphanum, spaces, quotes, dots, brackets, operators
@@ -141,14 +144,28 @@ async function execRequestNode(node: WfNode, vars: Record<string,string>, logs: 
     headers['Content-Type'] = 'application/json';
   }
   const lookup = createPinnedLookup(urlObj.hostname, targetIp);
+  // One retry for transient network failures (mirrors monitor checks).
+  // HTTP statuses are results, not flakes — no retry on 4xx/5xx.
+  let res: any = null;
+  let lastErr: any = null;
   const t0 = Date.now();
-  const res = await axios({
-    method, url: urlObj.toString(), headers, data,
-    timeout: 20000, maxRedirects: 0, maxBodyLength: 5*1024*1024, maxContentLength: 5*1024*1024,
-    httpAgent: new http.Agent({ lookup } as any),
-    httpsAgent: new https.Agent({ lookup } as any),
-    validateStatus: () => true,
-  });
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      res = await axios({
+        method, url: urlObj.toString(), headers, data,
+        timeout: 20000, maxRedirects: 0, maxBodyLength: 5*1024*1024, maxContentLength: 5*1024*1024,
+        httpAgent: new http.Agent({ lookup } as any),
+        httpsAgent: new https.Agent({ lookup } as any),
+        validateStatus: () => true,
+      });
+      lastErr = null;
+      break;
+    } catch (e: any) {
+      lastErr = e;
+      if (attempt === 1) await sleep(500);
+    }
+  }
+  if (!res) throw lastErr;
   const duration = Date.now() - t0;
   const passed = res.status >= 200 && res.status < 400;
   // Include truncated response body/headers in logs so users can map
@@ -185,6 +202,10 @@ export class WorkflowService {
     const ws = await prisma.workspace.findUnique({ where: { id: data.workspaceId } });
     if (!ws) throw new Error('Workspace not found');
     const isWebhook = data.trigger === 'webhook';
+    if (data.scheduleCron) {
+      const err = validateCron(String(data.scheduleCron));
+      if (err) throw new Error(`Invalid scheduleCron: ${err}`);
+    }
     const dag = sanitizeDag(data);
     const row = await (prisma as any).workflow.create({ data: {
       id: data.id || uuidv4(),
@@ -212,7 +233,14 @@ export class WorkflowService {
     if (data.description !== undefined) upd.description = data.description ? String(data.description).slice(0,1000) : null;
     if (data.enabled !== undefined) upd.enabled = !!data.enabled;
     if (data.trigger !== undefined) upd.trigger = ['manual','webhook','schedule'].includes(data.trigger) ? data.trigger : 'manual';
-    if (data.scheduleCron !== undefined) upd.scheduleCron = data.scheduleCron || null;
+    if (data.scheduleCron !== undefined) {
+      if (data.scheduleCron) {
+        const err = validateCron(String(data.scheduleCron));
+        if (err) throw new Error(`Invalid scheduleCron: ${err}`);
+      }
+      upd.scheduleCron = data.scheduleCron || null;
+    }
+    if (data.regenerateWebhookToken) upd.webhookToken = uuidv4().replace(/-/g, '');
     if (data.intervalMinutes !== undefined) upd.intervalMinutes = data.intervalMinutes ? Math.max(5, Math.min(1440, Number(data.intervalMinutes))) : null;
     if (data.nodes !== undefined || data.edges !== undefined || data.variables !== undefined) {
       const dag = sanitizeDag({ nodes: data.nodes ?? parseJson(existing.nodes, []), edges: data.edges ?? parseJson(existing.edges, []), variables: data.variables ?? parseJson(existing.variables, []) });
@@ -403,23 +431,53 @@ export class WorkflowService {
 }
 
 // ---- Schedule-trigger scheduler (mirrors monitor.service pattern) ----
-// Runs workflows with trigger='schedule' every intervalMinutes (>=5).
-// Overlap-guarded per workflow; uses lastRunAt-equivalent = latest WorkflowRun.
+// Runs workflows with trigger='schedule' by cron (scheduleCron) or every
+// intervalMinutes (>=5). Overlap-guarded per workflow; uses
+// lastRunAt-equivalent = latest WorkflowRun.
 const wfRunning = new Set<string>();
+
+/** Pure scheduling decision: cron mode runs once per matching minute, interval mode by elapsed time. */
+export function isWorkflowDue(
+  w: { scheduleCron?: string | null; intervalMinutes?: number | null },
+  lastTs: number,
+  now: Date = new Date()
+): boolean {
+  if (w.scheduleCron) {
+    if (validateCron(w.scheduleCron)) return false;
+    if (!matchesCron(w.scheduleCron, now)) return false;
+    if (!lastTs) return true;
+    const last = new Date(lastTs);
+    return !(
+      last.getFullYear() === now.getFullYear() &&
+      last.getMonth() === now.getMonth() &&
+      last.getDate() === now.getDate() &&
+      last.getHours() === now.getHours() &&
+      last.getMinutes() === now.getMinutes()
+    );
+  }
+  const interval = Math.max(5, Math.min(1440, Number(w.intervalMinutes) || 60)) * 60000;
+  return now.getTime() - lastTs >= interval;
+}
+
+/** Runs stuck in 'running' longer than this are orphaned (crash/restart) and marked failed. */
+export const STALE_RUN_MS = 30 * 60000;
 
 export function startWorkflowScheduler(intervalMs = 60000): void {
   if ((global as any).__openpostWorkflowScheduler) return;
   (global as any).__openpostWorkflowScheduler = true;
   setInterval(async () => {
     try {
+      await (prisma as any).workflowRun.updateMany({
+        where: { status: 'running', startedAt: { lt: new Date(Date.now() - STALE_RUN_MS) } },
+        data: { status: 'failed', finishedAt: new Date(), detail: encField('Orphaned run (scheduler restart/timeout) — marked by scheduler') },
+      }).catch(() => null);
       const due = await (prisma as any).workflow.findMany({ where: { enabled: true, trigger: 'schedule' } });
-      const now = Date.now();
+      const now = new Date();
       const svc = new WorkflowService();
       for (const w of due) {
-        const interval = Math.max(5, Math.min(1440, Number(w.intervalMinutes) || 60)) * 60000;
         const last: any = await (prisma as any).workflowRun.findFirst({ where: { workflowId: w.id }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }).catch(() => null);
         const lastTs = last?.createdAt ? new Date(last.createdAt).getTime() : 0;
-        if (now - lastTs < interval) continue;
+        if (!isWorkflowDue(w, lastTs, now)) continue;
         if (wfRunning.has(w.id)) continue;
         wfRunning.add(w.id);
         svc.run(w.id, 'schedule', {}).catch((e) => console.error(`[workflow-scheduler] ${w.id} failed:`, e?.message)).finally(() => wfRunning.delete(w.id));

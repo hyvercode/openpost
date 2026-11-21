@@ -17,11 +17,13 @@ export function DeploymentPanel() {
     requestsPerMinute: number;
     apiKeyEnabled: boolean;
     apiKeyValue: string;
+    latencyMs: number;
   }>({
     rateLimitEnabled: false,
     requestsPerMinute: 60,
     apiKeyEnabled: false,
-    apiKeyValue: ''
+    apiKeyValue: '',
+    latencyMs: 0
   });
 
   React.useEffect(() => {
@@ -30,7 +32,8 @@ export function DeploymentPanel() {
         rateLimitEnabled: deployment.mockConfig?.rateLimit?.enabled ?? false,
         requestsPerMinute: deployment.mockConfig?.rateLimit?.requestsPerMinute ?? 60,
         apiKeyEnabled: deployment.mockConfig?.apiKey?.enabled ?? false,
-        apiKeyValue: deployment.mockConfig?.apiKey?.key ?? ''
+        apiKeyValue: deployment.mockConfig?.apiKey?.key ?? '',
+        latencyMs: Number(deployment.mockConfig?.latencyMs) || 0
       });
     }
   }, [deployment?.id]);
@@ -93,6 +96,7 @@ export function DeploymentPanel() {
     try {
       const mockConfig = {
         enabled: true,
+        latencyMs: Math.max(0, Number(localSettings.latencyMs) || 0),
         rateLimit: {
           enabled: localSettings.rateLimitEnabled,
           requestsPerMinute: Number(localSettings.requestsPerMinute)
@@ -212,6 +216,30 @@ export function DeploymentPanel() {
           </div>
 
           <div className="space-y-4">
+            {/* Simulated latency */}
+            <div className="flex items-center justify-between gap-4 p-3 bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[var(--warning)]/10 rounded">
+                  <Activity className="w-4 h-4 text-[var(--warning)]" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-[var(--text-primary)]">Simulated Latency</div>
+                  <div className="text-[10px] text-[var(--text-secondary)]">Delay every mock response</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 bg-[var(--bg-input)] border border-[var(--border-strong)] rounded px-2 py-1">
+                <input
+                  type="number"
+                  min={0}
+                  max={30000}
+                  value={localSettings.latencyMs}
+                  onChange={(e) => setLocalSettings(prev => ({ ...prev, latencyMs: Number(e.target.value) }))}
+                  className="w-14 bg-transparent text-xs font-bold text-[var(--warning)] focus:outline-none text-center"
+                />
+                <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter">MS</span>
+              </div>
+            </div>
+
             {/* Rate Limiting */}
             <div className="flex items-center justify-between gap-4 p-3 bg-[var(--bg-hover)]/30 border border-[var(--border-subtle)] rounded">
               <div className="flex items-center gap-3">

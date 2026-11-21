@@ -137,10 +137,17 @@ npx prisma db push
 
 ### 4. Running the Application
 
+Alur baku: dev → build → start. Detail lengkap: [docs/SETUP.md](docs/SETUP.md).
+Arsitektur & matriks DB: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Referensi endpoint: [docs/API.md](docs/API.md). Status audit:
+[docs/TASKLIST-01.md](docs/TASKLIST-01.md).
+
 **Development Server (Web)**
-Starts the Express server with Vite middleware for full-stack HMR (runs on port 3000):
+Starts the Express server with Vite middleware for full-stack HMR (runs on port 3000).
+`server.ts` adalah entrypoint; `server.cjs`/`dist/server.cjs` adalah output
+bundle (jangan diedit, tidak di-commit):
 ```bash
-npm run dev
+npm run dev          # monolith default; backend saja: npm run dev:backend
 ```
 
 **Production Build (Web)**
@@ -200,3 +207,12 @@ npm run dev:frontend
 ## Live Cloud App
 
 https://openpost.hyvercode.com
+
+## Docs & Release
+
+- [docs/SETUP.md](docs/SETUP.md) — alur dev/build/rilis + variabel env
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — komponen, matriks DB, generated code
+- [docs/API.md](docs/API.md) — referensi endpoint
+- [RELEASE.md](RELEASE.md) — catatan rilis
+- [LICENSE.md](LICENSE.md), [metadata.json](metadata.json) — lisensi & metadata app
+- Ikon: [assets/icons](assets/icons)

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { DeploymentService } from '../services/deployment.service';
 import { assertWorkspaceAccess, assertRecordAccess } from '../middleware/ownership';
+import { sendError } from '../utils/errors';
 
 export class DeploymentController {
   private deploymentService = new DeploymentService();
@@ -12,7 +13,7 @@ export class DeploymentController {
       const deployments = await this.deploymentService.getDeploymentsByWorkspace(workspaceId);
       res.json(deployments);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch deployments' });
+      sendError(res, 500, 'Failed to fetch deployments', error);
     }
   };
 
@@ -20,7 +21,7 @@ export class DeploymentController {
     try {
       const { id, workspaceId, collectionId, collectionName, version, requests, mockConfig } = req.body;
       if (!workspaceId || !collectionId || !collectionName) {
-        return res.status(400).json({ error: 'WorkspaceId, collectionId, and collectionName are required' });
+        return sendError(res, 400, 'WorkspaceId, collectionId, and collectionName are required');
       }
       if (!(await assertWorkspaceAccess(req, res, workspaceId))) return;
       const newDeployment = await this.deploymentService.createDeployment({
@@ -28,7 +29,7 @@ export class DeploymentController {
       });
       res.status(201).json(newDeployment);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to create deployment' });
+      sendError(res, 500, 'Failed to create deployment', error);
     }
   };
 
@@ -42,7 +43,7 @@ export class DeploymentController {
       });
       res.json(updated);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to update deployment' });
+      sendError(res, 500, 'Failed to update deployment', error);
     }
   };
 
@@ -53,7 +54,7 @@ export class DeploymentController {
       await this.deploymentService.deleteDeployment(id);
       res.json({ success: true, message: 'Deployment deleted' });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to delete deployment' });
+      sendError(res, 500, 'Failed to delete deployment', error);
     }
   };
 }

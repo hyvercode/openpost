@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { VersionService } from '../services/version.service';
 import { CollectionService } from '../services/collection.service';
 import { assertWorkspaceAccess, assertRecordAccess } from '../middleware/ownership';
+import { sendError } from '../utils/errors';
 
 export class VersionController {
   private versionService = new VersionService();
@@ -13,13 +14,13 @@ export class VersionController {
       // Versions inherit the parent collection's workspace for authorization.
       const collection: any = await this.collectionService.getCollectionById(collectionId);
       if (!collection?.workspaceId) {
-        return res.status(404).json({ error: 'Not found' });
+        return sendError(res, 404, 'Not found');
       }
       if (!(await assertWorkspaceAccess(req, res, collection.workspaceId))) return;
       const versions = await this.versionService.getVersionsByCollection(collectionId);
       res.json(versions);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch collection versions' });
+      sendError(res, 500, 'Failed to fetch collection versions', error);
     }
   };
 
@@ -30,7 +31,7 @@ export class VersionController {
       const versions = await this.versionService.getVersionsByWorkspace(workspaceId);
       res.json(versions);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch workspace versions' });
+      sendError(res, 500, 'Failed to fetch workspace versions', error);
     }
   };
 
@@ -40,11 +41,11 @@ export class VersionController {
       if (!(await assertRecordAccess(req, res, () => this.versionService.getVersionById(id)))) return;
       const version = await this.versionService.getVersionById(id);
       if (!version) {
-        return res.status(404).json({ error: 'Version not found' });
+        return sendError(res, 404, 'Version not found');
       }
       res.json(version);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch version' });
+      sendError(res, 500, 'Failed to fetch version', error);
     }
   };
 
@@ -57,7 +58,7 @@ export class VersionController {
       } = req.body;
 
       if (!workspaceId || !collectionId || !version) {
-        return res.status(400).json({ error: 'workspaceId, collectionId, and version are required' });
+        return sendError(res, 400, 'workspaceId, collectionId, and version are required');
       }
       if (!(await assertWorkspaceAccess(req, res, workspaceId))) return;
 
@@ -69,7 +70,7 @@ export class VersionController {
 
       res.status(201).json(newVersion);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to create collection version' });
+      sendError(res, 500, 'Failed to create collection version', error);
     }
   };
 
@@ -83,7 +84,7 @@ export class VersionController {
       });
       res.json(updated);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to update version' });
+      sendError(res, 500, 'Failed to update version', error);
     }
   };
 
@@ -94,7 +95,7 @@ export class VersionController {
       const result = await this.versionService.rollbackCollectionToVersion(id);
       res.json(result);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to rollback collection' });
+      sendError(res, 500, 'Failed to rollback collection', error);
     }
   };
 
@@ -106,7 +107,7 @@ export class VersionController {
       const forked = await this.versionService.forkVersionAsCollection(id, name);
       res.status(201).json(forked);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fork version as collection' });
+      sendError(res, 500, 'Failed to fork version as collection', error);
     }
   };
 
@@ -117,7 +118,7 @@ export class VersionController {
       await this.versionService.deleteVersion(id);
       res.json({ success: true, message: 'Version deleted' });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to delete version' });
+      sendError(res, 500, 'Failed to delete version', error);
     }
   };
 }

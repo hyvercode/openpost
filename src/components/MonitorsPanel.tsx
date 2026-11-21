@@ -16,7 +16,9 @@ export const MonitorsPanel: React.FC = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [runs, setRuns] = useState<Record<string, any[]>>({});
-  const [form, setForm] = useState({ collectionId: '', name: '', intervalMinutes: 60, alertEmail: '', slackWebhookUrl: '' });
+  const [form, setForm] = useState({ collectionId: '', name: '', intervalMinutes: 60, alertEmail: '', slackWebhookUrl: '', scheduleMode: 'interval', cronExpr: '*/15 * * * *', activeStart: '', activeEnd: '' });
+  const emptyForm = { collectionId: '', name: '', intervalMinutes: 60, alertEmail: '', slackWebhookUrl: '', scheduleMode: 'interval', cronExpr: '*/15 * * * *', activeStart: '', activeEnd: '' };
+  const [schedEdits, setSchedEdits] = useState<Record<string, any>>({});
 
   const load = useCallback(async () => {
     if (!currentWorkspace) return;
@@ -47,9 +49,13 @@ export const MonitorsPanel: React.FC = () => {
         intervalMinutes: Number(form.intervalMinutes) || 60,
         alertEmail: form.alertEmail.trim() || undefined,
         slackWebhookUrl: form.slackWebhookUrl.trim() || undefined,
+        scheduleMode: form.scheduleMode,
+        cronExpr: form.scheduleMode === 'cron' ? form.cronExpr.trim() || undefined : undefined,
+        activeStart: form.activeStart || undefined,
+        activeEnd: form.activeEnd || undefined,
       });
       setShowCreate(false);
-      setForm({ collectionId: '', name: '', intervalMinutes: 60, alertEmail: '', slackWebhookUrl: '' });
+      setForm({ ...emptyForm });
       addToast('Monitor created', 'success');
       load();
     } catch (err: any) {
@@ -79,6 +85,50 @@ export const MonitorsPanel: React.FC = () => {
     } catch (err: any) {
       addToast(err.response?.data?.error || 'Monitor run failed', 'error');
     }
+  };
+
+  const pauseMonitor = async (m: any, hours: number | null) => {
+    try {
+      await apiService.updateMonitor(m.id, {
+        pausedUntil: hours === null ? null : new Date(Date.now() + hours * 3600 * 1000).toISOString(),
+      });
+      addToast(hours === null ? 'Monitor resumed' : `Monitor paused for ${hours}h`, 'success');
+      load();
+    } catch (err: any) {
+      addToast(err.response?.data?.error || 'Failed to update pause', 'error');
+    }
+  };
+
+  const saveSchedule = async (m: any) => {
+    const ed = schedEdits[m.id] ?? {
+      scheduleMode: m.scheduleMode ?? 'interval',
+      cronExpr: m.cronExpr ?? '',
+      activeStart: m.activeStart ?? '',
+      activeEnd: m.activeEnd ?? '',
+    };
+    try {
+      const payload: any = { scheduleMode: ed.scheduleMode };
+      if (ed.scheduleMode === 'cron') payload.cronExpr = (ed.cronExpr || '').trim();
+      payload.activeStart = ed.activeStart || null;
+      payload.activeEnd = ed.activeEnd || null;
+      await apiService.updateMonitor(m.id, payload);
+      setSchedEdits((prev) => {
+        const next = { ...prev };
+        delete next[m.id];
+        return next;
+      });
+      addToast('Schedule updated', 'success');
+      load();
+    } catch (err: any) {
+      addToast(err.response?.data?.error || err.response?.data?.details || 'Failed to update schedule', 'error');
+    }
+  };
+
+  const isPaused = (m: any) => !!m.pausedUntil && new Date(m.pausedUntil).getTime() > Date.now();
+
+  const scheduleLabel = (m: any) => {
+    if (m.scheduleMode === 'cron') return `cron ${m.cronExpr || ''}`;
+    return `every ${m.intervalMinutes}m`;
   };
 
   const remove = async (m: any) => {
@@ -173,6 +223,46 @@ export const MonitorsPanel: React.FC = () => {
             />
           </label>
           <label className="text-xs text-[var(--text-secondary)]">
+            Schedule mode
+            <select
+              value={form.scheduleMode}
+              onChange={(e) => setForm({ ...form, scheduleMode: e.target.value })}
+              className="mt-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)]"
+            >
+              <option value="interval">Interval</option>
+              <option value="cron">Cron</option>
+            </select>
+          </label>
+          {form.scheduleMode === 'cron' && (
+            <label className="text-xs text-[var(--text-secondary)]">
+              Cron (min hour dom mon dow)
+              <input
+                value={form.cronExpr}
+                onChange={(e) => setForm({ ...form, cronExpr: e.target.value })}
+                className="mt-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)] font-mono"
+                placeholder="*/15 * * * *"
+              />
+            </label>
+          )}
+          <label className="text-xs text-[var(--text-secondary)]">
+            Active hours start (optional)
+            <input
+              type="time"
+              value={form.activeStart}
+              onChange={(e) => setForm({ ...form, activeStart: e.target.value })}
+              className="mt-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)]"
+            />
+          </label>
+          <label className="text-xs text-[var(--text-secondary)]">
+            Active hours end (optional)
+            <input
+              type="time"
+              value={form.activeEnd}
+              onChange={(e) => setForm({ ...form, activeEnd: e.target.value })}
+              className="mt-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)]"
+            />
+          </label>
+          <label className="text-xs text-[var(--text-secondary)]">
             Alert email (optional)
             <input
               value={form.alertEmail}
@@ -209,7 +299,9 @@ export const MonitorsPanel: React.FC = () => {
               <button onClick={() => toggleExpand(m)} className="flex-1 text-left min-w-0 cursor-pointer">
                 <div className="text-sm font-bold text-[var(--text-primary)] truncate">{m.name}</div>
                 <div className="text-xs text-[var(--text-secondary)]">
-                  every {m.intervalMinutes}m
+                  {scheduleLabel(m)}
+                  {(m.activeStart || m.activeEnd) && ` · active ${m.activeStart || '…'}–${m.activeEnd || '…'}`}
+                  {isPaused(m) && ` · paused until ${new Date(m.pausedUntil).toLocaleString()}`}
                   {m.lastRunAt ? ` · last run ${new Date(m.lastRunAt).toLocaleString()}` : ' · never run'}
                   {m.consecutiveFailures > 0 && ` · ${m.consecutiveFailures} consecutive failures`}
                 </div>
@@ -237,7 +329,97 @@ export const MonitorsPanel: React.FC = () => {
               </button>
             </div>
             {expandedId === m.id && (
-              <div className="border-t border-[var(--border-subtle)] px-3 py-2">
+              <div className="border-t border-[var(--border-subtle)] px-3 py-2 space-y-3">
+                <div>
+                  <div className="text-xs font-bold text-[var(--text-secondary)] mb-1.5">Schedule</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <label className="text-xs text-[var(--text-secondary)]">
+                      Mode
+                      <select
+                        value={(schedEdits[m.id]?.scheduleMode) ?? m.scheduleMode ?? 'interval'}
+                        onChange={(e) => setSchedEdits((prev) => ({
+                          ...prev,
+                          [m.id]: {
+                            scheduleMode: e.target.value,
+                            cronExpr: prev[m.id]?.cronExpr ?? m.cronExpr ?? '',
+                            activeStart: prev[m.id]?.activeStart ?? m.activeStart ?? '',
+                            activeEnd: prev[m.id]?.activeEnd ?? m.activeEnd ?? '',
+                          },
+                        }))}
+                        className="mt-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)]"
+                      >
+                        <option value="interval">Interval</option>
+                        <option value="cron">Cron</option>
+                      </select>
+                    </label>
+                    <label className="text-xs text-[var(--text-secondary)]">
+                      Cron
+                      <input
+                        value={(schedEdits[m.id]?.cronExpr) ?? m.cronExpr ?? ''}
+                        onChange={(e) => setSchedEdits((prev) => ({
+                          ...prev,
+                          [m.id]: { scheduleMode: prev[m.id]?.scheduleMode ?? m.scheduleMode ?? 'interval', cronExpr: e.target.value, activeStart: prev[m.id]?.activeStart ?? m.activeStart ?? '', activeEnd: prev[m.id]?.activeEnd ?? m.activeEnd ?? '' },
+                        }))}
+                        placeholder="*/15 * * * *"
+                        className="mt-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)] font-mono"
+                      />
+                    </label>
+                    <label className="text-xs text-[var(--text-secondary)]">
+                      Active from
+                      <input
+                        type="time"
+                        value={(schedEdits[m.id]?.activeStart) ?? m.activeStart ?? ''}
+                        onChange={(e) => setSchedEdits((prev) => ({
+                          ...prev,
+                          [m.id]: { scheduleMode: prev[m.id]?.scheduleMode ?? m.scheduleMode ?? 'interval', cronExpr: prev[m.id]?.cronExpr ?? m.cronExpr ?? '', activeStart: e.target.value, activeEnd: prev[m.id]?.activeEnd ?? m.activeEnd ?? '' },
+                        }))}
+                        className="mt-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)]"
+                      />
+                    </label>
+                    <label className="text-xs text-[var(--text-secondary)]">
+                      Active until
+                      <input
+                        type="time"
+                        value={(schedEdits[m.id]?.activeEnd) ?? m.activeEnd ?? ''}
+                        onChange={(e) => setSchedEdits((prev) => ({
+                          ...prev,
+                          [m.id]: { scheduleMode: prev[m.id]?.scheduleMode ?? m.scheduleMode ?? 'interval', cronExpr: prev[m.id]?.cronExpr ?? m.cronExpr ?? '', activeStart: prev[m.id]?.activeStart ?? m.activeStart ?? '', activeEnd: e.target.value },
+                        }))}
+                        className="mt-1 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded px-2 py-1.5 text-xs text-[var(--text-primary)]"
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <button
+                      onClick={() => saveSchedule(m)}
+                      className="text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] rounded px-2 py-1 cursor-pointer"
+                    >
+                      Save schedule
+                    </button>
+                    {isPaused(m) ? (
+                      <button
+                        onClick={() => pauseMonitor(m, null)}
+                        className="text-xs font-bold text-[var(--success)] hover:opacity-80 border border-[var(--border-subtle)] rounded px-2 py-1 cursor-pointer"
+                      >
+                        Resume now
+                      </button>
+                    ) : (
+                      <>
+                        {[1, 8, 24].map((h) => (
+                          <button
+                            key={h}
+                            onClick={() => pauseMonitor(m, h)}
+                            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] rounded px-2 py-1 cursor-pointer"
+                            title={`Pause for ${h}h (maintenance)`}
+                          >
+                            Pause {h}h
+                          </button>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div>
                 <div className="text-xs font-bold text-[var(--text-secondary)] mb-1.5">Recent runs</div>
                 {(runs[m.id] || []).length === 0 && (
                   <div className="text-xs text-[var(--text-tertiary)]">No runs yet.</div>
@@ -252,6 +434,7 @@ export const MonitorsPanel: React.FC = () => {
                     <span className="text-[var(--text-tertiary)] ml-auto">{new Date(r.createdAt).toLocaleString()}</span>
                   </div>
                 ))}
+                </div>
               </div>
             )}
           </div>

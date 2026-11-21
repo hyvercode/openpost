@@ -91,6 +91,12 @@ model Monitor {
   alertEmail          String?
   slackWebhookUrl     String?
   failThreshold       Int      @default(2)
+  scheduleMode        String   @default("interval")
+  cronExpr            String?
+  timezone            String?
+  activeStart         String?
+  activeEnd           String?
+  pausedUntil         DateTime?
   lastRunAt           DateTime?
   lastStatus          String?
   consecutiveFailures Int      @default(0)
