@@ -84,7 +84,8 @@ POST `/:id/restore`.
 - Comment `/api/comments`: GET/POST `/:requestId`, DELETE `/:id`.
 - Version `/api/versions`: GET `/collection/:collectionId`, GET `/workspace/:workspaceId`, GET `/:id`, POST `/`, PUT `/:id`, POST `/:id/rollback`, POST `/:id/fork`, DELETE `/:id`.
 - Monitor `/api/monitors`: GET/POST `/workspace/:workspaceId`, GET `/:id/runs`, PUT `/:id`, DELETE `/:id`, POST `/:id/run`.
-- Workflow `/api/workflows`: POST `/webhook/:token` (rate-limit 10), GET `/workspace/:workspaceId`, GET `/:id`, GET `/:id/runs`, POST `/workspace/:workspaceId` (30), PUT `/:id` (30), DELETE `/:id`, POST `/:id/run` (10).
+- Workflow `/api/workflows`: POST `/webhook/:token` (rate-limit 10), GET `/workspace/:workspaceId`, GET `/:id`, GET `/:id/runs`, POST `/workspace/:workspaceId` (30), PUT `/:id` (30, `regenerateWebhookToken: true` untuk rotasi token), DELETE `/:id`, POST `/:id/run` (10).
+- Workflow schedule: `intervalMinutes` (≥5) atau `scheduleCron` (cron 5-field, menang atas interval; 1 run per menit cocok; cron invalid = tidak jalan). Scheduler juga menandai run `running` > 30 menit sebagai gagal (orphan reaper).
 - Admin `/api/admin` (gate `ADMIN_EMAILS`): GET `/stats`, GET `/audit`, GET `/usage`.
 
 ## Contoh Request/Response

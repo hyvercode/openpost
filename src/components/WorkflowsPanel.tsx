@@ -85,7 +85,8 @@ export const WorkflowsPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Workflow|null>(null);
-  const [form, setForm] = useState({ name:'', description:'', trigger:'manual' as Workflow['trigger'], intervalMinutes:60, environmentId:'' });
+  const [form, setForm] = useState({ name:'', description:'', trigger:'manual' as Workflow['trigger'], intervalMinutes:60, scheduleCron:'0 * * * *', environmentId:'' });
+  const emptyWorkflowForm = { name:'', description:'', trigger:'manual' as Workflow['trigger'], intervalMinutes:60, scheduleCron:'0 * * * *', environmentId:'' };
   const [builderWf, setBuilderWf] = useState<Workflow|null>(null);
   const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [edges, setEdges] = useState<WorkflowEdge[]>([]);
@@ -107,16 +108,20 @@ export const WorkflowsPanel: React.FC = () => {
     e.preventDefault();
     if(!currentWorkspace || !form.name.trim()){ addToast('Name required','error'); return; }
     try{
-      await apiService.createWorkflow(currentWorkspace.id, { name: form.name.trim(), description: form.description.trim()||undefined, trigger: form.trigger, intervalMinutes: form.trigger==='schedule'?Number(form.intervalMinutes):undefined, environmentId: form.environmentId||undefined, nodes:[], edges:[], variables:[] });
-      setShowCreate(false); setForm({ name:'', description:'', trigger:'manual', intervalMinutes:60, environmentId:'' }); addToast('Workflow created','success'); load();
+      await apiService.createWorkflow(currentWorkspace.id, { name: form.name.trim(), description: form.description.trim()||undefined, trigger: form.trigger, intervalMinutes: form.trigger==='schedule'?Number(form.intervalMinutes):undefined, scheduleCron: form.trigger==='schedule'?form.scheduleCron.trim()||undefined:undefined, environmentId: form.environmentId||undefined, nodes:[], edges:[], variables:[] });
+      setShowCreate(false); setForm({ ...emptyWorkflowForm }); addToast('Workflow created','success'); load();
     }catch(err:any){ addToast(err.response?.data?.error||'Create failed','error'); }
   };
   const handleUpdateMeta = async()=>{
     if(!editing) return;
     try{
-      await apiService.updateWorkflow(editing.id, { name: editing.name, description: editing.description||'', trigger: editing.trigger, intervalMinutes: editing.intervalMinutes, enabled: editing.enabled, environmentId: (editing as any).environmentId||null });
+      await apiService.updateWorkflow(editing.id, { name: editing.name, description: editing.description||'', trigger: editing.trigger, intervalMinutes: editing.intervalMinutes, scheduleCron: (editing as any).scheduleCron ?? undefined, enabled: editing.enabled, environmentId: (editing as any).environmentId||null });
       addToast('Workflow updated','success'); setEditing(null); load();
     }catch(err:any){ addToast(err.response?.data?.error||'Update failed','error'); }
+  };
+  const rotateToken = async(w: Workflow)=>{
+    if(!window.confirm(`Rotate webhook token for "${w.name}"? The old URL stops working immediately.`)) return;
+    try{ await apiService.updateWorkflow(w.id, { regenerateWebhookToken: true } as any); addToast('Webhook token rotated','success'); load(); }catch(err:any){ addToast(err.response?.data?.error||'Rotate failed','error'); }
   };
   const remove = async(w: Workflow)=>{
     if(!window.confirm(`Delete workflow "${w.name}"?`)) return;
@@ -424,6 +429,7 @@ export const WorkflowsPanel: React.FC = () => {
           <label className="text-xs text-[var(--text-secondary)]">Name<input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" required placeholder="Login → Create → Verify" /></label>
           <label className="text-xs text-[var(--text-secondary)]">Trigger<select value={form.trigger} onChange={e=>setForm({...form,trigger:e.target.value as any})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs"><option value="manual">Manual</option><option value="webhook">Webhook</option><option value="schedule">Schedule</option></select></label>
           {form.trigger==='schedule' && <label className="text-xs text-[var(--text-secondary)]">Interval (min, ≥5)<input type="number" min={5} max={1440} value={form.intervalMinutes} onChange={e=>setForm({...form,intervalMinutes:Number(e.target.value)})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" /></label>}
+          {form.trigger==='schedule' && <label className="text-xs text-[var(--text-secondary)]">Cron (optional, overrides interval)<input value={form.scheduleCron} onChange={e=>setForm({...form,scheduleCron:e.target.value})} placeholder="0 * * * *" className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs font-mono" /></label>}
           <label className="text-xs text-[var(--text-secondary)]">Environment (required for {"{{var}}"} in URLs)<select value={form.environmentId} onChange={e=>setForm({...form,environmentId:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs"><option value="">— Select environment —</option>{environments.map(env=><option key={env.id} value={env.id}>{env.name}</option>)}</select></label>
           <label className="text-xs text-[var(--text-secondary)] md:col-span-2">Description<input value={form.description} onChange={e=>setForm({...form,description:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" placeholder="Optional" /></label>
           <div className="md:col-span-3"><button type="submit" className="px-4 py-1.5 bg-[var(--primary)] text-white rounded text-xs font-bold">Create</button></div>
@@ -434,6 +440,8 @@ export const WorkflowsPanel: React.FC = () => {
         <div className="px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] grid grid-cols-1 md:grid-cols-3 gap-3">
           <label className="text-xs">Name<input value={editing.name} onChange={e=>setEditing({...editing,name:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" /></label>
           <label className="text-xs">Trigger<select value={editing.trigger} onChange={e=>setEditing({...editing,trigger:e.target.value as any})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs"><option value="manual">Manual</option><option value="webhook">Webhook</option><option value="schedule">Schedule</option></select></label>
+          {editing.trigger==='schedule' && <label className="text-xs">Interval (min)<input type="number" min={5} max={1440} value={(editing as any).intervalMinutes ?? 60} onChange={e=>setEditing({...editing, intervalMinutes: Number(e.target.value)} as any)} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" /></label>}
+          {editing.trigger==='schedule' && <label className="text-xs">Cron (optional, overrides interval)<input value={(editing as any).scheduleCron ?? ''} onChange={e=>setEditing({...editing, scheduleCron: e.target.value} as any)} placeholder="0 * * * *" className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs font-mono" /></label>}
           <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={!!editing.enabled} onChange={e=>setEditing({...editing,enabled:e.target.checked})} />Enabled</label>
           <label className="text-xs">Environment<select value={(editing as any).environmentId||''} onChange={e=>setEditing({...editing, environmentId: e.target.value||null} as any)} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs"><option value="">— None —</option>{environments.map(env=><option key={env.id} value={env.id}>{env.name}</option>)}</select></label>
           <label className="text-xs md:col-span-2">Description<input value={editing.description||''} onChange={e=>setEditing({...editing,description:e.target.value})} className="mt-1 w-full bg-[var(--bg-input)] border rounded px-2 py-1.5 text-xs" /></label>
@@ -449,7 +457,7 @@ export const WorkflowsPanel: React.FC = () => {
               <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", !w.enabled?"bg-[var(--text-tertiary)]": w.trigger==='webhook'?"bg-violet-500": w.trigger==='schedule'?"bg-sky-500":"bg-emerald-500")} title={w.trigger} />
               <button onClick={()=>toggleRuns(w)} className="flex-1 text-left min-w-0">
                 <div className="text-sm font-bold truncate flex items-center gap-1.5">{w.name} <span className="text-[11px] font-mono bg-[var(--bg-panel)] border rounded px-1">{w.trigger}</span> {!w.enabled && <span className="text-[11px] bg-[var(--text-tertiary)] text-white rounded px-1">disabled</span>}</div>
-                <div className="text-xs text-[var(--text-secondary)] truncate">{w.nodes?.length||0} nodes · {w.edges?.length||0} edges {w.description?`· ${w.description}`:''}</div>
+                <div className="text-xs text-[var(--text-secondary)] truncate">{w.nodes?.length||0} nodes · {w.edges?.length||0} edges{w.trigger==='schedule' ? ` · ${(w as any).scheduleCron ? `cron ${(w as any).scheduleCron}` : `every ${(w as any).intervalMinutes ?? 60}m`}` : ''} {w.description?`· ${w.description}`:''}</div>
               </button>
               <button onClick={()=>openBuilder(w)} className="px-2 py-1 border rounded text-xs font-bold hover:bg-[var(--bg-panel)] flex items-center gap-1"><GitBranch className="w-3.5 h-3.5"/>Open</button>
               <button onClick={()=>openRunModal(w)} disabled={runningIds.has(w.id)} className="p-1.5 hover:text-[var(--primary)] disabled:opacity-40" title={runningIds.has(w.id)?'Running…':'Run workflow'}><Play className="w-4 h-4"/></button>
@@ -460,7 +468,7 @@ export const WorkflowsPanel: React.FC = () => {
             </div>
             {expandedRun===w.id && (
               <div className="border-t px-3 py-2">
-                {w.webhookToken && <div className="text-xs mb-2 flex items-center gap-1.5 flex-wrap"><Webhook className="w-3.5 h-3.5"/>Webhook: <code className="bg-[var(--bg-panel)] border rounded px-1 py-0.5 break-all">{window.location.origin}/api/workflows/webhook/{w.webhookToken}</code><button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/api/workflows/webhook/${w.webhookToken}`); addToast('Copied','success');}} className="text-xs border rounded px-1.5 py-0.5">Copy</button></div>}
+                {w.webhookToken && <div className="text-xs mb-2 flex items-center gap-1.5 flex-wrap"><Webhook className="w-3.5 h-3.5"/>Webhook: <code className="bg-[var(--bg-panel)] border rounded px-1 py-0.5 break-all">{window.location.origin}/api/workflows/webhook/{w.webhookToken}</code><button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/api/workflows/webhook/${w.webhookToken}`); addToast('Copied','success');}} className="text-xs border rounded px-1.5 py-0.5">Copy</button><button onClick={()=>rotateToken(w)} className="text-xs border rounded px-1.5 py-0.5 hover:text-[var(--danger)]" title="Invalidate the current URL and generate a new token">Rotate</button></div>}
                 <div className="text-xs font-bold mb-1.5">Recent runs</div>
                 {(runs[w.id]||[]).length===0 && <div className="text-xs text-[var(--text-tertiary)]">No runs.</div>}
                 {(runs[w.id]||[]).map((r:any)=>(
