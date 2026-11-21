@@ -35,8 +35,8 @@ jobs:
       - name: Dependency audit (fail on critical)
         run: npm audit --audit-level=critical
 
-      - name: Type check
-        run: npx tsc --noEmit
+      - name: Lint (tsc --noEmit)
+        run: npm run lint
 
       - name: Security + unit tests
         run: npm test
