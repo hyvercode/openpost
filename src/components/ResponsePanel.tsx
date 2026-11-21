@@ -554,8 +554,8 @@ function PerformanceOverview({ response, isPerfPanelOpen, setIsPerfPanelOpen }: 
 }
 
 export function ResponsePanel() {
-  const { 
-    response, 
+  const {
+    responsesByRequest,
     currentRequestConfig, 
     currentEnvironment, 
     latencyHistory, 
@@ -571,6 +571,9 @@ export function ResponsePanel() {
     addToast,
     setResponseCollapsed
   } = useStore();
+  // Follow the active tab: each request keeps its own last response.
+  // Tabs never executed show the empty state instead of another tab's data.
+  const response = activeRequest ? (responsesByRequest?.[activeRequest.id] ?? null) : null;
   const isLightTheme = theme === 'light';
 
   const [activeTab, setActiveTab] = useState<'body' | 'preview' | 'headers' | 'code' | 'stats'>('body');  

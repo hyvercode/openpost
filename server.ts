@@ -33,6 +33,7 @@ import { meter } from './server/src/services/usage.service';
 import { getUsage } from './server/src/services/usage.service';
 import { decodeUpstreamBody } from './server/src/utils/responseDecode';
 import { decField } from './server/src/utils/secretCrypto';
+import { extractSubpath, getPathFromUrl, matchMockRoute, renderMockBody, defaultMockBody, sendMockResponse, enforceMockGates } from './server/src/utils/mockRouter';
 
 function meterProxyCall(req: any): void {
   const userId = req?.user?.uid || req?.user?.userId;
@@ -775,18 +776,13 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
     if (!collectionId) {
       return res.status(400).json({ error: "Missing collectionId in path" });
     }
-
-    // Capture the subpath
-    const fullPath = req.path;
-    let subpath = fullPath.replace(new RegExp(`^/mock/collection/${collectionId}`), "");
-    if (!subpath.startsWith("/")) subpath = "/" + subpath;
-    if (subpath.length > 1 && subpath.endsWith("/")) subpath = subpath.slice(0, -1);
+    const subpath = extractSubpath(req.path, `/mock/collection/${collectionId}`);
 
     try {
       const collection = await prisma.collection.findUnique({
       where: { id: collectionId }
     });
-    
+
       if (!collection) {
         return res.status(404).json({ error: "Collection not found" });
       }
@@ -797,24 +793,8 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         return res.status(403).json({ error: "Mock API is disabled for this collection" });
       }
 
-      // API Key Enforcement
-      if (mockConfig.apiKey?.enabled) {
-        const providedKey = req.headers["x-api-key"] || req.query.apiKey;
-        if (!providedKey || providedKey !== mockConfig.apiKey.key) {
-          return res.status(401).json({ 
-            error: "Unauthorized. Valid X-API-Key header or apiKey query parameter required for this collection.",
-            documentation: "Check your Collection -> Documentation -> Mock Settings for the correct key."
-          });
-        }
-      }
-
-      // Check Rate Limit
-      if (mockConfig.rateLimit?.enabled) {
-        const limit = Number(mockConfig.rateLimit.requestsPerMinute) || 60;
-        if (isRateLimited(collectionId, limit)) {
-          return res.status(429).json({ error: "Too many requests. Rate limit exceeded." });
-        }
-      }
+      if (enforceMockGates(req, res, mockConfig, collectionId, isRateLimited,
+        "Check your Collection -> Documentation -> Mock Settings for the correct key.")) return;
 
       // requests is a stored JSON string (encrypted at rest) — parse it into
       // an array; the previous raw-string usage crashed on String.find.
@@ -824,31 +804,17 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       } catch {
         requests = [];
       }
-      
-      const getPathFromUrl = (urlStr: string) => {
-        try {
-          if (!urlStr) return "/";
-          let cleaned = urlStr.replace(/\{\{[^}]+\}\}/g, "");
-          if (!cleaned.startsWith("http") && !cleaned.startsWith("/")) cleaned = "/" + cleaned;
-          const u = new URL(cleaned, "http://dummy.com");
-          let p = u.pathname;
-          if (p.length > 1 && p.endsWith("/")) p = p.slice(0, -1);
-          return p;
-        } catch (e) { return urlStr || "/"; }
-      };
 
-      const matchingRequest = requests.find((r: any) => {
-        const sameMethod = r.method.toUpperCase() === req.method.toUpperCase();
-        const rPath = getPathFromUrl(r.url);
-        return sameMethod && rPath === subpath;
-      });
+      const match = matchMockRoute(requests, req.method, subpath);
 
-      if (!matchingRequest) {
+      if (!match) {
         return res.status(404).json({
           error: `No mock route found for [${req.method}] "${subpath}"`,
           availableRoutes: requests.map((r: any) => `[${r.method}] ${getPathFromUrl(r.url)}`)
         });
       }
+
+      const { request: matchingRequest, params } = match;
 
       if (matchingRequest.mockResponse && matchingRequest.mockResponse.enabled === false) {
         return res.status(403).json({
@@ -856,35 +822,10 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         });
       }
 
-      const mockRes = matchingRequest.mockResponse || {
-        status: 200,
-        headers: [{ key: "Content-Type", value: "application/json", enabled: true }],
-        body: JSON.stringify({ message: `Mock response for ${matchingRequest.name}` })
-      };
+      const mockRes = matchingRequest.mockResponse || defaultMockBody(matchingRequest.name);
+      mockRes.body = renderMockBody(mockRes.body, params);
 
-      if (mockRes.headers && Array.isArray(mockRes.headers)) {
-        mockRes.headers.forEach((h: any) => {
-          if (h.enabled && h.key && h.value) res.setHeader(h.key, h.value);
-        });
-      } else {
-        res.setHeader("Content-Type", "application/json");
-      }
-
-      const sendResponse = () => {
-        res.status(Number(mockRes.status) || 200);
-        try {
-          const parsedBody = JSON.parse(mockRes.body);
-          res.json(parsedBody);
-        } catch (e) {
-          res.send(mockRes.body);
-        }
-      };
-
-      if (mockConfig.latencyMs && mockConfig.latencyMs > 0) {
-        setTimeout(sendResponse, mockConfig.latencyMs);
-      } else {
-        sendResponse();
-      }
+      await sendMockResponse(res, mockRes, Number(mockConfig.latencyMs) || 0);
     } catch (err: any) {
       console.error("Mock API Router Error:", err);
       res.status(500).json({ error: "Internal Mock Server Error", details: err.message });
@@ -897,48 +838,23 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
     if (!deployId) {
       return res.status(400).json({ error: "Missing deployId in path" });
     }
-
-    // Capture the subpath
-    const fullPath = req.path; // e.g. "/mock/abc123v1/users" or "/mock/abc123v1"
-    let subpath = fullPath.replace(new RegExp(`^/mock/${deployId}`), "");
-    if (!subpath.startsWith("/")) {
-      subpath = "/" + subpath;
-    }
-    // Remove trailing slash for consistency
-    if (subpath.length > 1 && subpath.endsWith("/")) {
-      subpath = subpath.slice(0, -1);
-    }
+    // e.g. "/mock/abc123v1/users" or "/mock/abc123v1"
+    const subpath = extractSubpath(req.path, `/mock/${deployId}`);
 
     try {
       // Fetch deployment from database
       const deployment = await prisma.deployment.findUnique({
       where: { id: deployId }
     });
-    
+
       if (!deployment) {
         return res.status(404).json({ error: `Mock Deployment with ID "${deployId}" not found` });
       }
 
       const mockConfig: any = deployment.mockConfig || { enabled: true };
 
-      // 1. API Key Enforcement
-      if (mockConfig.apiKey?.enabled) {
-        const providedKey = req.headers["x-api-key"] || req.query.apiKey;
-        if (!providedKey || providedKey !== mockConfig.apiKey.key) {
-          return res.status(401).json({ 
-            error: "Unauthorized. Valid X-API-Key header or apiKey query parameter required.",
-            documentation: "Contact the collection owner for access keys."
-          });
-        }
-      }
-
-      // 2. Rate Limiting Enforcement
-      if (mockConfig.rateLimit?.enabled) {
-        const limit = Number(mockConfig.rateLimit.requestsPerMinute) || 60;
-        if (isRateLimited(deployId, limit)) {
-          return res.status(429).json({ error: "Too many requests. Rate limit exceeded for this mock server." });
-        }
-      }
+      if (enforceMockGates(req, res, mockConfig, deployId, isRateLimited,
+        "Contact the collection owner for access keys.")) return;
 
       let requests: any[] = [];
       try {
@@ -946,34 +862,10 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       } catch {
         requests = [];
       }
-      
-      // Clean up helper to extract path
-      const getPathFromUrl = (urlStr: string) => {
-        try {
-          if (!urlStr) return "/";
-          // Replace environment variable placeholders like {{baseUrl}} with empty string
-          let cleaned = urlStr.replace(/\{\{[^}]+\}\}/g, "");
-          if (!cleaned.startsWith("http") && !cleaned.startsWith("/")) {
-            cleaned = "/" + cleaned;
-          }
-          const u = new URL(cleaned, "http://dummy.com");
-          let p = u.pathname;
-          if (p.length > 1 && p.endsWith("/")) {
-            p = p.slice(0, -1);
-          }
-          return p;
-        } catch (e) {
-          return urlStr || "/";
-        }
-      };
 
-      const matchingRequest = requests.find((r: any) => {
-        const sameMethod = r.method.toUpperCase() === req.method.toUpperCase();
-        const rPath = getPathFromUrl(r.url);
-        return sameMethod && rPath === subpath;
-      });
+      const match = matchMockRoute(requests, req.method, subpath);
 
-      if (!matchingRequest) {
+      if (!match) {
         return res.status(404).json({
           error: `No mock route found for [${req.method}] "${subpath}"`,
           deployment: {
@@ -985,6 +877,8 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
         });
       }
 
+      const { request: matchingRequest, params } = match;
+
       if (matchingRequest.mockResponse && matchingRequest.mockResponse.enabled === false) {
         return res.status(403).json({
           error: `Mock route for [${req.method}] "${subpath}" is currently disabled.`
@@ -992,32 +886,10 @@ Write with clarity, high-contrast structural formatting, tables, list items, and
       }
 
       // Return the mock response
-      const mockRes = matchingRequest.mockResponse || {
-        status: 200,
-        headers: [{ key: "Content-Type", value: "application/json", enabled: true }],
-        body: JSON.stringify({ message: `Mock response for ${matchingRequest.name}` })
-      };
+      const mockRes = matchingRequest.mockResponse || defaultMockBody(matchingRequest.name);
+      mockRes.body = renderMockBody(mockRes.body, params);
 
-      // Set headers
-      if (mockRes.headers && Array.isArray(mockRes.headers)) {
-        mockRes.headers.forEach((h: any) => {
-          if (h.enabled && h.key && h.value) {
-            res.setHeader(h.key, h.value);
-          }
-        });
-      } else {
-        res.setHeader("Content-Type", "application/json");
-      }
-
-      res.status(Number(mockRes.status) || 200);
-
-      // Try JSON, fallback to raw text
-      try {
-        const parsedBody = JSON.parse(mockRes.body);
-        res.json(parsedBody);
-      } catch (e) {
-        res.send(mockRes.body);
-      }
+      await sendMockResponse(res, mockRes, Number(mockConfig.latencyMs) || 0);
     } catch (err: any) {
       console.error("Mock API Router Error:", err);
       res.status(500).json({ error: "Internal Mock Server Error", details: err.message });

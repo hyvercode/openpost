@@ -210,6 +210,27 @@ Authorization: Bearer <jwt-admin>
 ]
 ```
 
+### Mock server (`/mock/...`, tanpa auth)
+
+- `ALL /mock/collection/:collectionId/*` — butuh `mockConfig.enabled` true.
+  Gate: API key (`X-API-Key`/`?apiKey`), rate limit, `latencyMs` simulasi.
+- `ALL /mock/:deployId/*` — sama + info deployment di 404.
+- Route cocok per method + path; segmen `:param` didukung:
+  request tersimpan `/users/:id` cocok dengan `/users/123`, dan placeholder
+  `{id}` di mock body diisi dari path (`{"id":"{id}"}` → `{"id":"123"}`).
+  Contoh body dinamis:
+
+```http
+GET /mock/abc123/users/7
+X-API-Key: sk_xxx
+```
+```json
+{ "id": "7", "name": "Ada" }
+```
+
+- 404 mencantumkan `availableRoutes`; route dengan `mockResponse.enabled: false`
+  balas 403. Logic routing terpusat di `server/src/utils/mockRouter.ts`.
+
 ### Catatan generated code
 
 - `src/generated/` adalah output `prisma generate`, di-ignore

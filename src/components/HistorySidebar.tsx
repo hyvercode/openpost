@@ -64,64 +64,44 @@ export function HistorySidebar({ searchQuery }: HistorySidebarProps) {
     });
   }, [workspaceHistory, searchQuery, selectedMethod, statusFilter]);
 
-  const handleReRun = (item: HistoryItem, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    const rerunReqId = `history_${item.id}_rerun`;
-    const virtualRequest: RequestItem = {
-      id: rerunReqId,
-      collectionId: 'history',
-      workspaceId: item.workspaceId,
-      name: item.name || item.url || 'Executed Request',
-      method: item.method || 'GET',
-      url: item.url || '',
-      headers: item.headers?.length ? item.headers : [{ id: uuidv4(), key: '', value: '', enabled: true }],
-      params: item.params?.length ? item.params : [{ id: uuidv4(), key: '', value: '', enabled: true }],
-      body: item.body || { type: 'none', content: '' },
-      auth: item.auth || { type: 'none' },
-      mockResponse: {
-        status: item.responseStatus || 200,
-        headers: [{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }],
-        body: ''
-      }
-    };
-    setActiveRequest(virtualRequest);
+  const buildVirtualRequest = (item: HistoryItem, requestId: string): RequestItem => ({
+    id: requestId,
+    collectionId: 'history',
+    workspaceId: item.workspaceId,
+    name: item.name || item.url || 'Executed Request',
+    method: item.method || 'GET',
+    url: item.url || '',
+    headers: item.headers?.length ? item.headers : [{ id: uuidv4(), key: '', value: '', enabled: true }],
+    params: item.params?.length ? item.params : [{ id: uuidv4(), key: '', value: '', enabled: true }],
+    body: item.body || { type: 'none', content: '' },
+    auth: item.auth || { type: 'none' },
+    mockResponse: {
+      status: item.responseStatus || 200,
+      headers: [{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }],
+      body: ''
+    }
+  });
+
+  const openVirtualRequest = (item: HistoryItem, requestId: string, tabId: string) => {
+    setActiveRequest(buildVirtualRequest(item, requestId));
     setActiveView('request');
     openTab({
-      id: `history_${item.id}`,
+      id: tabId,
       type: 'request',
       name: item.name || item.url || 'Executed Request',
       method: item.method || 'GET'
     });
+  };
+
+  const handleReRun = (item: HistoryItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    // RequestPanel auto-sends requests whose id ends with `_rerun`.
+    openVirtualRequest(item, `history_${item.id}_rerun`, `history_${item.id}`);
     addToast(`Re-running ${item.method} request...`, 'info', 2000);
   };
 
   const handleLoadIntoEditor = (item: HistoryItem) => {
-    const reqId = `history_${item.id}`;
-    const virtualRequest: RequestItem = {
-      id: reqId,
-      collectionId: 'history',
-      workspaceId: item.workspaceId,
-      name: item.name || item.url || 'Executed Request',
-      method: item.method || 'GET',
-      url: item.url || '',
-      headers: item.headers?.length ? item.headers : [{ id: uuidv4(), key: '', value: '', enabled: true }],
-      params: item.params?.length ? item.params : [{ id: uuidv4(), key: '', value: '', enabled: true }],
-      body: item.body || { type: 'none', content: '' },
-      auth: item.auth || { type: 'none' },
-      mockResponse: {
-        status: item.responseStatus || 200,
-        headers: [{ id: uuidv4(), key: 'Content-Type', value: 'application/json', enabled: true }],
-        body: ''
-      }
-    };
-    setActiveRequest(virtualRequest);
-    setActiveView('request');
-    openTab({
-      id: reqId,
-      type: 'request',
-      name: item.name || item.url || 'Executed Request',
-      method: item.method || 'GET'
-    });
+    openVirtualRequest(item, `history_${item.id}`, `history_${item.id}`);
   };
 
   const handleCopyAsCurl = (item: HistoryItem, e: React.MouseEvent) => {

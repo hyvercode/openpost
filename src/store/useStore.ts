@@ -99,6 +99,11 @@ interface AppState {
   
   response: any;
   setResponse: (res: any) => void;
+  // Per-request response cache (in-memory only, never persisted) so the
+  // response panel follows the active tab instead of showing another
+  // tab's last response. `response` mirrors the latest write for compat.
+  responsesByRequest: Record<string, any>;
+  setRequestResponse: (requestId: string, res: any) => void;
 
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -433,6 +438,16 @@ export const useStore = create<AppState>((set, get) => ({
 
   response: null,
   setResponse: (response) => set({ response }),
+  responsesByRequest: {},
+  setRequestResponse: (requestId, res) => set((state) => {
+    const next: Record<string, any> = { ...state.responsesByRequest, [requestId]: res };
+    // Bound memory: responses can hold base64 bodies.
+    const keys = Object.keys(next);
+    if (keys.length > 20) {
+      for (const k of keys.slice(0, keys.length - 20)) delete next[k];
+    }
+    return { responsesByRequest: next, response: res };
+  }),
 
   sidebarCollapsed: false,
   setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
