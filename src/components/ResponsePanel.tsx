@@ -11,6 +11,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { motion, AnimatePresence } from 'motion/react';
 import { PromptModal } from './PromptModal';
 import { sanitizeHtml } from '../utils/sanitize';
+import { getPreviewHtmlSource, withBaseTag } from '../utils/htmlPreview';
 import { persistCollectionRequests } from '../lib/collectionSync';
 
 function LatencyChart({ data }: { data: number[] }) {
@@ -864,18 +865,6 @@ export function ResponsePanel() {
     setTimeout(() => setDownloadCopied(false), 2000);
   };
 
-  const isHtml = (() => {
-    if (typeof response?.data !== 'string') return false;
-    if (detectLanguage(response) === 'html') return true;
-    // No html content-type: still render tag soup live, but leave true XML
-    // (xml content-type / <?xml declaration) to the formatted-text view.
-    const ct = getContentType(response);
-    const trimmed = response.data.trim();
-    if (!trimmed.startsWith('<')) return false;
-    if (ct.includes('xml') || trimmed.startsWith('<?xml')) return false;
-    return true;
-  })();
-
   if (activeRequest?.method === 'WS') {
     const status = wsStatus[activeRequest.id] || 'disconnected';
     const messages = wsMessages[activeRequest.id] || [];
@@ -1318,6 +1307,7 @@ export function ResponsePanel() {
                 {(() => {
                   const kind = getBinaryKind(response);
                   const ct = getContentType(response);
+                  const previewHtml = getPreviewHtmlSource(response);
 
                   // Live image preview (bytes arrive base64 from the proxy).
                   if (kind === 'image' && typeof response.data === 'string') {
@@ -1412,7 +1402,8 @@ export function ResponsePanel() {
                   }
 
                   // Any other binary payload: informative card, never mojibake.
-                  if (kind) {
+                  // (Previewable HTML decoded from base64 skips the card.)
+                  if (kind && !previewHtml) {
                     const isPdfSpoof = kind === 'pdf' && typeof response.data === 'string' && !looksLikePdf(response.data);
                     return (
                       <div className="h-full min-h-[280px] flex items-center justify-center">
@@ -1442,12 +1433,13 @@ export function ResponsePanel() {
                     );
                   }
 
-                  // Rendered HTML (content-type driven, scripts stay blocked
-                  // by the sandbox attribute).
-                  if (isHtml) {
+                  // Rendered HTML (scripts stay blocked by the sandbox
+                  // attribute; <base> keeps relative assets resolving
+                  // against the target site instead of the app).
+                  if (previewHtml) {
                     return (
                       <iframe
-                        srcDoc={response.data}
+                        srcDoc={withBaseTag(previewHtml, activeRequest?.url)}
                         className="w-full h-full min-h-[360px] bg-[var(--bg-input)] rounded border border-[var(--border-subtle)]"
                         sandbox="allow-same-origin"
                         title="Response Preview"
