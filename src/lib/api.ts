@@ -602,6 +602,16 @@ export const apiService = {
     return res.data;
   },
 
+  // Admin — audit log (requires admin role; 403 otherwise)
+  async getAuditLog(params?: { workspaceId?: string; userId?: string; action?: string; limit?: number }): Promise<any[]> {
+    const res = await api.get('/admin/audit', { params });
+    return res.data;
+  },
+  async getAdminStats(): Promise<any> {
+    const res = await api.get('/admin/stats');
+    return res.data;
+  },
+
   // Workflows — Full DAG (manual/webhook/schedule, branch/parallel, extract/delay)
   async getWorkflows(workspaceId: string): Promise<any[]> {
     const res = await api.get(`/workflows/workspace/${workspaceId}`);

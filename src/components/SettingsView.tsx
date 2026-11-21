@@ -28,18 +28,38 @@ export const SettingsView: React.FC = () => {
     aiConfig,
     setAiConfig
   } = useStore();
-  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'workspace' | 'team' | 'security' | 'proxy' | 'ai'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'workspace' | 'team' | 'security' | 'proxy' | 'ai' | 'audit'>('profile');
   const [isSaving, setIsSaving] = useState(false);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [members, setMembers] = useState<any[]>([]);
   const [invitations, setInvitations] = useState<any[]>([]);
   const [isLoadingTeam, setIsLoadingTeam] = useState(false);
-  
+  const [auditRows, setAuditRows] = useState<any[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  const [auditFilter, setAuditFilter] = useState('');
+
   useEffect(() => {
     if (activeTab === 'team' && currentWorkspace) {
       loadTeam();
     }
+    if (activeTab === 'audit') {
+      loadAudit();
+    }
   }, [activeTab, currentWorkspace]);
+
+  const loadAudit = async () => {
+    setIsLoadingAudit(true);
+    setAuditError(null);
+    try {
+      const rows = await apiService.getAuditLog({ limit: 100 });
+      setAuditRows(Array.isArray(rows) ? rows : []);
+    } catch (error: any) {
+      setAuditError(error.response?.data?.error || 'Failed to load audit log (admin only)');
+    } finally {
+      setIsLoadingAudit(false);
+    }
+  };
 
   const loadTeam = async () => {
     if (!currentWorkspace) return;
@@ -339,6 +359,17 @@ export const SettingsView: React.FC = () => {
           >
             <Sparkles className="w-4 h-4" />
             AI
+          </button>
+
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+              activeTab === 'audit' ? "bg-[var(--primary)] text-white" : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]"
+            )}
+          >
+            <Shield className="w-4 h-4" />
+            Audit Log
           </button>
         </div>
 
@@ -1119,11 +1150,59 @@ export const SettingsView: React.FC = () => {
                      Security & Privacy Note
                    </h3>
                    <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                     Configuring a proxy routes all your outgoing API requests through that server. 
-                     Make sure you trust the proxy provider as they may be able to inspect the traffic. 
+                     Configuring a proxy routes all your outgoing API requests through that server.
+                     Make sure you trust the proxy provider as they may be able to inspect the traffic.
                      For local development, tools like <strong>ngrok</strong> or <strong>localflare</strong> can be used as tunnels.
                    </p>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'audit' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl font-bold text-[var(--text-primary)]">Audit Log</h1>
+                    <p className="text-[var(--text-secondary)]">Append-only record of workspace actions (admin only, last 100 entries).</p>
+                  </div>
+                  <button onClick={loadAudit} className="px-4 py-2 rounded text-sm font-bold border border-[var(--border-strong)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]">Refresh</button>
+                </div>
+                <div className="bg-[var(--bg-panel)] p-4 rounded border border-[var(--border-subtle)]">
+                  <input
+                    type="text"
+                    value={auditFilter}
+                    onChange={(e) => setAuditFilter(e.target.value)}
+                    placeholder="Filter by action, user, entity…"
+                    className="w-full bg-[var(--bg-hover)] border border-[var(--border-strong)] rounded px-3 py-2 text-sm outline-none focus:border-[var(--border-focus)]"
+                  />
+                </div>
+                {isLoadingAudit && <p className="text-sm text-[var(--text-secondary)]">Loading audit log…</p>}
+                {auditError && <p className="text-sm text-[var(--danger)]">{auditError}</p>}
+                {!isLoadingAudit && !auditError && (
+                  <div className="bg-[var(--bg-panel)] rounded border border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)]">
+                    {auditRows
+                      .filter((r) => {
+                        const q = auditFilter.trim().toLowerCase();
+                        if (!q) return true;
+                        return [r.action, r.userId, r.entityType, r.entityId, r.detail]
+                          .filter(Boolean).join(' ').toLowerCase().includes(q);
+                      })
+                      .map((r: any) => (
+                        <div key={r.id} className="px-4 py-3 text-sm">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono font-bold text-[var(--text-primary)]">{r.action}</span>
+                            <span className="text-xs text-[var(--text-secondary)]">{r.createdAt ? new Date(r.createdAt).toLocaleString() : ''}</span>
+                          </div>
+                          <div className="text-xs text-[var(--text-secondary)] mt-1">
+                            {[r.userId, r.entityType && r.entityId ? `${r.entityType}:${r.entityId}` : r.entityType, r.workspaceId ? `ws:${r.workspaceId}` : '']
+                              .filter(Boolean).join(' · ')}
+                            {r.detail ? ` — ${r.detail}` : ''}
+                          </div>
+                        </div>
+                      ))}
+                    {auditRows.length === 0 && <p className="px-4 py-6 text-sm text-[var(--text-secondary)]">No audit entries.</p>}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -4,6 +4,7 @@ import { JWT_SECRET } from "../config";
 import { Request, Response } from 'express';
 import { CollectionService } from '../services/collection.service';
 import { assertWorkspaceAccess, assertRecordAccess } from '../middleware/ownership';
+import { sendError } from '../utils/errors';
 
 export class CollectionController {
   private collectionService = new CollectionService();
@@ -13,7 +14,7 @@ export class CollectionController {
       const { id } = req.params;
       const collection: any = await this.collectionService.getCollectionById(id);
       if (!collection) {
-        return res.status(404).json({ error: 'Collection not found' });
+        return sendError(res, 404, 'Collection not found');
       }
       
       const purpose = req.query.purpose || 'import';
@@ -22,7 +23,7 @@ export class CollectionController {
       if (isPrivate) {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          return res.status(401).json({ error: 'Unauthorized: Private collection requires authentication' });
+          return sendError(res, 401, 'Unauthorized: Private collection requires authentication');
         }
         const token = authHeader.split('Bearer ')[1];
         try {
@@ -38,16 +39,16 @@ export class CollectionController {
           });
           
           if (!membership && (await prisma.workspace.findUnique({ where: { id: collection.workspaceId } }))?.ownerId !== userId) {
-            return res.status(403).json({ error: 'Forbidden: You do not have access to this private collection' });
+            return sendError(res, 403, 'Forbidden: You do not have access to this private collection');
           }
         } catch (err) {
-          return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+          return sendError(res, 401, 'Unauthorized: Invalid token');
         }
       }
       
       res.json(collection);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch shared collection', details: error.message });
+      sendError(res, 500, 'Failed to fetch shared collection', error);
     }
   };
 
@@ -58,7 +59,7 @@ export class CollectionController {
       const collections = await this.collectionService.getCollectionsByWorkspace(workspaceId);
       res.json(collections);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch collections' });
+      sendError(res, 500, 'Failed to fetch collections', error);
     }
   };
 
@@ -66,7 +67,7 @@ export class CollectionController {
     try {
       const { id, workspaceId, name, description, color, icon, position, mockConfig, folders, requests, shareVisibility, mockVisibility, docVisibility } = req.body;
       if (!workspaceId || !name) {
-        return res.status(400).json({ error: 'WorkspaceId and name are required' });
+        return sendError(res, 400, 'WorkspaceId and name are required');
       }
       if (!(await assertWorkspaceAccess(req, res, workspaceId))) return;
       const newCollection = await this.collectionService.createCollection({
@@ -74,7 +75,7 @@ export class CollectionController {
       });
       res.status(201).json(newCollection);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to create collection' });
+      sendError(res, 500, 'Failed to create collection', error);
     }
   };
 
@@ -92,7 +93,7 @@ export class CollectionController {
       if (error?.code === 'CONFLICT') {
         return res.status(409).json({ error: error.message, conflict: error.current });
       }
-      res.status(500).json({ error: 'Failed to update collection' });
+      sendError(res, 500, 'Failed to update collection', error);
     }
   };
 
@@ -104,7 +105,7 @@ export class CollectionController {
       await this.collectionService.deleteCollection(id, actor);
       res.json({ success: true, message: 'Collection moved to trash' });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to delete collection' });
+      sendError(res, 500, 'Failed to delete collection', error);
     }
   };
 
@@ -115,7 +116,7 @@ export class CollectionController {
       const restored = await this.collectionService.restoreCollection(id, actor);
       res.json(restored);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to restore collection' });
+      sendError(res, 500, 'Failed to restore collection', error);
     }
   };
 
@@ -126,7 +127,7 @@ export class CollectionController {
       const trash = await this.collectionService.getTrashByWorkspace(workspaceId);
       res.json(trash);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch trash' });
+      sendError(res, 500, 'Failed to fetch trash', error);
     }
   };
 }

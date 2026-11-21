@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { EnvironmentService } from '../services/environment.service';
 import { assertWorkspaceAccess, assertRecordAccess } from '../middleware/ownership';
+import { sendError } from '../utils/errors';
 
 export class EnvironmentController {
   private environmentService = new EnvironmentService();
@@ -12,7 +13,7 @@ export class EnvironmentController {
       const environments = await this.environmentService.getEnvironmentsByWorkspace(workspaceId);
       res.json(environments);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch environments' });
+      sendError(res, 500, 'Failed to fetch environments', error);
     }
   };
 
@@ -20,7 +21,7 @@ export class EnvironmentController {
     try {
       const { id, workspaceId, name, variables, position } = req.body;
       if (!workspaceId || !name) {
-        return res.status(400).json({ error: 'WorkspaceId and name are required' });
+        return sendError(res, 400, 'WorkspaceId and name are required');
       }
       if (!(await assertWorkspaceAccess(req, res, workspaceId))) return;
       const newEnv = await this.environmentService.createEnvironment({
@@ -28,7 +29,7 @@ export class EnvironmentController {
       });
       res.status(201).json(newEnv);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to create environment' });
+      sendError(res, 500, 'Failed to create environment', error);
     }
   };
 
@@ -45,7 +46,7 @@ export class EnvironmentController {
       if (error?.code === 'CONFLICT') {
         return res.status(409).json({ error: error.message, conflict: error.current });
       }
-      res.status(500).json({ error: 'Failed to update environment' });
+      sendError(res, 500, 'Failed to update environment', error);
     }
   };
 
@@ -57,7 +58,7 @@ export class EnvironmentController {
       await this.environmentService.deleteEnvironment(id, actor);
       res.json({ success: true, message: 'Environment moved to trash' });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to delete environment' });
+      sendError(res, 500, 'Failed to delete environment', error);
     }
   };
 
@@ -68,7 +69,7 @@ export class EnvironmentController {
       const restored = await this.environmentService.restoreEnvironment(id, actor);
       res.json(restored);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to restore environment' });
+      sendError(res, 500, 'Failed to restore environment', error);
     }
   };
 }

@@ -10,6 +10,12 @@ import { encField, decField } from '../utils/secretCrypto';
 
 const TIMEOUT_MS = 20000;
 const MAX_BYTES = 5 * 1024 * 1024;
+// Retry transient network failures (timeouts, DNS, refused) — not HTTP
+// statuses, which are deterministic results, not flakes.
+const MAX_ATTEMPTS = 3;
+const RETRY_BACKOFF_MS = [500, 1500];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function safeGet(urlStr: string, headers: Record<string, string>): Promise<{ status: number; timeMs: number; bytes: number }> {
   const { urlObj, targetIp } = await assertUrlSafe(urlStr);
@@ -149,24 +155,37 @@ export class MonitorService {
     for (const r of checks) {
       const url = this.interpolate(String(r.url || ''), {});
       if (!url) continue;
-      try {
-        const headers: Record<string, string> = {};
-        for (const h of r.headers || []) {
-          if (h?.enabled !== false && h?.key) headers[h.key] = String(h.value ?? '');
+      const headers: Record<string, string> = {};
+      for (const h of r.headers || []) {
+        if (h?.enabled !== false && h?.key) headers[h.key] = String(h.value ?? '');
+      }
+      delete headers['authorization'];
+      delete headers['cookie'];
+      const target = url.startsWith('http') ? url : `http://${url}`;
+      let attempt = 0;
+      let done = false;
+      while (!done && attempt < MAX_ATTEMPTS) {
+        attempt++;
+        try {
+          const t0 = Date.now();
+          const res = await safeGet(target, headers);
+          timeMs += Date.now() - t0;
+          if (res.status >= 200 && res.status < 400) passed++;
+          else {
+            failed++;
+            failures.push(`${r.method} ${url} -> ${res.status}`);
+          }
+          done = true;
+        } catch (e: any) {
+          if (attempt >= MAX_ATTEMPTS) {
+            failed++;
+            const note = attempt > 1 ? ` (after ${attempt} attempts)` : '';
+            failures.push(`${r.method} ${url} -> ${String(e?.message || e).slice(0, 120)}${note}`);
+            done = true;
+          } else {
+            await sleep(RETRY_BACKOFF_MS[attempt - 1] ?? 2000);
+          }
         }
-        delete headers['authorization'];
-        delete headers['cookie'];
-        const t0 = Date.now();
-        const res = await safeGet(url.startsWith('http') ? url : `http://${url}`, headers);
-        timeMs += Date.now() - t0;
-        if (res.status >= 200 && res.status < 400) passed++;
-        else {
-          failed++;
-          failures.push(`${r.method} ${url} -> ${res.status}`);
-        }
-      } catch (e: any) {
-        failed++;
-        failures.push(`${r.method} ${url} -> ${String(e?.message || e).slice(0, 120)}`);
       }
     }
 
@@ -199,9 +218,12 @@ export class MonitorService {
       await (prisma as any).monitorRun.deleteMany({ where: { id: { in: oldRuns.map((r: any) => r.id) } } });
     }
 
-    // Alert on transition into failing-at-threshold (not on every run).
+    // Alert on transition into failing-at-threshold (not on every run),
+    // and once on recovery after an alerted outage.
     if (failed > 0 && prevFailures < monitor.failThreshold && consecutiveFailures >= monitor.failThreshold) {
-      await this.sendAlert(monitor, failures);
+      await this.sendDownAlert(monitor, failures);
+    } else if (failed === 0 && prevFailures >= monitor.failThreshold) {
+      await this.sendRecoveryAlert(monitor);
     }
     await audit('monitor.run', { workspaceId: monitor.workspaceId, entityType: 'monitor', entityId: monitorId, detail: `${status} passed=${passed} failed=${failed}` });
     return { status, passed, failed, timeMs };
@@ -211,9 +233,19 @@ export class MonitorService {
     return url.replace(/\{\{[^}]+\}\}/g, '').trim();
   }
 
-  private async sendAlert(monitor: any, failures: string[]): Promise<void> {
+  private async sendDownAlert(monitor: any, failures: string[]): Promise<void> {
     const subject = `[OpenPost] Monitor DOWN: ${monitor.name}`;
     const text = `Monitor "${monitor.name}" failed ${monitor.failThreshold}+ consecutive checks.\n\n${failures.slice(0, 10).join('\n')}`;
+    await this.dispatchAlert(monitor, subject, text);
+  }
+
+  private async sendRecoveryAlert(monitor: any): Promise<void> {
+    const subject = `[OpenPost] Monitor RECOVERED: ${monitor.name}`;
+    const text = `Monitor "${monitor.name}" is passing checks again.`;
+    await this.dispatchAlert(monitor, subject, text);
+  }
+
+  private async dispatchAlert(monitor: any, subject: string, text: string): Promise<void> {
     const jobs: Promise<unknown>[] = [];
     if (monitor.alertEmail) {
       jobs.push(

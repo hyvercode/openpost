@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { WorkspaceService } from '../services/workspace.service';
+import { sendError } from '../utils/errors';
 
 export class WorkspaceController {
   private workspaceService = new WorkspaceService();
@@ -9,12 +10,12 @@ export class WorkspaceController {
       // SECURITY: never trust userId from query — always use the token subject.
       const userId = (req as any).user?.uid || (req as any).user?.userId;
       if (!userId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
       const workspaces = await this.workspaceService.getWorkspaces(userId);
       res.json(workspaces);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch workspaces' });
+      sendError(res, 500, 'Failed to fetch workspaces', error);
     }
   };
 
@@ -24,16 +25,16 @@ export class WorkspaceController {
       // creating workspaces on behalf of other users).
       const ownerId = (req as any).user?.uid || (req as any).user?.userId;
       if (!ownerId) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return sendError(res, 401, 'Unauthorized');
       }
       const { id, name } = req.body;
       if (!name) {
-        return res.status(400).json({ error: 'Name is required' });
+        return sendError(res, 400, 'Name is required');
       }
       const newWorkspace = await this.workspaceService.createWorkspace(id, name, ownerId);
       res.status(201).json(newWorkspace);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to create workspace' });
+      sendError(res, 500, 'Failed to create workspace', error);
     }
   };
 
@@ -44,7 +45,7 @@ export class WorkspaceController {
       const updated = await this.workspaceService.updateWorkspace(id, name);
       res.json(updated);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to update workspace', details: error.message });
+      sendError(res, 500, 'Failed to update workspace', error);
     }
   };
 
@@ -55,7 +56,7 @@ export class WorkspaceController {
       await this.workspaceService.deleteWorkspace(id, actor);
       res.json({ success: true, message: 'Workspace moved to trash' });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to delete workspace' });
+      sendError(res, 500, 'Failed to delete workspace', error);
     }
   };
 
@@ -66,18 +67,18 @@ export class WorkspaceController {
       const restored = await this.workspaceService.restoreWorkspace(id, actor);
       res.json(restored);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to restore workspace' });
+      sendError(res, 500, 'Failed to restore workspace', error);
     }
   };
 
   getTrash = async (req: Request, res: Response) => {
     try {
       const actor = (req as any).user?.uid || (req as any).user?.userId;
-      if (!actor) return res.status(401).json({ error: 'Unauthorized' });
+      if (!actor) return sendError(res, 401, 'Unauthorized');
       const trash = await this.workspaceService.getTrash(actor);
       res.json(trash);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch trash' });
+      sendError(res, 500, 'Failed to fetch trash', error);
     }
   };
 
@@ -88,7 +89,7 @@ export class WorkspaceController {
       const log = await this.workspaceService.getAuditLog(id, limit);
       res.json(log);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch audit log' });
+      sendError(res, 500, 'Failed to fetch audit log', error);
     }
   };
 
@@ -98,7 +99,7 @@ export class WorkspaceController {
       const members = await this.workspaceService.getMembers(id);
       res.json(members);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch members', details: error.message });
+      sendError(res, 500, 'Failed to fetch members', error);
     }
   };
 
@@ -143,7 +144,7 @@ export class WorkspaceController {
       const invitations = await this.workspaceService.getPendingInvitations(id);
       res.json(invitations);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to fetch invitations', details: error.message });
+      sendError(res, 500, 'Failed to fetch invitations', error);
     }
   };
 
@@ -153,7 +154,7 @@ export class WorkspaceController {
       const invitation = await this.workspaceService.resendInvitation(invitationId);
       res.json(invitation);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to resend invitation', details: error.message });
+      sendError(res, 500, 'Failed to resend invitation', error);
     }
   };
 
@@ -163,7 +164,7 @@ export class WorkspaceController {
       await this.workspaceService.cancelInvitation(invitationId);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to cancel invitation', details: error.message });
+      sendError(res, 500, 'Failed to cancel invitation', error);
     }
   };
 
@@ -173,7 +174,7 @@ export class WorkspaceController {
       const invitation = await this.workspaceService.getInvitation(token);
       res.json(invitation);
     } catch (error: any) {
-      res.status(404).json({ error: 'Invitation not found or expired', details: error.message });
+      sendError(res, 404, 'Invitation not found or expired', error);
     }
   };
 
@@ -188,15 +189,15 @@ export class WorkspaceController {
       // the accepter must match it.
       const userId = tokenUserId || bodyUserId;
       if (!userId) {
-        return res.status(400).json({ error: 'userId is required' });
+        return sendError(res, 400, 'userId is required');
       }
       if (tokenUserId && bodyUserId && tokenUserId !== bodyUserId) {
-        return res.status(403).json({ error: 'Forbidden: invitation must be accepted by the logged-in user' });
+        return sendError(res, 403, 'Forbidden: invitation must be accepted by the logged-in user');
       }
       const member = await this.workspaceService.acceptInvitation(token, userId);
       res.json(member);
     } catch (error: any) {
-      res.status(500).json({ error: 'Failed to accept invitation' });
+      sendError(res, 500, 'Failed to accept invitation', error);
     }
   };
 }

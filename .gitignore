@@ -77,6 +77,4 @@ Desktop.ini
 *.sln
 *.sw?
 .env.production
-docker-compose.prod.yml
-Dockerfile.prod
 .opencode
