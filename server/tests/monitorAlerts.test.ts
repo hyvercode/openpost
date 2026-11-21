@@ -141,3 +141,35 @@ describe('MonitorService runMonitor resilience', () => {
     expect(mocks.sendMonitorAlert).not.toHaveBeenCalled();
   });
 });
+
+describe('MonitorService schedule validation', () => {
+  const coll = {
+    id: 'c1', workspaceId: 'ws1', deletedAt: null,
+    requests: JSON.stringify([{ method: 'GET', url: 'https://example.com', headers: [] }]),
+  };
+  beforeEach(() => {
+    mocks.findCollection.mockResolvedValue(coll);
+    mocks.auditCreate.mockResolvedValue({});
+  });
+
+  it('rejects cron mode without expression', async () => {
+    const svc = new MonitorService();
+    await expect(svc.create({
+      workspaceId: 'ws1', collectionId: 'c1', name: 'M', scheduleMode: 'cron',
+    })).rejects.toThrow(/cronExpr/);
+  });
+
+  it('rejects invalid cron expression', async () => {
+    const svc = new MonitorService();
+    await expect(svc.create({
+      workspaceId: 'ws1', collectionId: 'c1', name: 'M', scheduleMode: 'cron', cronExpr: 'bogus',
+    })).rejects.toThrow(/Invalid cronExpr/);
+  });
+
+  it('rejects malformed active hours', async () => {
+    const svc = new MonitorService();
+    await expect(svc.create({
+      workspaceId: 'ws1', collectionId: 'c1', name: 'M', activeStart: '25:00',
+    })).rejects.toThrow(/activeStart/);
+  });
+});

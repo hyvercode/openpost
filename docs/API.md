@@ -121,6 +121,47 @@ Authorization: Bearer <jwt>
 Tiap check GET/HEAD di-retry maks 3x untuk error jaringan saja
 (backoff 500ms → 1500ms); status HTTP 5xx tidak di-retry.
 
+### Jadwal fleksibel monitor
+
+Selain interval (`intervalMinutes`, min 5), monitor mendukung:
+
+| Field | Arti |
+|---|---|
+| `scheduleMode: "interval" \| "cron"` | Mode jadwal (default `interval`) |
+| `cronExpr` | Cron 5 field `min hour dom mon dow`, cth `*/15 * * * *`, `0 9 * * 1-5`. Wajib bila mode `cron` |
+| `activeStart` / `activeEnd` | Jam aktif `HH:MM` (server local). Di luar jam ini run dilewati. Mendukung overnight (`22:00`–`06:00`) |
+| `pausedUntil` | ISO datetime — jeda/maintenance window; run dilewati sampai waktu ini. `null` = resume |
+| `timezone` | Label IANA opsional, hanya display |
+
+Contoh — hanya hari kerja jam 9–17, jeda 8 jam:
+
+```http
+POST /api/monitors/workspace/ws1
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "collectionId": "c1",
+  "name": "Billing API",
+  "scheduleMode": "cron",
+  "cronExpr": "*/15 9-17 * * 1-5",
+  "activeStart": "09:00",
+  "activeEnd": "17:00"
+}
+```
+```http
+PUT /api/monitors/m1
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{ "pausedUntil": "2026-11-22T01:00:00.000Z" }
+```
+
+Gagal validasi → 400 (`Invalid cronExpr: …`, `activeStart must be HH:MM (24h)`).
+Scheduler tick (60 detik) mengevaluasi satu keputusan
+`shouldRunMonitor` (`server/src/services/schedule.ts`): enabled → belum di-pause →
+dalam jam aktif → cocok interval/cron (cron dieksekusi maks 1x per menit yang cocok).
+
 ### Jalankan workflow + riwayat run
 
 ```http

@@ -8,9 +8,6 @@ services:
       dockerfile: Dockerfile.prod
     ports:
       - "7777:3000"
-    # Semua secret dibaca dari environment host / file .env yang TIDAK di-commit.
-    # Salin .env.prod.example menjadi .env.prod dan isi nilainya di server deploy.
-    # JANGAN menulis password/API key langsung di file ini (ter-commit ke git).
     env_file:
       - .env.production
     environment:
