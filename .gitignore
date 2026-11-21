@@ -78,3 +78,5 @@ doc
 docker-compose.prod.yml
 Dockerfile.prod
 release
+docs
+.opencode
